@@ -10,7 +10,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
-      exclude: ['@jsquash/jpeg', '@jsquash/webp'],
+      exclude: ['@jsquash/jpeg', '@jsquash/webp', '@huggingface/transformers'],
     },
     worker: {
       format: 'es',
