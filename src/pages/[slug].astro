@@ -53,14 +53,12 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
   schemas={[softwareSchema, faqSchema, breadcrumbSchema]}
 >
   <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
-    <!-- Subtle Breadcrumb -->
     <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
       <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
       <span class="opacity-40">/</span>
       <span class="text-zinc-700 font-medium">{page.shortName}</span>
     </nav>
 
-    <!-- Editorial Header -->
     <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
         {page.h1}
@@ -70,7 +68,6 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
       </p>
     </header>
 
-    <!-- Wide Masterclass Workspace -->
     <ToolWorkspace
       client:load
       initialMode={page.toolType}
@@ -78,8 +75,8 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
       defaults={page.defaults}
     />
 
-    <!-- Minimalist Below-the-Fold Guide & Accordion FAQ -->
-    <div class="max-w-4xl mx-auto mt-16 space-y-12">
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <!-- How It Works -->
       <section class="studio-card rounded-3xl p-6 sm:p-8">
         <h2 class="text-lg font-bold text-zinc-950 mb-4">How it works</h2>
         <ol class="grid sm:grid-cols-3 gap-4">
@@ -94,6 +91,24 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
         </ol>
       </section>
 
+      <!-- Unique Pro Tips (Helps SEO & Real Users) -->
+      {page.proTips && page.proTips.length > 0 && (
+        <section class="studio-card rounded-3xl p-6 sm:p-8">
+          <h2 class="text-lg font-bold text-zinc-950 mb-4">Tips for best results</h2>
+          <ul class="space-y-2.5">
+            {page.proTips.map((tip) => (
+              <li class="flex items-start gap-2.5 text-xs sm:text-[13.5px] text-zinc-600 leading-relaxed">
+                <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <!-- Clean Accordion FAQ -->
       <section>
         <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
         <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
