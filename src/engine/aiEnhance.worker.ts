@@ -64,15 +64,15 @@ const MODEL_CONFIG: Record<
   fast2x: {
     modelId: 'Xenova/swin2SR-lightweight-x2-64',
     scale: 2,
-    tileSize: 256,
-    tilePad: 8,
+    tileSize: 224,
+    tilePad: 6,
     label: 'Fast AI 2×',
   },
   deep4x: {
     modelId: 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr',
     scale: 4,
     tileSize: 192,
-    tilePad: 12,
+    tilePad: 10,
     label: 'Deep 4× AI',
   },
 };
@@ -161,7 +161,7 @@ async function getUpscaler(
         id: jobId,
         phase: 'loading',
         percent: 5,
-        status: `Preparing ${cfg.label} (cached after first use)...`,
+        status: `Preparing ${cfg.label} (cached once)...`,
       });
     }
   };
@@ -169,10 +169,16 @@ async function getUpscaler(
   const candidates: Array<{ backend: 'WebGPU' | 'WASM'; opts: Record<string, unknown> }> = [];
 
   if (await hasUsableWebGPU()) {
-    candidates.push({
-      backend: 'WebGPU',
-      opts: { device: 'webgpu', dtype: 'fp32', progress_callback: progressCb },
-    });
+    candidates.push(
+      {
+        backend: 'WebGPU',
+        opts: { device: 'webgpu', dtype: 'fp16', progress_callback: progressCb },
+      },
+      {
+        backend: 'WebGPU',
+        opts: { device: 'webgpu', dtype: 'fp32', progress_callback: progressCb },
+      }
+    );
   }
 
   candidates.push(
@@ -219,16 +225,79 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
     const outH = srcH * scale;
     const totalOutPixels = outW * outH;
 
+    const cols = Math.ceil(srcW / cfg.tileSize);
+    const rows = Math.ceil(srcH / cfg.tileSize);
+    const totalTiles = cols * rows;
+
+    // Fast direct path when entire image fits in a single tile (zero blending overhead)
+    if (totalTiles === 1) {
+      workerScope.postMessage({
+        type: 'progress',
+        id,
+        phase: 'restoring',
+        percent: 25,
+        status: `Restoring image · ${backend}`,
+      });
+
+      const pw = Math.ceil(srcW / 8) * 8;
+      const ph = Math.ceil(srcH / 8) * 8;
+      const tileRgb = new Uint8ClampedArray(pw * ph * 3);
+
+      for (let dy = 0; dy < ph; dy++) {
+        const sy = Math.min(srcH - 1, dy);
+        const sRow = sy * srcW;
+        const dRow = dy * pw;
+        for (let dx = 0; dx < pw; dx++) {
+          const sx = Math.min(srcW - 1, dx);
+          const sIdx = (sRow + sx) * 4;
+          const dIdx = (dRow + dx) * 3;
+          tileRgb[dIdx] = srcRgba[sIdx];
+          tileRgb[dIdx + 1] = srcRgba[sIdx + 1];
+          tileRgb[dIdx + 2] = srcRgba[sIdx + 2];
+        }
+      }
+
+      const rawIn = new lib.RawImage(tileRgb, pw, ph, 3);
+      const rawRes = await upscaler(rawIn);
+      const rawOut = Array.isArray(rawRes) ? rawRes[0] : rawRes;
+
+      const finalRgba = new Uint8ClampedArray(totalOutPixels * 4);
+      const outCh = rawOut.channels;
+      const outTileW = rawOut.width;
+      for (let y = 0; y < outH; y++) {
+        const dstRow = y * outW;
+        const srcRow = y * outTileW;
+        for (let x = 0; x < outW; x++) {
+          const tIdx = (srcRow + x) * outCh;
+          const gIdx = (dstRow + x) * 4;
+          finalRgba[gIdx] = rawOut.data[tIdx];
+          finalRgba[gIdx + 1] = rawOut.data[tIdx + 1];
+          finalRgba[gIdx + 2] = rawOut.data[tIdx + 2];
+          finalRgba[gIdx + 3] = 255;
+        }
+      }
+
+      workerScope.postMessage(
+        {
+          type: 'done',
+          id,
+          rgbaBuffer: finalRgba.buffer,
+          width: outW,
+          height: outH,
+          backend,
+        },
+        [finalRgba.buffer]
+      );
+      return;
+    }
+
+    // Multi-tile feather-blended path
     const accR = new Float32Array(totalOutPixels);
     const accG = new Float32Array(totalOutPixels);
     const accB = new Float32Array(totalOutPixels);
     const accW = new Float32Array(totalOutPixels);
 
-    const cols = Math.ceil(srcW / cfg.tileSize);
-    const rows = Math.ceil(srcH / cfg.tileSize);
-    const totalTiles = cols * rows;
     let doneTiles = 0;
-
     const featherPx = Math.max(4, cfg.tilePad * scale);
 
     for (let row = 0; row < rows; row++) {
