@@ -5,8 +5,15 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://imagelab-free.pages.dev',
+  trailingSlash: 'never',
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      exclude: ['@jsquash/jpeg', '@jsquash/webp'],
+    },
+    worker: {
+      format: 'es',
+    },
   },
 });
