@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://imagelab-free.pages.dev/sitemap-index.xml
