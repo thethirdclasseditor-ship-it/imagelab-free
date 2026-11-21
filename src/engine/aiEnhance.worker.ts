@@ -1,13 +1,11 @@
-const MODEL_ID = 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr';
-const SCALE = 4;
-const TILE_SIZE = 128;
-const TILE_PAD = 16;
+export type AiEnhanceMode = 'fast2x' | 'deep4x';
 
 export interface AiEnhanceRequest {
   id: number;
   rgbaBuffer: ArrayBuffer;
   width: number;
   height: number;
+  mode: AiEnhanceMode;
 }
 
 export type AiEnhanceMessage =
@@ -59,14 +57,33 @@ interface TransformersModule {
 
 type UpscalerFn = (input: RawImageLike) => Promise<RawImageLike | RawImageLike[]>;
 
+const MODEL_CONFIG: Record<
+  AiEnhanceMode,
+  { modelId: string; scale: number; tileSize: number; tilePad: number; label: string }
+> = {
+  fast2x: {
+    modelId: 'Xenova/swin2SR-lightweight-x2-64',
+    scale: 2,
+    tileSize: 256,
+    tilePad: 8,
+    label: 'Fast AI 2×',
+  },
+  deep4x: {
+    modelId: 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr',
+    scale: 4,
+    tileSize: 192,
+    tilePad: 12,
+    label: 'Deep 4× AI',
+  },
+};
+
 const workerScope = self as unknown as {
   postMessage: (msg: AiEnhanceMessage, transfer?: Transferable[]) => void;
   onmessage: ((event: MessageEvent<AiEnhanceRequest>) => void) | null;
 };
 
 let cachedLib: TransformersModule | null = null;
-let cachedUpscaler: UpscalerFn | null = null;
-let cachedBackend: 'WebGPU' | 'WASM' = 'WASM';
+const cachedPipelines = new Map<string, { fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }>();
 
 async function loadTransformersBrowserLib(jobId: number): Promise<TransformersModule> {
   if (cachedLib) return cachedLib;
@@ -101,7 +118,7 @@ async function loadTransformersBrowserLib(jobId: number): Promise<TransformersMo
 
   throw new Error(
     lastErr instanceof Error
-      ? `Could not load AI runtime from CDN: ${lastErr.message}`
+      ? `Could not load AI runtime: ${lastErr.message}`
       : 'Could not load AI runtime from CDN.'
   );
 }
@@ -121,11 +138,12 @@ async function hasUsableWebGPU(): Promise<boolean> {
 
 async function getUpscaler(
   jobId: number,
-  lib: TransformersModule
+  lib: TransformersModule,
+  mode: AiEnhanceMode
 ): Promise<{ fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }> {
-  if (cachedUpscaler) {
-    return { fn: cachedUpscaler, backend: cachedBackend };
-  }
+  const cfg = MODEL_CONFIG[mode];
+  const existing = cachedPipelines.get(cfg.modelId);
+  if (existing) return existing;
 
   const progressCb = (info: { status?: string; progress?: number }) => {
     if (info.status === 'progress' && typeof info.progress === 'number') {
@@ -135,7 +153,7 @@ async function getUpscaler(
         id: jobId,
         phase: 'loading',
         percent: pct,
-        status: `Downloading Real-World AI model (${pct}%)...`,
+        status: `Downloading ${cfg.label} model (${pct}%)...`,
       });
     } else if (info.status === 'initiate') {
       workerScope.postMessage({
@@ -143,7 +161,7 @@ async function getUpscaler(
         id: jobId,
         phase: 'loading',
         percent: 5,
-        status: 'Preparing AI restoration model (cached after first use)...',
+        status: `Preparing ${cfg.label} (cached after first use)...`,
       });
     }
   };
@@ -171,10 +189,10 @@ async function getUpscaler(
   let lastError: unknown = null;
   for (const cand of candidates) {
     try {
-      const pipe = await lib.pipeline('image-to-image', MODEL_ID, cand.opts);
-      cachedUpscaler = pipe;
-      cachedBackend = cand.backend;
-      return { fn: pipe, backend: cand.backend };
+      const pipe = await lib.pipeline('image-to-image', cfg.modelId, cand.opts);
+      const entry = { fn: pipe, backend: cand.backend };
+      cachedPipelines.set(cfg.modelId, entry);
+      return entry;
     } catch (err) {
       lastError = err;
     }
@@ -188,15 +206,17 @@ async function getUpscaler(
 }
 
 workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
-  const { id, rgbaBuffer, width: srcW, height: srcH } = event.data;
+  const { id, rgbaBuffer, width: srcW, height: srcH, mode } = event.data;
+  const cfg = MODEL_CONFIG[mode] ?? MODEL_CONFIG.fast2x;
 
   try {
     const srcRgba = new Uint8ClampedArray(rgbaBuffer);
     const lib = await loadTransformersBrowserLib(id);
-    const { fn: upscaler, backend } = await getUpscaler(id, lib);
+    const { fn: upscaler, backend } = await getUpscaler(id, lib, mode);
 
-    const outW = srcW * SCALE;
-    const outH = srcH * SCALE;
+    const scale = cfg.scale;
+    const outW = srcW * scale;
+    const outH = srcH * scale;
     const totalOutPixels = outW * outH;
 
     const accR = new Float32Array(totalOutPixels);
@@ -204,33 +224,33 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
     const accB = new Float32Array(totalOutPixels);
     const accW = new Float32Array(totalOutPixels);
 
-    const cols = Math.ceil(srcW / TILE_SIZE);
-    const rows = Math.ceil(srcH / TILE_SIZE);
+    const cols = Math.ceil(srcW / cfg.tileSize);
+    const rows = Math.ceil(srcH / cfg.tileSize);
     const totalTiles = cols * rows;
     let doneTiles = 0;
 
-    const featherPx = TILE_PAD * SCALE;
+    const featherPx = Math.max(4, cfg.tilePad * scale);
 
     for (let row = 0; row < rows; row++) {
-      const y0 = row * TILE_SIZE;
-      const y1 = Math.min(srcH, y0 + TILE_SIZE);
+      const y0 = row * cfg.tileSize;
+      const y1 = Math.min(srcH, y0 + cfg.tileSize);
 
       for (let col = 0; col < cols; col++) {
-        const x0 = col * TILE_SIZE;
-        const x1 = Math.min(srcW, x0 + TILE_SIZE);
+        const x0 = col * cfg.tileSize;
+        const x1 = Math.min(srcW, x0 + cfg.tileSize);
 
         workerScope.postMessage({
           type: 'progress',
           id,
           phase: 'restoring',
           percent: Math.round((doneTiles / totalTiles) * 100),
-          status: `Restoring details (${doneTiles + 1}/${totalTiles}) · ${backend}`,
+          status: `Restoring ${doneTiles + 1}/${totalTiles} · ${backend}`,
         });
 
-        const ix0 = Math.max(0, x0 - TILE_PAD);
-        const iy0 = Math.max(0, y0 - TILE_PAD);
-        const ix1 = Math.min(srcW, x1 + TILE_PAD);
-        const iy1 = Math.min(srcH, y1 + TILE_PAD);
+        const ix0 = Math.max(0, x0 - cfg.tilePad);
+        const iy0 = Math.max(0, y0 - cfg.tilePad);
+        const ix1 = Math.min(srcW, x1 + cfg.tilePad);
+        const iy1 = Math.min(srcH, y1 + cfg.tilePad);
 
         const tw = ix1 - ix0;
         const th = iy1 - iy0;
@@ -259,16 +279,16 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
         const outData = rawOut.data;
         const outTileW = rawOut.width;
         const outCh = rawOut.channels;
-        const validW = Math.min(tw * SCALE, outTileW);
-        const validH = Math.min(th * SCALE, rawOut.height);
+        const validW = Math.min(tw * scale, outTileW);
+        const validH = Math.min(th * scale, rawOut.height);
 
         const hasLeft = ix0 > 0;
         const hasRight = ix1 < srcW;
         const hasTop = iy0 > 0;
         const hasBottom = iy1 < srcH;
 
-        const dstBaseX = ix0 * SCALE;
-        const dstBaseY = iy0 * SCALE;
+        const dstBaseX = ix0 * scale;
+        const dstBaseY = iy0 * scale;
 
         for (let dy = 0; dy < validH; dy++) {
           let wy = 1;
