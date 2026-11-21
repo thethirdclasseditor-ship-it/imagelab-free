@@ -6,50 +6,122 @@ import { SEO_PAGES } from '../data/seoPages';
 const homeSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Online Image Tools',
+  name: 'ImageLab Free Online Image & PDF Studio',
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Free, fast, and 100% private browser-based image converter, compressor, resizer, and enhancer with batch ZIP download.',
+    'Free, studio-grade browser image converter, compressor, visual cropper, watermark tool, AI background remover, and PDF maker powered by MozJPEG & WebAssembly.',
 };
+
+const studioCards = [
+  {
+    href: '/remove-background',
+    title: 'AI Background Remover',
+    desc: 'Cut out portraits & products in HD and export 300×300 job photos.',
+    badge: 'AI Free',
+    accent: 'bg-purple-50 text-purple-700 border-purple-200',
+  },
+  {
+    href: '/crop-image',
+    title: 'Visual Crop & Rotate',
+    desc: 'Frame photos interactively with rule-of-thirds guides & exact ratios.',
+    badge: 'Visual',
+    accent: 'bg-blue-50 text-blue-700 border-blue-200',
+  },
+  {
+    href: '/photo-enhancer',
+    title: 'Live Studio Enhancer',
+    desc: 'Real-time lighting, sharpness, warmth & one-click photo presets.',
+    badge: 'Live',
+    accent: 'bg-amber-50 text-amber-800 border-amber-200',
+  },
+  {
+    href: '/image-to-pdf',
+    title: 'Image to PDF (A4)',
+    desc: 'Merge up to 30 photos, notes, or certificates into one clean PDF.',
+    badge: 'PDF',
+    accent: 'bg-red-50 text-red-700 border-red-200',
+  },
+  {
+    href: '/watermark-image',
+    title: 'Batch Watermark Tool',
+    desc: 'Stamp custom text, PNG logos, or diagonal tiles on 20 images at once.',
+    badge: 'New',
+    accent: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  },
+];
 
 const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
 ---
 
 <Layout
-  title="ImageLab — Free Online Image Converter, Compressor & Resizer (No Upload)"
-  description="Convert JPG, PNG, WEBP, compress photos to exact KB, resize for jobs & social media, and enhance images directly in your browser. 100% free & private."
+  title="ImageLab — Free Online Image Converter, Compressor & PDF Studio"
+  description="Convert JPG, PNG, WEBP, HEIC, compress to target KB, crop visually, remove backgrounds with AI, watermark, and build PDFs locally in your browser. 100% free."
   schemas={[homeSchema]}
 >
-  <section class="max-w-4xl mx-auto px-4 pt-8 sm:pt-12 pb-6">
-    <!-- Hero Header -->
-    <div class="text-center max-w-2xl mx-auto mb-8">
+  <section class="max-w-5xl mx-auto px-4 pt-7 sm:pt-11 pb-6">
+    <div class="text-center max-w-2xl mx-auto mb-7">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-        All-in-One Free Image Tools
+        Pro Image & PDF Studio. <span class="text-blue-600">100% Free.</span>
       </h1>
       <p class="text-slate-600 mt-3 text-sm sm:text-base">
-        Convert, compress to exact KB, resize, and enhance photos directly on your device—no login, no limits, zero server uploads.
+        Powered by real MozJPEG, LibWebP & WebAssembly inside your browser—studio compression quality with zero server uploads.
       </p>
     </div>
 
-    <!-- Interactive Workspace -->
     <ToolWorkspace client:load initialMode="converter" showModeTabs={true} />
   </section>
 
+  <!-- Dedicated Pro Studio Tools Showcase -->
+  <section class="max-w-5xl mx-auto px-4 py-10">
+    <div class="flex items-end justify-between gap-2 mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-slate-900">Dedicated Pro Studio Tools</h2>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">
+          Full visual editors, on-device AI, and document makers—no account required.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {studioCards.map((card) => (
+        <a
+          href={card.href}
+          class="group bg-white rounded-2xl border border-slate-200 hover:border-blue-500 p-5 transition shadow-2xs hover:shadow-md flex flex-col justify-between gap-3"
+        >
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2.5">
+              <h3 class="font-bold text-slate-900 group-hover:text-blue-600 transition text-base">
+                {card.title}
+              </h3>
+              <span class={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${card.accent}`}>
+                {card.badge}
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">{card.desc}</p>
+          </div>
+          <span class="text-xs font-bold text-blue-600 group-hover:translate-x-0.5 transition-transform inline-block">
+            Open Tool →
+          </span>
+        </a>
+      ))}
+    </div>
+  </section>
+
   <!-- Popular Quick Tools Directory (SEO Internal Linking Hub) -->
-  <section class="max-w-4xl mx-auto px-4 py-10">
+  <section class="max-w-5xl mx-auto px-4 py-8">
     <div class="text-center mb-8">
-      <h2 class="text-2xl font-bold text-slate-900">Popular One-Click Tools</h2>
+      <h2 class="text-2xl font-bold text-slate-900">Popular One-Click Presets</h2>
       <p class="text-sm text-slate-500 mt-1">
-        Jump straight into pre-configured tools for forms, jobs, and web optimization.
+        Pre-configured tools for government job portals, exam forms, and fast web pages.
       </p>
     </div>
 
     <div class="grid sm:grid-cols-2 gap-5">
       {categories.map((cat) => (
         <div class="bg-white rounded-2xl border border-slate-200 p-5">
-          <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide mb-3">
+          <h3 class="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">
             {cat} Tools
           </h3>
           <div class="flex flex-wrap gap-2">
@@ -67,31 +139,28 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
     </div>
   </section>
 
-  <!-- Why Choose ImageLab -->
-  <section class="max-w-4xl mx-auto px-4 py-8">
-    <h2 class="text-2xl font-bold text-center text-slate-900 mb-8">
-      Why Users Trust ImageLab
-    </h2>
+  <!-- Trust Pillars -->
+  <section class="max-w-5xl mx-auto px-4 py-10">
     <div class="grid sm:grid-cols-3 gap-5">
       <div class="bg-white p-6 rounded-2xl border border-slate-200">
-        <div class="text-2xl mb-2">🔒</div>
-        <h3 class="font-bold text-slate-900">100% Private</h3>
+        <div class="text-2xl mb-2">⚡</div>
+        <h3 class="font-bold text-slate-900">MozJPEG & LibWebP Engine</h3>
         <p class="text-sm text-slate-600 mt-1">
-          Every photo is processed right inside your browser. We never upload, store, or see your files.
+          Runs real C++/WebAssembly codecs inside background Web Workers for tiny file sizes without sacrificing sharpness.
         </p>
       </div>
       <div class="bg-white p-6 rounded-2xl border border-slate-200">
-        <div class="text-2xl mb-2">⚡</div>
-        <h3 class="font-bold text-slate-900">Batch & Target KB</h3>
+        <div class="text-2xl mb-2">🔒</div>
+        <h3 class="font-bold text-slate-900">100% On-Device Privacy</h3>
         <p class="text-sm text-slate-600 mt-1">
-          Process up to 20 images at once, hit exact 50KB/100KB form limits, and grab a single ZIP.
+          Your personal IDs, signatures, and client photos never leave your phone or PC—zero cloud storage risk.
         </p>
       </div>
       <div class="bg-white p-6 rounded-2xl border border-slate-200">
         <div class="text-2xl mb-2">💎</div>
-        <h3 class="font-bold text-slate-900">Free Forever</h3>
+        <h3 class="font-bold text-slate-900">Unlimited & Watermark-Free</h3>
         <p class="text-sm text-slate-600 mt-1">
-          No watermarks, no forced signup, and works smoothly on both mobile phones and desktops.
+          Batch up to 20 images or 30 PDF pages per session with instant ZIP export and zero forced subscriptions.
         </p>
       </div>
     </div>
