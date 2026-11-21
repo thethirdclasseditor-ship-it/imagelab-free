@@ -10,6 +10,7 @@
   "dependencies": {
     "@astrojs/react": "^4.2.1",
     "@astrojs/sitemap": "^3.3.0",
+    "@imgly/background-removal": "^1.5.5",
     "@tailwindcss/vite": "^4.1.0",
     "astro": "^5.7.0",
     "jszip": "^3.10.1",
