@@ -16,6 +16,7 @@ import {
   X,
   CheckCircle2,
   Zap,
+  RotateCcw,
 } from 'lucide-react';
 import {
   processImage,
@@ -116,19 +117,20 @@ export default function LiveEnhancerTool() {
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
 
-  // Split-screen compare state
   const [splitPos, setSplitPos] = useState(50);
   const [zoomed, setZoomed] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const queueScrollRef = useRef<HTMLDivElement>(null);
   const draggingSplitRef = useRef(false);
   const dragDepthRef = useRef(0);
 
-  // Live queue runner refs (allows adding new photos anytime while processing)
+  // Race-condition-free queue refs
   const queueRef = useRef<QueueItem[]>([]);
-  const isRunningRef = useRef(false);
   const sessionIdRef = useRef(0);
+  const activeRunnerRef = useRef<number | null>(null);
+  const runnerSeqRef = useRef(0);
   const trackedUrlsRef = useRef<Set<string>>(new Set());
   const addFilesRef = useRef<(files: FileList | null) => void>(() => {});
 
@@ -153,20 +155,26 @@ export default function LiveEnhancerTool() {
     };
   }, []);
 
+  const patchQueueItem = (id: string, patch: Partial<QueueItem>, session: number) => {
+    if (sessionIdRef.current !== session) return;
+    const next = queueRef.current.map((q) => (q.id === id ? { ...q, ...patch } : q));
+    queueRef.current = next;
+    setQueue(next);
+  };
+
   const processSingleQueueItem = async (item: QueueItem, session: number) => {
     const t0 = performance.now();
 
-    const updateItem = (patch: Partial<QueueItem>) => {
-      if (sessionIdRef.current !== session) return;
-      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, ...patch } : q)));
-    };
-
-    updateItem({
-      status: 'processing',
-      progressPct: 3,
-      progressStatus: 'Preparing image...',
-      error: undefined,
-    });
+    patchQueueItem(
+      item.id,
+      {
+        status: 'processing',
+        progressPct: 3,
+        progressStatus: 'Preparing image...',
+        error: undefined,
+      },
+      session
+    );
 
     try {
       const normalized = await normalizeHeic(item.file);
@@ -174,9 +182,8 @@ export default function LiveEnhancerTool() {
       const origW = img.naturalWidth;
       const origH = img.naturalHeight;
 
-      // Fast 2x caps input at 512px (-> 1024px crisp, only 4 tiles!)
-      // Deep 4x caps input at 384px (-> 1536px crisp, only 4 tiles!)
-      const maxInputSide = item.mode === 'fast2x' ? 512 : 384;
+      // Optimized input caps: fast2x = 448px (max 4 small tiles -> up to 896px), deep4x = 384px (up to 1536px)
+      const maxInputSide = item.mode === 'fast2x' ? 448 : 384;
       let inW = origW;
       let inH = origH;
       if (Math.max(inW, inH) > maxInputSide) {
@@ -216,7 +223,11 @@ export default function LiveEnhancerTool() {
           if (msg.id !== jobId) return;
 
           if (msg.type === 'progress') {
-            updateItem({ progressPct: msg.percent, progressStatus: msg.status });
+            patchQueueItem(
+              item.id,
+              { progressPct: msg.percent, progressStatus: msg.status },
+              session
+            );
           } else if (msg.type === 'done') {
             worker.removeEventListener('message', handleMsg);
             worker.removeEventListener('error', handleErr);
@@ -252,9 +263,10 @@ export default function LiveEnhancerTool() {
         worker.postMessage(req, [transferBuf]);
       });
 
-      if (sessionIdRef.current !== session) return;
+      const stillExists = queueRef.current.some((q) => q.id === item.id);
+      if (sessionIdRef.current !== session || !stillExists) return;
 
-      updateItem({ progressPct: 96, progressStatus: 'Saving HD output...' });
+      patchQueueItem(item.id, { progressPct: 96, progressStatus: 'Saving HD output...' }, session);
 
       const outCanvas = document.createElement('canvas');
       outCanvas.width = aiOutput.width;
@@ -285,7 +297,7 @@ export default function LiveEnhancerTool() {
         quality: item.format === 'image/png' ? 1 : 0.92,
       });
 
-      if (sessionIdRef.current !== session) {
+      if (sessionIdRef.current !== session || !queueRef.current.some((q) => q.id === item.id)) {
         URL.revokeObjectURL(encoded.url);
         URL.revokeObjectURL(encoded.originalUrl);
         return;
@@ -295,52 +307,69 @@ export default function LiveEnhancerTool() {
       const trackedResultUrl = trackUrl(encoded.url);
       const trackedOrigUrl = trackUrl(URL.createObjectURL(normalized));
 
-      updateItem({
-        status: 'done',
-        progressPct: 100,
-        progressStatus: 'Done',
-        result: {
-          blob: encoded.blob,
-          url: trackedResultUrl,
-          originalUrl: trackedOrigUrl,
-          fileName: encoded.fileName,
-          originalWidth: origW,
-          originalHeight: origH,
-          width: aiOutput.width,
-          height: aiOutput.height,
-          backend: aiOutput.backend,
-          processingMs: Math.round(performance.now() - t0),
+      const currentEntry = queueRef.current.find((q) => q.id === item.id);
+      if (currentEntry?.result) {
+        releaseUrl(currentEntry.result.url);
+        releaseUrl(currentEntry.result.originalUrl);
+      }
+
+      patchQueueItem(
+        item.id,
+        {
+          status: 'done',
+          progressPct: 100,
+          progressStatus: 'Done',
+          result: {
+            blob: encoded.blob,
+            url: trackedResultUrl,
+            originalUrl: trackedOrigUrl,
+            fileName: encoded.fileName,
+            originalWidth: origW,
+            originalHeight: origH,
+            width: aiOutput.width,
+            height: aiOutput.height,
+            backend: aiOutput.backend,
+            processingMs: Math.round(performance.now() - t0),
+          },
         },
-      });
+        session
+      );
     } catch (err) {
-      updateItem({
-        status: 'error',
-        progressPct: 0,
-        progressStatus: '',
-        error: err instanceof Error ? err.message : 'Enhancement failed.',
-      });
+      patchQueueItem(
+        item.id,
+        {
+          status: 'error',
+          progressPct: 0,
+          progressStatus: '',
+          error: err instanceof Error ? err.message : 'Enhancement failed.',
+        },
+        session
+      );
     }
   };
 
   const pumpQueue = async () => {
-    if (isRunningRef.current) return;
-    isRunningRef.current = true;
+    if (activeRunnerRef.current !== null) return;
+
+    const runnerToken = ++runnerSeqRef.current;
     const session = sessionIdRef.current;
+    activeRunnerRef.current = runnerToken;
 
     try {
-      while (sessionIdRef.current === session) {
+      while (sessionIdRef.current === session && activeRunnerRef.current === runnerToken) {
         const nextItem = queueRef.current.find((q) => q.status === 'queued');
         if (!nextItem) break;
         await processSingleQueueItem(nextItem, session);
       }
     } finally {
-      isRunningRef.current = false;
-      // Check if more items arrived right as the loop exited
-      if (
-        sessionIdRef.current === session &&
-        queueRef.current.some((q) => q.status === 'queued')
-      ) {
-        void pumpQueue();
+      if (activeRunnerRef.current === runnerToken) {
+        activeRunnerRef.current = null;
+        if (
+          sessionIdRef.current === session &&
+          queueRef.current.some((q) => q.status === 'queued')
+        ) {
+          void pumpQueue();
+        }
       }
     }
   };
@@ -366,7 +395,7 @@ export default function LiveEnhancerTool() {
 
     const remaining = MAX_QUEUE_FILES - queueRef.current.length;
     if (remaining <= 0) {
-      setErrorMsg(`Queue holds up to ${MAX_QUEUE_FILES} photos at once. Clear completed items first.`);
+      setErrorMsg(`Queue holds up to ${MAX_QUEUE_FILES} photos. Clear completed items first.`);
       return;
     }
 
@@ -387,17 +416,18 @@ export default function LiveEnhancerTool() {
       progressStatus: 'Waiting in queue...',
     }));
 
-    const nextQueue = [...queueRef.current, ...newItems];
+    // Prepend newest uploads right to the TOP of the queue and focus the newest photo
+    const nextQueue = [...newItems, ...queueRef.current];
     queueRef.current = nextQueue;
     setQueue(nextQueue);
+    setSelectedId(newItems[0].id);
+    setSplitPos(50);
+    setZoomed(false);
 
-    if (!selectedId && newItems.length > 0) {
-      setSelectedId(newItems[0].id);
-      setSplitPos(50);
-      setZoomed(false);
-    }
+    requestAnimationFrame(() => {
+      queueScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
-    // Start background worker loop immediately (if already running, it picks these up seamlessly!)
     void pumpQueue();
   };
 
@@ -453,6 +483,26 @@ export default function LiveEnhancerTool() {
     };
   }, []);
 
+  const rerunItem = (id: string, targetMode?: AiEnhanceMode) => {
+    const next = queueRef.current.map((q) =>
+      q.id === id
+        ? {
+            ...q,
+            mode: targetMode ?? q.mode,
+            format,
+            status: 'queued' as const,
+            progressPct: 0,
+            progressStatus: 'Queued...',
+            error: undefined,
+          }
+        : q
+    );
+    queueRef.current = next;
+    setQueue(next);
+    setSelectedId(id);
+    void pumpQueue();
+  };
+
   const removeItem = (id: string) => {
     const target = queueRef.current.find((q) => q.id === id);
     if (target) {
@@ -472,6 +522,7 @@ export default function LiveEnhancerTool() {
 
   const clearAll = () => {
     sessionIdRef.current++;
+    activeRunnerRef.current = null;
     queueRef.current.forEach((q) => {
       releaseUrl(q.previewUrl);
       if (q.result) {
@@ -488,7 +539,6 @@ export default function LiveEnhancerTool() {
   const completedItems = queue.filter((q) => q.status === 'done' && q.result);
   const activeItem =
     queue.find((q) => q.id === selectedId) ??
-    completedItems[0] ??
     queue[0] ??
     null;
 
@@ -515,7 +565,6 @@ export default function LiveEnhancerTool() {
     }
   };
 
-  // Split-Screen Drag Handlers
   const updateSplit = (clientX: number) => {
     const el = stageRef.current;
     if (!el) return;
@@ -554,7 +603,6 @@ export default function LiveEnhancerTool() {
         onChange={(e) => handleAddFiles(e.target.files)}
       />
 
-      {/* Full-Screen Drop Overlay */}
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
@@ -562,10 +610,10 @@ export default function LiveEnhancerTool() {
               <Upload className="w-7 h-7" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
-              Drop to Add to AI Queue
+              Drop to Add to Top of Queue
             </p>
             <p className="text-sm text-zinc-500 mt-1.5">
-              New photos queue up automatically while current ones finish
+              New photos appear on top and process automatically
             </p>
           </div>
         </div>
@@ -598,7 +646,7 @@ export default function LiveEnhancerTool() {
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Deep 4× (Slower)</span>
+                <span>Deep 4×</span>
               </button>
             </div>
 
@@ -646,21 +694,21 @@ export default function LiveEnhancerTool() {
               </span>
 
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop up to {MAX_QUEUE_FILES} photos anywhere · You can keep adding more while processing
+                Drop up to {MAX_QUEUE_FILES} photos anywhere · New uploads stay on top
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Fast Lightweight 2× AI · Background Queue · Split Compare
+                Fast 2× AI · Live Background Queue · Split Compare
               </p>
             </div>
           </div>
         ) : (
-          /* ACTIVE WORKSPACE: TOP SPLIT STAGE + LIVE MULTI-PHOTO QUEUE */
+          /* ACTIVE WORKSPACE */
           <div>
-            {/* Top Split-Screen Inspector for Selected Photo */}
+            {/* Top Split-Screen Inspector */}
             {activeItem && (
               <div className="bg-zinc-950 p-4 sm:p-6">
-                <div className="flex items-center justify-between gap-3 mb-3 text-xs text-zinc-400">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs text-zinc-400">
                   <span className="truncate font-medium max-w-[260px]">
                     {activeItem.file.name}
                     {activeItem.result && (
@@ -671,8 +719,19 @@ export default function LiveEnhancerTool() {
                   </span>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {activeItem.result && (
+                    {activeItem.result && activeItem.status === 'done' && (
                       <>
+                        {activeItem.mode === 'fast2x' && (
+                          <button
+                            type="button"
+                            onClick={() => rerunItem(activeItem.id, 'deep4x')}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
+                            title="Re-run this photo with Deep 4× BSRGAN model"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="hidden sm:inline">Deep 4×</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setZoomed((z) => !z)}
@@ -698,13 +757,13 @@ export default function LiveEnhancerTool() {
 
                 <div
                   ref={stageRef}
-                  onPointerDown={activeItem.result ? handleSplitDown : undefined}
-                  onPointerMove={activeItem.result ? handleSplitMove : undefined}
-                  onPointerUp={activeItem.result ? handleSplitUp : undefined}
-                  onPointerCancel={activeItem.result ? handleSplitUp : undefined}
+                  onPointerDown={activeItem.result && activeItem.status === 'done' ? handleSplitDown : undefined}
+                  onPointerMove={activeItem.result && activeItem.status === 'done' ? handleSplitMove : undefined}
+                  onPointerUp={activeItem.result && activeItem.status === 'done' ? handleSplitUp : undefined}
+                  onPointerCancel={activeItem.result && activeItem.status === 'done' ? handleSplitUp : undefined}
                   className="relative w-full h-[44vh] sm:h-[52vh] min-h-[270px] rounded-2xl overflow-hidden bg-black/50 select-none touch-none cursor-ew-resize"
                 >
-                  {activeItem.result ? (
+                  {activeItem.result && activeItem.status === 'done' ? (
                     <>
                       <img
                         src={activeItem.result.url}
@@ -741,9 +800,16 @@ export default function LiveEnhancerTool() {
                       </div>
                     </>
                   ) : activeItem.status === 'error' ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-red-400 gap-2 px-6 text-center">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-red-400 gap-3 px-6 text-center">
                       <AlertCircle className="w-7 h-7" />
                       <p className="text-xs font-medium">{activeItem.error}</p>
+                      <button
+                        type="button"
+                        onClick={() => rerunItem(activeItem.id)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> Try Again
+                      </button>
                     </div>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center gap-4">
@@ -761,7 +827,7 @@ export default function LiveEnhancerTool() {
                         </div>
                       </div>
                       <p className="text-[11px] text-zinc-500">
-                        You can add more photos below — they will process automatically
+                        Keep dropping more photos — they stack at the top and run automatically
                       </p>
                     </div>
                   )}
@@ -769,8 +835,8 @@ export default function LiveEnhancerTool() {
               </div>
             )}
 
-            {/* Live Multi-Photo Queue List */}
-            <div className="divide-y divide-zinc-100 max-h-[300px] overflow-y-auto">
+            {/* Live Multi-Photo Queue List (Newest ALWAYS on TOP) */}
+            <div ref={queueScrollRef} className="divide-y divide-zinc-100 max-h-[320px] overflow-y-auto">
               {queue.map((item) => {
                 const isSelected = activeItem?.id === item.id;
                 return (
@@ -843,6 +909,16 @@ export default function LiveEnhancerTool() {
                         <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                       )}
 
+                      {item.status === 'error' && (
+                        <button
+                          type="button"
+                          onClick={() => rerunItem(item.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3 h-3" /> Retry
+                        </button>
+                      )}
+
                       {item.status === 'done' && item.result && (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 hidden sm:block" />
@@ -873,7 +949,7 @@ export default function LiveEnhancerTool() {
               })}
             </div>
 
-            {/* Bottom Queue Action Bar */}
+            {/* Bottom Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
