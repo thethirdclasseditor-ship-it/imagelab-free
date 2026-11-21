@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Upload,
   Download,
+  Archive,
   Sparkles,
   Trash2,
   Lock,
@@ -11,7 +12,10 @@ import {
   ZoomIn,
   ZoomOut,
   ArrowRight,
-  Cpu,
+  Plus,
+  X,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
 import {
   processImage,
@@ -19,15 +23,16 @@ import {
   validateImageFile,
   type SupportedFormat,
 } from '../engine/imageEngine';
-import type { AiEnhanceMessage, AiEnhanceRequest } from '../engine/aiEnhance.worker';
+import type {
+  AiEnhanceMode,
+  AiEnhanceMessage,
+  AiEnhanceRequest,
+} from '../engine/aiEnhance.worker';
 
-type QualityMode = 'hd' | 'ultra';
-
-interface AiResultState {
+interface AiResultData {
   blob: Blob;
   url: string;
   originalUrl: string;
-  rawCanvasBlob: Blob;
   fileName: string;
   originalWidth: number;
   originalHeight: number;
@@ -36,6 +41,21 @@ interface AiResultState {
   backend: 'WebGPU' | 'WASM';
   processingMs: number;
 }
+
+interface QueueItem {
+  id: string;
+  file: File;
+  mode: AiEnhanceMode;
+  format: SupportedFormat;
+  previewUrl: string;
+  status: 'queued' | 'processing' | 'done' | 'error';
+  progressPct: number;
+  progressStatus: string;
+  result?: AiResultData;
+  error?: string;
+}
+
+const MAX_QUEUE_FILES = 10;
 
 let aiWorkerSingleton: Worker | null = null;
 let jobSeq = 1;
@@ -76,18 +96,25 @@ function loadImg(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
-export default function LiveEnhancerTool() {
-  const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<AiResultState | null>(null);
-  const [qualityMode, setQualityMode] = useState<QualityMode>('hd');
-  const [format, setFormat] = useState<SupportedFormat>('image/jpeg');
+function triggerBlobDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
 
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isReEncoding, setIsReEncoding] = useState(false);
-  const [progressPct, setProgressPct] = useState(0);
-  const [progressStatus, setProgressStatus] = useState('');
+export default function LiveEnhancerTool() {
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<AiEnhanceMode>('fast2x');
+  const [format, setFormat] = useState<SupportedFormat>('image/jpeg');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
 
   // Split-screen compare state
   const [splitPos, setSplitPos] = useState(50);
@@ -97,35 +124,59 @@ export default function LiveEnhancerTool() {
   const stageRef = useRef<HTMLDivElement>(null);
   const draggingSplitRef = useRef(false);
   const dragDepthRef = useRef(0);
-  const activeRunIdRef = useRef(0);
-  const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+
+  // Live queue runner refs (allows adding new photos anytime while processing)
+  const queueRef = useRef<QueueItem[]>([]);
+  const isRunningRef = useRef(false);
+  const sessionIdRef = useRef(0);
+  const trackedUrlsRef = useRef<Set<string>>(new Set());
+  const addFilesRef = useRef<(files: FileList | null) => void>(() => {});
+
+  queueRef.current = queue;
+
+  const trackUrl = (url: string) => {
+    trackedUrlsRef.current.add(url);
+    return url;
+  };
+
+  const releaseUrl = (url?: string) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    trackedUrlsRef.current.delete(url);
+  };
 
   useEffect(() => {
     return () => {
-      if (result) {
-        URL.revokeObjectURL(result.url);
-        URL.revokeObjectURL(result.originalUrl);
-      }
+      sessionIdRef.current++;
+      trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      trackedUrlsRef.current.clear();
     };
-  }, [result]);
+  }, []);
 
-  const runAiRestore = async (targetFile: File, mode: QualityMode, outFormat: SupportedFormat) => {
-    const runId = ++activeRunIdRef.current;
+  const processSingleQueueItem = async (item: QueueItem, session: number) => {
     const t0 = performance.now();
 
-    setIsProcessing(true);
-    setErrorMsg(null);
-    setProgressPct(2);
-    setProgressStatus('Preparing image for Neural Super-Resolution...');
+    const updateItem = (patch: Partial<QueueItem>) => {
+      if (sessionIdRef.current !== session) return;
+      setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, ...patch } : q)));
+    };
+
+    updateItem({
+      status: 'processing',
+      progressPct: 3,
+      progressStatus: 'Preparing image...',
+      error: undefined,
+    });
 
     try {
-      const normalized = await normalizeHeic(targetFile);
+      const normalized = await normalizeHeic(item.file);
       const img = await loadImg(normalized);
       const origW = img.naturalWidth;
       const origH = img.naturalHeight;
 
-      // Cap AI input side so 4x output stays crisp (up to 2048px HD or 2816px Ultra) without crashing RAM
-      const maxInputSide = mode === 'ultra' ? 704 : 512;
+      // Fast 2x caps input at 512px (-> 1024px crisp, only 4 tiles!)
+      // Deep 4x caps input at 384px (-> 1536px crisp, only 4 tiles!)
+      const maxInputSide = item.mode === 'fast2x' ? 512 : 384;
       let inW = origW;
       let inH = origH;
       if (Math.max(inW, inH) > maxInputSide) {
@@ -146,8 +197,8 @@ export default function LiveEnhancerTool() {
       inCtx.imageSmoothingQuality = 'high';
       inCtx.drawImage(img, 0, 0, inW, inH);
 
-      const inImgData = inCtx.getImageData(0, 0, inW, inH);
-      const transferBuf = inImgData.data.slice().buffer;
+      const inData = inCtx.getImageData(0, 0, inW, inH);
+      const transferBuf = inData.data.slice().buffer;
       inCanvas.width = 0;
       inCanvas.height = 0;
 
@@ -165,10 +216,7 @@ export default function LiveEnhancerTool() {
           if (msg.id !== jobId) return;
 
           if (msg.type === 'progress') {
-            if (activeRunIdRef.current === runId) {
-              setProgressPct(msg.percent);
-              setProgressStatus(msg.status);
-            }
+            updateItem({ progressPct: msg.percent, progressStatus: msg.status });
           } else if (msg.type === 'done') {
             worker.removeEventListener('message', handleMsg);
             worker.removeEventListener('error', handleErr);
@@ -188,7 +236,7 @@ export default function LiveEnhancerTool() {
         const handleErr = () => {
           worker.removeEventListener('message', handleMsg);
           worker.removeEventListener('error', handleErr);
-          reject(new Error('AI worker crashed. Try Standard HD mode or a smaller photo.'));
+          reject(new Error('AI worker stopped unexpectedly. Try Fast AI 2× mode.'));
         };
 
         worker.addEventListener('message', handleMsg);
@@ -199,14 +247,14 @@ export default function LiveEnhancerTool() {
           rgbaBuffer: transferBuf,
           width: inW,
           height: inH,
+          mode: item.mode,
         };
         worker.postMessage(req, [transferBuf]);
       });
 
-      if (activeRunIdRef.current !== runId) return;
+      if (sessionIdRef.current !== session) return;
 
-      setProgressPct(98);
-      setProgressStatus('Encoding HD output...');
+      updateItem({ progressPct: 96, progressStatus: 'Saving HD output...' });
 
       const outCanvas = document.createElement('canvas');
       outCanvas.width = aiOutput.width;
@@ -214,85 +262,146 @@ export default function LiveEnhancerTool() {
       const outCtx = outCanvas.getContext('2d');
       if (!outCtx) throw new Error('Output canvas unavailable.');
 
-      const outData = new ImageData(
-        new Uint8ClampedArray(aiOutput.rgbaBuffer),
-        aiOutput.width,
-        aiOutput.height
+      outCtx.putImageData(
+        new ImageData(new Uint8ClampedArray(aiOutput.rgbaBuffer), aiOutput.width, aiOutput.height),
+        0,
+        0
       );
-      outCtx.putImageData(outData, 0, 0);
 
       const rawPngBlob = await new Promise<Blob>((resolve, reject) => {
         outCanvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Failed to build output bitmap.'))),
+          (b) => (b ? resolve(b) : reject(new Error('Failed to render output image.'))),
           'image/png'
         );
       });
       outCanvas.width = 0;
       outCanvas.height = 0;
 
-      // Encode cleanly with our MozJPEG / LibWebP / UPNG engine
-      const baseName = targetFile.name.replace(/\.[^/.]+$/, '');
-      const tempFile = new File([rawPngBlob], `${baseName}_ai_hd.png`, { type: 'image/png' });
+      const baseName = item.file.name.replace(/\.[^/.]+$/, '');
+      const tag = item.mode === 'fast2x' ? '2x' : '4x';
+      const tempFile = new File([rawPngBlob], `${baseName}_ai_${tag}.png`, { type: 'image/png' });
       const encoded = await processImage(tempFile, {
-        format: outFormat,
-        quality: outFormat === 'image/png' ? 1 : 0.92,
+        format: item.format,
+        quality: item.format === 'image/png' ? 1 : 0.92,
       });
 
-      if (activeRunIdRef.current !== runId) {
+      if (sessionIdRef.current !== session) {
         URL.revokeObjectURL(encoded.url);
         URL.revokeObjectURL(encoded.originalUrl);
         return;
       }
 
       URL.revokeObjectURL(encoded.originalUrl);
+      const trackedResultUrl = trackUrl(encoded.url);
+      const trackedOrigUrl = trackUrl(URL.createObjectURL(normalized));
 
-      setResult({
-        blob: encoded.blob,
-        url: encoded.url,
-        originalUrl: URL.createObjectURL(normalized),
-        rawCanvasBlob: rawPngBlob,
-        fileName: encoded.fileName,
-        originalWidth: origW,
-        originalHeight: origH,
-        width: aiOutput.width,
-        height: aiOutput.height,
-        backend: aiOutput.backend,
-        processingMs: Math.round(performance.now() - t0),
+      updateItem({
+        status: 'done',
+        progressPct: 100,
+        progressStatus: 'Done',
+        result: {
+          blob: encoded.blob,
+          url: trackedResultUrl,
+          originalUrl: trackedOrigUrl,
+          fileName: encoded.fileName,
+          originalWidth: origW,
+          originalHeight: origH,
+          width: aiOutput.width,
+          height: aiOutput.height,
+          backend: aiOutput.backend,
+          processingMs: Math.round(performance.now() - t0),
+        },
       });
-      setProgressPct(100);
     } catch (err) {
-      if (activeRunIdRef.current !== runId) return;
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'AI enhancement failed. Check your internet connection on first run.'
-      );
+      updateItem({
+        status: 'error',
+        progressPct: 0,
+        progressStatus: '',
+        error: err instanceof Error ? err.message : 'Enhancement failed.',
+      });
+    }
+  };
+
+  const pumpQueue = async () => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
+    const session = sessionIdRef.current;
+
+    try {
+      while (sessionIdRef.current === session) {
+        const nextItem = queueRef.current.find((q) => q.status === 'queued');
+        if (!nextItem) break;
+        await processSingleQueueItem(nextItem, session);
+      }
     } finally {
-      if (activeRunIdRef.current === runId) {
-        setIsProcessing(false);
-        setProgressStatus('');
+      isRunningRef.current = false;
+      // Check if more items arrived right as the loop exited
+      if (
+        sessionIdRef.current === session &&
+        queueRef.current.some((q) => q.status === 'queued')
+      ) {
+        void pumpQueue();
       }
     }
   };
 
-  const handleFileSelect = (incoming: FileList | null) => {
+  const handleAddFiles = (incoming: FileList | null) => {
     if (!incoming || incoming.length === 0) return;
-    const picked = incoming[0];
-    const err = validateImageFile(picked);
-    if (err) {
-      setErrorMsg(err);
+    setErrorMsg(null);
+
+    const valid: File[] = [];
+    const errs: string[] = [];
+
+    Array.from(incoming).forEach((f) => {
+      const err = validateImageFile(f);
+      if (err) errs.push(err);
+      else valid.push(f);
+    });
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (valid.length === 0) {
+      if (errs.length > 0) setErrorMsg(errs[0]);
       return;
     }
 
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setFile(picked);
-    setResult(null);
-    setSplitPos(50);
-    setZoomed(false);
-    void runAiRestore(picked, qualityMode, format);
+    const remaining = MAX_QUEUE_FILES - queueRef.current.length;
+    if (remaining <= 0) {
+      setErrorMsg(`Queue holds up to ${MAX_QUEUE_FILES} photos at once. Clear completed items first.`);
+      return;
+    }
+
+    const accepted = valid.slice(0, remaining);
+    if (valid.length > remaining) {
+      errs.push(`Limit is ${MAX_QUEUE_FILES} photos per batch. Extra files were skipped.`);
+    }
+    if (errs.length > 0) setErrorMsg(errs[0]);
+
+    const newItems: QueueItem[] = accepted.map((file) => ({
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      mode,
+      format,
+      previewUrl: trackUrl(URL.createObjectURL(file)),
+      status: 'queued',
+      progressPct: 0,
+      progressStatus: 'Waiting in queue...',
+    }));
+
+    const nextQueue = [...queueRef.current, ...newItems];
+    queueRef.current = nextQueue;
+    setQueue(nextQueue);
+
+    if (!selectedId && newItems.length > 0) {
+      setSelectedId(newItems[0].id);
+      setSplitPos(50);
+      setZoomed(false);
+    }
+
+    // Start background worker loop immediately (if already running, it picks these up seamlessly!)
+    void pumpQueue();
   };
 
-  selectHandlerRef.current = handleFileSelect;
+  addFilesRef.current = handleAddFiles;
 
   // Global Drop Anywhere + Ctrl+V Paste
   useEffect(() => {
@@ -320,13 +429,13 @@ export default function LiveEnhancerTool() {
       e.preventDefault();
       dragDepthRef.current = 0;
       setIsGlobalDragging(false);
-      if (e.dataTransfer?.files?.length) selectHandlerRef.current(e.dataTransfer.files);
+      if (e.dataTransfer?.files?.length) addFilesRef.current(e.dataTransfer.files);
     };
     const onPaste = (e: ClipboardEvent) => {
       const files = e.clipboardData?.files;
       if (files?.length && Array.from(files).some((f) => f.type.startsWith('image/'))) {
         e.preventDefault();
-        selectHandlerRef.current(files);
+        addFilesRef.current(files);
       }
     };
 
@@ -344,44 +453,69 @@ export default function LiveEnhancerTool() {
     };
   }, []);
 
-  // Re-encode already restored bitmap instantaneously when switching JPG / PNG / WEBP
-  const handleFormatChange = async (nextFmt: SupportedFormat) => {
-    setFormat(nextFmt);
-    if (!result || !file) return;
-    setIsReEncoding(true);
+  const removeItem = (id: string) => {
+    const target = queueRef.current.find((q) => q.id === id);
+    if (target) {
+      releaseUrl(target.previewUrl);
+      if (target.result) {
+        releaseUrl(target.result.url);
+        releaseUrl(target.result.originalUrl);
+      }
+    }
+    const next = queueRef.current.filter((q) => q.id !== id);
+    queueRef.current = next;
+    setQueue(next);
+    if (selectedId === id) {
+      setSelectedId(next[0]?.id ?? null);
+    }
+  };
+
+  const clearAll = () => {
+    sessionIdRef.current++;
+    queueRef.current.forEach((q) => {
+      releaseUrl(q.previewUrl);
+      if (q.result) {
+        releaseUrl(q.result.url);
+        releaseUrl(q.result.originalUrl);
+      }
+    });
+    queueRef.current = [];
+    setQueue([]);
+    setSelectedId(null);
+    setErrorMsg(null);
+  };
+
+  const completedItems = queue.filter((q) => q.status === 'done' && q.result);
+  const activeItem =
+    queue.find((q) => q.id === selectedId) ??
+    completedItems[0] ??
+    queue[0] ??
+    null;
+
+  const handleDownloadAllZip = async () => {
+    if (completedItems.length === 0) return;
+    if (completedItems.length === 1 && completedItems[0].result) {
+      triggerBlobDownload(completedItems[0].result.blob, completedItems[0].result.fileName);
+      return;
+    }
+
+    setIsZipping(true);
     try {
-      const baseName = file.name.replace(/\.[^/.]+$/, '');
-      const tempFile = new File([result.rawCanvasBlob], `${baseName}_ai_hd.png`, {
-        type: 'image/png',
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      completedItems.forEach((item, idx) => {
+        if (item.result) {
+          zip.file(`${idx + 1}_${item.result.fileName}`, item.result.blob);
+        }
       });
-      const encoded = await processImage(tempFile, {
-        format: nextFmt,
-        quality: nextFmt === 'image/png' ? 1 : 0.92,
-      });
-      URL.revokeObjectURL(encoded.originalUrl);
-
-      setResult((prev) =>
-        prev
-          ? {
-              ...prev,
-              blob: encoded.blob,
-              url: encoded.url,
-              fileName: encoded.fileName,
-            }
-          : null
-      );
+      const blob = await zip.generateAsync({ type: 'blob' });
+      triggerBlobDownload(blob, 'imagelab-ai-enhanced.zip');
     } finally {
-      setIsReEncoding(false);
+      setIsZipping(false);
     }
   };
 
-  const handleModeSwitch = (nextMode: QualityMode) => {
-    setQualityMode(nextMode);
-    if (file && !isProcessing) {
-      void runAiRestore(file, nextMode, format);
-    }
-  };
-
+  // Split-Screen Drag Handlers
   const updateSplit = (clientX: number) => {
     const el = stageRef.current;
     if (!el) return;
@@ -409,36 +543,18 @@ export default function LiveEnhancerTool() {
     }
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-    const a = document.createElement('a');
-    a.href = result.url;
-    a.download = result.fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const resetAll = () => {
-    activeRunIdRef.current++;
-    setFile(null);
-    setResult(null);
-    setIsProcessing(false);
-    setErrorMsg(null);
-    setProgressPct(0);
-    setProgressStatus('');
-  };
-
   return (
     <div className="space-y-4 animate-fade-up">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*,.heic,.heif,.avif"
+        multiple
         className="hidden"
-        onChange={(e) => handleFileSelect(e.target.files)}
+        onChange={(e) => handleAddFiles(e.target.files)}
       />
 
+      {/* Full-Screen Drop Overlay */}
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
@@ -446,58 +562,72 @@ export default function LiveEnhancerTool() {
               <Upload className="w-7 h-7" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
-              Release for AI Restoration
+              Drop to Add to AI Queue
+            </p>
+            <p className="text-sm text-zinc-500 mt-1.5">
+              New photos queue up automatically while current ones finish
             </p>
           </div>
         </div>
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Clean AI Control Header */}
+        {/* Clean Mode & Format Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-semibold text-zinc-500">AI Engine</span>
+          <div className="flex flex-wrap items-center gap-2.5">
             <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
               <button
                 type="button"
-                disabled={isProcessing}
-                onClick={() => handleModeSwitch('hd')}
-                className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
-                  qualityMode === 'hd'
+                onClick={() => setMode('fast2x')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                  mode === 'fast2x'
                     ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                Standard HD (Up to 2K)
+                <Zap className="w-3.5 h-3.5 text-blue-600" />
+                <span>Fast AI 2×</span>
               </button>
               <button
                 type="button"
-                disabled={isProcessing}
-                onClick={() => handleModeSwitch('ultra')}
-                className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
-                  qualityMode === 'ultra'
+                onClick={() => setMode('deep4x')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                  mode === 'deep4x'
                     ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                Ultra Detail (Up to 3K)
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Deep 4× (Slower)</span>
               </button>
             </div>
+
+            <select
+              aria-label="Output format for new uploads"
+              value={format}
+              onChange={(e) => setFormat(e.target.value as SupportedFormat)}
+              className="bg-white border border-zinc-300 rounded-xl px-3 py-1.5 text-xs font-semibold cursor-pointer"
+            >
+              <option value="image/jpeg">JPG · MozJPEG</option>
+              <option value="image/png">PNG · Lossless</option>
+              <option value="image/webp">WEBP</option>
+            </select>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-[11px] font-semibold">
-            <Cpu className="w-3.5 h-3.5 text-blue-600" />
-            Swin2SR Real-World 4× AI
-          </span>
+          {queue.length > 0 && (
+            <span className="text-xs font-semibold text-zinc-600 tabular-nums">
+              {completedItems.length}/{queue.length} Enhanced
+            </span>
+          )}
         </div>
 
-        {/* Empty Upload State vs Built-In Split-Screen AI Stage */}
-        {!file ? (
+        {/* EMPTY DROPZONE */}
+        {queue.length === 0 ? (
           <div className="p-6 sm:p-10">
             <div
               role="button"
               tabIndex={0}
-              aria-label="Select blurry or low-res photo for AI enhancement"
+              aria-label="Select photos for fast AI enhancement"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -512,161 +642,282 @@ export default function LiveEnhancerTool() {
               </div>
 
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
-                Select Photo to Restore
+                Select Photos to Enhance
               </span>
 
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop anywhere or press{' '}
-                <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
-                  Ctrl+V
-                </kbd>
+                Drop up to {MAX_QUEUE_FILES} photos anywhere · You can keep adding more while processing
               </p>
 
-              <p className="text-[11px] text-zinc-400 mt-3 max-w-md">
-                True neural super-resolution · Removes blur & compression blocks without sharpening artifacts (first run caches the AI model once)
+              <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
+                Fast Lightweight 2× AI · Background Queue · Split Compare
               </p>
             </div>
           </div>
         ) : (
+          /* ACTIVE WORKSPACE: TOP SPLIT STAGE + LIVE MULTI-PHOTO QUEUE */
           <div>
-            {/* Stage */}
-            <div className="relative bg-zinc-950 p-4 sm:p-6">
-              <div className="flex items-center justify-between gap-3 mb-3 text-xs text-zinc-400">
-                <span className="truncate font-medium max-w-[240px]">{file.name}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {result && (
-                    <button
-                      type="button"
-                      onClick={() => setZoomed((z) => !z)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
-                    >
-                      {zoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
-                      <span>{zoomed ? '100%' : 'Inspect 2×'}</span>
-                    </button>
+            {/* Top Split-Screen Inspector for Selected Photo */}
+            {activeItem && (
+              <div className="bg-zinc-950 p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-3 text-xs text-zinc-400">
+                  <span className="truncate font-medium max-w-[260px]">
+                    {activeItem.file.name}
+                    {activeItem.result && (
+                      <span className="ml-2 text-zinc-500 tabular-nums">
+                        ({(activeItem.result.processingMs / 1000).toFixed(1)}s · {activeItem.result.backend})
+                      </span>
+                    )}
+                  </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {activeItem.result && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setZoomed((z) => !z)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
+                        >
+                          {zoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
+                          <span>{zoomed ? '100%' : 'Zoom 2×'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            triggerBlobDownload(activeItem.result!.blob, activeItem.result!.fileName)
+                          }
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Save</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  ref={stageRef}
+                  onPointerDown={activeItem.result ? handleSplitDown : undefined}
+                  onPointerMove={activeItem.result ? handleSplitMove : undefined}
+                  onPointerUp={activeItem.result ? handleSplitUp : undefined}
+                  onPointerCancel={activeItem.result ? handleSplitUp : undefined}
+                  className="relative w-full h-[44vh] sm:h-[52vh] min-h-[270px] rounded-2xl overflow-hidden bg-black/50 select-none touch-none cursor-ew-resize"
+                >
+                  {activeItem.result ? (
+                    <>
+                      <img
+                        src={activeItem.result.url}
+                        alt="AI Enhanced"
+                        draggable={false}
+                        className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
+                          zoomed ? 'scale-175' : 'scale-100'
+                        }`}
+                      />
+                      <img
+                        src={activeItem.result.originalUrl}
+                        alt="Original"
+                        draggable={false}
+                        style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}
+                        className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
+                          zoomed ? 'scale-175' : 'scale-100'
+                        }`}
+                      />
+
+                      <div className="pointer-events-none absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-zinc-950/75 text-white text-[11px] font-semibold tabular-nums">
+                        Before · {activeItem.result.originalWidth}×{activeItem.result.originalHeight}
+                      </div>
+                      <div className="pointer-events-none absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-blue-600/90 text-white text-[11px] font-semibold tabular-nums">
+                        AI HD · {activeItem.result.width}×{activeItem.result.height}
+                      </div>
+
+                      <div
+                        className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.85)]"
+                        style={{ left: `${splitPos}%` }}
+                      >
+                        <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white text-zinc-950 shadow-xl border-2 border-blue-600 flex items-center justify-center">
+                          <ChevronsLeftRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </>
+                  ) : activeItem.status === 'error' ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-red-400 gap-2 px-6 text-center">
+                      <AlertCircle className="w-7 h-7" />
+                      <p className="text-xs font-medium">{activeItem.error}</p>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center gap-4">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                      <div className="w-full max-w-xs space-y-2">
+                        <div className="flex justify-between text-xs font-semibold text-zinc-300 tabular-nums">
+                          <span className="truncate">{activeItem.progressStatus}</span>
+                          <span>{activeItem.progressPct}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 transition-all duration-200"
+                            style={{ width: `${Math.max(5, activeItem.progressPct)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-zinc-500">
+                        You can add more photos below — they will process automatically
+                      </p>
+                    </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={resetAll}
-                    aria-label="Remove photo"
-                    className="p-2 rounded-xl bg-white/10 hover:bg-red-500/80 text-white transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               </div>
+            )}
 
-              <div
-                ref={stageRef}
-                onPointerDown={result ? handleSplitDown : undefined}
-                onPointerMove={result ? handleSplitMove : undefined}
-                onPointerUp={result ? handleSplitUp : undefined}
-                onPointerCancel={result ? handleSplitUp : undefined}
-                className="relative w-full h-[50vh] sm:h-[58vh] min-h-[320px] rounded-2xl overflow-hidden bg-black/50 select-none touch-none cursor-ew-resize"
-              >
-                {result ? (
-                  <>
-                    <img
-                      src={result.url}
-                      alt="AI Restored HD"
-                      draggable={false}
-                      className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
-                        zoomed ? 'scale-175' : 'scale-100'
-                      }`}
-                    />
-                    <img
-                      src={result.originalUrl}
-                      alt="Original Photo"
-                      draggable={false}
-                      style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}
-                      className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
-                        zoomed ? 'scale-175' : 'scale-100'
-                      }`}
-                    />
+            {/* Live Multi-Photo Queue List */}
+            <div className="divide-y divide-zinc-100 max-h-[300px] overflow-y-auto">
+              {queue.map((item) => {
+                const isSelected = activeItem?.id === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedId(item.id);
+                      setZoomed(false);
+                    }}
+                    className={`flex items-center justify-between gap-3 px-5 sm:px-7 py-3 cursor-pointer transition ${
+                      isSelected ? 'bg-blue-50/50 dark:bg-blue-950/20' : 'hover:bg-zinc-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <img
+                        src={item.result ? item.result.url : item.previewUrl}
+                        alt={item.file.name}
+                        className="w-11 h-11 rounded-xl object-cover border border-zinc-200 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-semibold text-zinc-900 truncate">
+                          {item.file.name}
+                        </p>
 
-                    <div className="pointer-events-none absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-zinc-950/75 text-white text-[11px] font-semibold backdrop-blur-xs tabular-nums">
-                      Before · {result.originalWidth}×{result.originalHeight}
-                    </div>
-                    <div className="pointer-events-none absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-blue-600/90 text-white text-[11px] font-semibold backdrop-blur-xs tabular-nums">
-                      AI Restored · {result.width}×{result.height}
+                        {item.status === 'processing' && (
+                          <div className="mt-1 space-y-1 max-w-xs">
+                            <div className="flex justify-between text-[11px] text-blue-600 dark:text-blue-400 font-semibold tabular-nums">
+                              <span className="truncate">{item.progressStatus}</span>
+                              <span>{item.progressPct}%</span>
+                            </div>
+                            <div className="w-full h-1 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 transition-all duration-200"
+                                style={{ width: `${Math.max(5, item.progressPct)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {item.status === 'queued' && (
+                          <p className="text-[11px] text-zinc-500 mt-0.5">
+                            Queued · {item.mode === 'fast2x' ? 'Fast AI 2×' : 'Deep 4×'}
+                          </p>
+                        )}
+
+                        {item.status === 'done' && item.result && (
+                          <p className="text-[11px] text-zinc-500 mt-0.5 flex items-center gap-1.5 tabular-nums">
+                            <span>
+                              {item.result.originalWidth}×{item.result.originalHeight}
+                            </span>
+                            <ArrowRight className="w-3 h-3 text-zinc-400" />
+                            <span className="font-semibold text-zinc-900">
+                              {item.result.width}×{item.result.height}
+                            </span>
+                            <span>· {formatFileSize(item.result.blob.size)}</span>
+                          </p>
+                        )}
+
+                        {item.status === 'error' && (
+                          <p className="text-[11px] text-red-600 mt-0.5 truncate">{item.error}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div
-                      className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.85)]"
-                      style={{ left: `${splitPos}%` }}
+                      className="flex items-center gap-2 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-zinc-950 shadow-xl border-2 border-blue-600 flex items-center justify-center">
-                        <ChevronsLeftRight className="w-5 h-5" />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center gap-4">
-                    <Loader2 className="w-9 h-9 animate-spin text-blue-500" />
-                    <div className="w-full max-w-sm space-y-2">
-                      <div className="flex justify-between text-xs font-semibold text-zinc-300 tabular-nums">
-                        <span className="truncate">{progressStatus || 'Initializing AI...'}</span>
-                        <span>{progressPct}%</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-300"
-                          style={{ width: `${Math.max(4, progressPct)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                      {item.status === 'processing' && (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      )}
 
-                {isProcessing && result && (
-                  <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-3 px-6">
-                    <Loader2 className="w-7 h-7 animate-spin text-blue-400" />
-                    <span className="text-xs font-semibold tabular-nums">
-                      {progressStatus || 'Re-running AI restoration...'} ({progressPct}%)
-                    </span>
+                      {item.status === 'done' && item.result && (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 hidden sm:block" />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              triggerBlobDownload(item.result!.blob, item.result!.fileName)
+                            }
+                            className="btn-studio-primary inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Download</span>
+                          </button>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        aria-label={`Remove ${item.file.name}`}
+                        onClick={() => removeItem(item.id)}
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
             </div>
 
-            {/* Export Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-4 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
-              <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-600 tabular-nums">
-                {result && (
-                  <>
-                    <span className="font-semibold text-zinc-900 inline-flex items-center gap-1.5">
-                      {result.originalWidth}×{result.originalHeight}
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-                      {result.width}×{result.height} px
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 font-semibold">
-                      {formatFileSize(result.blob.size)} · {result.backend}
-                    </span>
-                    <span className="text-zinc-400">{(result.processingMs / 1000).toFixed(1)}s</span>
-                  </>
-                )}
-              </div>
+            {/* Bottom Queue Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
+              <button
+                type="button"
+                disabled={queue.length >= MAX_QUEUE_FILES}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 transition cursor-pointer tabular-nums"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add More Photos ({queue.length}/{MAX_QUEUE_FILES})</span>
+              </button>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-                <select
-                  aria-label="Output format"
-                  value={format}
-                  disabled={isProcessing || isReEncoding}
-                  onChange={(e) => void handleFormatChange(e.target.value as SupportedFormat)}
-                  className="bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  title="Clear queue"
+                  aria-label="Clear queue"
+                  className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 transition cursor-pointer"
                 >
-                  <option value="image/jpeg">JPG · MozJPEG</option>
-                  <option value="image/png">PNG · Lossless</option>
-                  <option value="image/webp">WEBP</option>
-                </select>
+                  <Trash2 className="w-4 h-4" />
+                </button>
 
                 <button
                   type="button"
-                  disabled={!result || isProcessing || isReEncoding}
-                  onClick={handleDownload}
-                  className="btn-studio-accent inline-flex items-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
+                  disabled={completedItems.length === 0 || isZipping}
+                  onClick={() => void handleDownloadAllZip()}
+                  className="btn-studio-accent inline-flex items-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>{isReEncoding ? 'Preparing...' : 'Download AI HD'}</span>
+                  {isZipping ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Zipping...</span>
+                    </>
+                  ) : completedItems.length > 1 ? (
+                    <>
+                      <Archive className="w-4 h-4" />
+                      <span>Download ZIP ({completedItems.length})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Download HD</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -683,7 +934,7 @@ export default function LiveEnhancerTool() {
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>On-device AI inference · Photos stay on your device (model loads once from CDN)</span>
+        <span>On-device AI · Photos never leave your browser (model caches once locally)</span>
       </p>
     </div>
   );
