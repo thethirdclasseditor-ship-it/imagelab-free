@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ToolWorkspace from '../components/ToolWorkspace';
+import { SEO_PAGES } from '../data/seoPages';
 
 const homeSchema = {
   '@context': 'https://schema.org',
@@ -12,6 +13,8 @@ const homeSchema = {
   description:
     'Free, fast, and 100% private browser-based image converter, compressor, resizer, and enhancer with batch ZIP download.',
 };
+
+const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
 ---
 
 <Layout
@@ -30,12 +33,42 @@ const homeSchema = {
       </p>
     </div>
 
-    <!-- Interactive Workspace (Loads Immediately) -->
+    <!-- Interactive Workspace -->
     <ToolWorkspace client:load initialMode="converter" showModeTabs={true} />
   </section>
 
+  <!-- Popular Quick Tools Directory (SEO Internal Linking Hub) -->
+  <section class="max-w-4xl mx-auto px-4 py-10">
+    <div class="text-center mb-8">
+      <h2 class="text-2xl font-bold text-slate-900">Popular One-Click Tools</h2>
+      <p class="text-sm text-slate-500 mt-1">
+        Jump straight into pre-configured tools for forms, jobs, and web optimization.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-5">
+      {categories.map((cat) => (
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide mb-3">
+            {cat} Tools
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            {SEO_PAGES.filter((p) => p.category === cat).map((page) => (
+              <a
+                href={`/${page.slug}`}
+                class="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition"
+              >
+                {page.shortName}
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
   <!-- Why Choose ImageLab -->
-  <section class="max-w-4xl mx-auto px-4 py-12">
+  <section class="max-w-4xl mx-auto px-4 py-8">
     <h2 class="text-2xl font-bold text-center text-slate-900 mb-8">
       Why Users Trust ImageLab
     </h2>
