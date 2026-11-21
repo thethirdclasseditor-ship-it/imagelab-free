@@ -107,10 +107,19 @@ export default function ToolWorkspace({
   const [warmth, setWarmth] = useState<number>(defaults.warmth ?? 0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const runCounterRef = useRef(0);
+  const listScrollRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
+
+  // Race-condition-free live queue refs
+  const itemsRef = useRef<WorkspaceItem[]>([]);
+  const sessionIdRef = useRef(0);
+  const activeRunnerRef = useRef<number | null>(null);
+  const runnerSeqRef = useRef(0);
+  const activeOptionsRef = useRef<ProcessOptions>({});
   const trackedUrlsRef = useRef<Set<string>>(new Set());
   const addFilesHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+
+  itemsRef.current = items;
 
   const trackUrl = (url: string) => {
     trackedUrlsRef.current.add(url);
@@ -125,6 +134,7 @@ export default function ToolWorkspace({
 
   useEffect(() => {
     return () => {
+      sessionIdRef.current++;
       trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
       trackedUrlsRef.current.clear();
     };
@@ -169,59 +179,95 @@ export default function ToolWorkspace({
     };
   };
 
-  const runBatchOnItems = async (
-    targetList: WorkspaceItem[],
-    options: ProcessOptions,
-    runId: number
-  ) => {
-    for (const target of targetList) {
-      if (runCounterRef.current !== runId) return;
+  // Sync latest options on render
+  activeOptionsRef.current = buildProcessOptions();
 
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === target.id ? { ...it, status: 'processing', error: undefined } : it
-        )
-      );
+  const updateItemState = (id: string, updater: (item: WorkspaceItem) => WorkspaceItem) => {
+    const next = itemsRef.current.map((it) => (it.id === id ? updater(it) : it));
+    itemsRef.current = next;
+    setItems(next);
+  };
 
-      try {
-        const res = await processImage(target.file, options);
-        trackUrl(res.url);
-        trackUrl(res.originalUrl);
+  // True sequential queue runner: adding more files mid-batch NEVER aborts in-progress files
+  const pumpQueue = async () => {
+    if (activeRunnerRef.current !== null) return;
 
-        if (runCounterRef.current !== runId) {
-          releaseUrl(res.url);
-          releaseUrl(res.originalUrl);
-          return;
-        }
+    const runnerToken = ++runnerSeqRef.current;
+    const session = sessionIdRef.current;
+    activeRunnerRef.current = runnerToken;
 
-        setItems((prev) =>
-          prev.map((it) => {
-            if (it.id !== target.id) return it;
+    try {
+      while (sessionIdRef.current === session && activeRunnerRef.current === runnerToken) {
+        const nextItem = itemsRef.current.find((it) => it.status === 'queued');
+        if (!nextItem) break;
+
+        updateItemState(nextItem.id, (it) => ({
+          ...it,
+          status: 'processing',
+          error: undefined,
+        }));
+
+        try {
+          const res = await processImage(nextItem.file, activeOptionsRef.current);
+
+          // Discard if session was cleared/restarted or item was deleted mid-flight
+          const stillExists = itemsRef.current.some((it) => it.id === nextItem.id);
+          if (sessionIdRef.current !== session || !stillExists) {
+            URL.revokeObjectURL(res.url);
+            URL.revokeObjectURL(res.originalUrl);
+            continue;
+          }
+
+          trackUrl(res.url);
+          trackUrl(res.originalUrl);
+
+          updateItemState(nextItem.id, (it) => {
             if (it.result) {
               releaseUrl(it.result.url);
               releaseUrl(it.result.originalUrl);
             }
             return { ...it, status: 'done', result: res, error: undefined };
-          })
-        );
-      } catch (err) {
-        if (runCounterRef.current !== runId) return;
-        const msg = err instanceof Error ? err.message : 'Failed to process image.';
-        setItems((prev) =>
-          prev.map((it) => (it.id === target.id ? { ...it, status: 'error', error: msg } : it))
-        );
+          });
+        } catch (err) {
+          if (sessionIdRef.current !== session) break;
+          const msg = err instanceof Error ? err.message : 'Failed to process image.';
+          updateItemState(nextItem.id, (it) => ({
+            ...it,
+            status: 'error',
+            error: msg,
+          }));
+        }
+      }
+    } finally {
+      if (activeRunnerRef.current === runnerToken) {
+        activeRunnerRef.current = null;
+        if (
+          sessionIdRef.current === session &&
+          itemsRef.current.some((it) => it.status === 'queued')
+        ) {
+          void pumpQueue();
+        }
       }
     }
   };
 
   const reprocessAll = (overrides?: Parameters<typeof buildProcessOptions>[0]) => {
-    if (items.length === 0) return;
-    const runId = ++runCounterRef.current;
-    setSettingsDirty(false);
-    const options = buildProcessOptions(overrides);
+    if (itemsRef.current.length === 0) return;
 
-    setItems((prev) => prev.map((it) => ({ ...it, status: 'queued', error: undefined })));
-    void runBatchOnItems(items, options, runId);
+    sessionIdRef.current++;
+    activeRunnerRef.current = null;
+    setSettingsDirty(false);
+    activeOptionsRef.current = buildProcessOptions(overrides);
+
+    const resetList = itemsRef.current.map((it) => ({
+      ...it,
+      status: 'queued' as const,
+      error: undefined,
+    }));
+    itemsRef.current = resetList;
+    setItems(resetList);
+
+    void pumpQueue();
   };
 
   const handleAddFiles = (incoming: FileList | null) => {
@@ -244,9 +290,9 @@ export default function ToolWorkspace({
       return;
     }
 
-    const remainingSlots = MAX_BATCH_FILES - items.length;
+    const remainingSlots = MAX_BATCH_FILES - itemsRef.current.length;
     if (remainingSlots <= 0) {
-      setErrorMsg(`Batch limit is ${MAX_BATCH_FILES} images.`);
+      setErrorMsg(`Batch limit is ${MAX_BATCH_FILES} images. Clear some files first.`);
       return;
     }
 
@@ -264,12 +310,18 @@ export default function ToolWorkspace({
       status: 'queued',
     }));
 
-    setItems((prev) => [...prev, ...newEntries]);
+    // Prepend newest uploads to the TOP of the list so they are immediately visible
+    const nextList = [...newEntries, ...itemsRef.current];
+    itemsRef.current = nextList;
+    setItems(nextList);
     setSettingsDirty(false);
 
-    const runId = ++runCounterRef.current;
-    const options = buildProcessOptions();
-    void runBatchOnItems(newEntries, options, runId);
+    // Scroll list smoothly to top so user immediately sees newly added images
+    requestAnimationFrame(() => {
+      listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    void pumpQueue();
   };
 
   addFilesHandlerRef.current = handleAddFiles;
@@ -338,37 +390,44 @@ export default function ToolWorkspace({
     setMode(newMode);
     setErrorMsg(null);
     setShowSettings(newMode === 'enhancer' || newMode === 'resizer');
-    if (items.length > 0) reprocessAll({ mode: newMode });
+    if (itemsRef.current.length > 0) reprocessAll({ mode: newMode });
   };
 
   const handleQuickFormatChange = (newFormat: SupportedFormat) => {
     setFormat(newFormat);
-    if (items.length > 0) reprocessAll({ format: newFormat });
+    if (itemsRef.current.length > 0) reprocessAll({ format: newFormat });
+  };
+
+  const retryItem = (id: string) => {
+    updateItemState(id, (it) => ({ ...it, status: 'queued', error: undefined }));
+    void pumpQueue();
   };
 
   const removeItem = (id: string) => {
-    setItems((prev) => {
-      const target = prev.find((i) => i.id === id);
-      if (target) {
-        releaseUrl(target.previewUrl);
-        if (target.result) {
-          releaseUrl(target.result.url);
-          releaseUrl(target.result.originalUrl);
-        }
+    const target = itemsRef.current.find((i) => i.id === id);
+    if (target) {
+      releaseUrl(target.previewUrl);
+      if (target.result) {
+        releaseUrl(target.result.url);
+        releaseUrl(target.result.originalUrl);
       }
-      return prev.filter((i) => i.id !== id);
-    });
+    }
+    const next = itemsRef.current.filter((i) => i.id !== id);
+    itemsRef.current = next;
+    setItems(next);
   };
 
   const clearAll = () => {
-    runCounterRef.current++;
-    items.forEach((it) => {
+    sessionIdRef.current++;
+    activeRunnerRef.current = null;
+    itemsRef.current.forEach((it) => {
       releaseUrl(it.previewUrl);
       if (it.result) {
         releaseUrl(it.result.url);
         releaseUrl(it.result.originalUrl);
       }
     });
+    itemsRef.current = [];
     setItems([]);
     setErrorMsg(null);
     setCompareItem(null);
@@ -425,7 +484,7 @@ export default function ToolWorkspace({
               Release to upload
             </p>
             <p className="text-sm text-zinc-500 mt-1.5">
-              Instant local processing starts automatically
+              New images appear at the top and process automatically
             </p>
           </div>
         </div>
@@ -544,7 +603,7 @@ export default function ToolWorkspace({
                         onClick={() => {
                           setQuality(preset.q);
                           setSettingsDirty(false);
-                          if (items.length > 0) reprocessAll({ quality: preset.q });
+                          if (itemsRef.current.length > 0) reprocessAll({ quality: preset.q });
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                           quality === preset.q
@@ -586,7 +645,7 @@ export default function ToolWorkspace({
                         const next = String(kb);
                         setTargetSizeKB(next);
                         setSettingsDirty(false);
-                        if (items.length > 0) reprocessAll({ targetSizeKB: next });
+                        if (itemsRef.current.length > 0) reprocessAll({ targetSizeKB: next });
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border tabular-nums transition cursor-pointer ${
                         targetSizeKB === String(kb)
@@ -615,7 +674,7 @@ export default function ToolWorkspace({
                       onClick={() => {
                         setTargetSizeKB('');
                         setSettingsDirty(false);
-                        if (items.length > 0) reprocessAll({ targetSizeKB: '' });
+                        if (itemsRef.current.length > 0) reprocessAll({ targetSizeKB: '' });
                       }}
                       className="px-2 py-1 text-xs font-medium text-zinc-500 hover:text-red-600 cursor-pointer"
                     >
@@ -645,7 +704,7 @@ export default function ToolWorkspace({
                           setFormat('image/jpeg');
                         }
                         setSettingsDirty(false);
-                        if (items.length > 0) {
+                        if (itemsRef.current.length > 0) {
                           reprocessAll({
                             width: w,
                             height: h,
@@ -708,7 +767,7 @@ export default function ToolWorkspace({
                         const next = e.target.value as FitMode;
                         setFitMode(next);
                         setSettingsDirty(false);
-                        if (items.length > 0) reprocessAll({ fitMode: next });
+                        if (itemsRef.current.length > 0) reprocessAll({ fitMode: next });
                       }}
                       className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold"
                     >
@@ -805,7 +864,7 @@ export default function ToolWorkspace({
           </div>
         )}
 
-        {/* EMPTY STATE: Spacious Minimalist Dropzone */}
+        {/* EMPTY STATE */}
         {items.length === 0 ? (
           <div className="p-6 sm:p-10">
             <div
@@ -842,9 +901,12 @@ export default function ToolWorkspace({
             </div>
           </div>
         ) : (
-          /* ACTIVE WORKSPACE */
+          /* ACTIVE WORKSPACE (Newest always at TOP) */
           <div className="flex flex-col">
-            <div className="min-h-[300px] max-h-[560px] overflow-y-auto divide-y divide-zinc-100">
+            <div
+              ref={listScrollRef}
+              className="min-h-[300px] max-h-[560px] overflow-y-auto divide-y divide-zinc-100"
+            >
               {items.map((item) => {
                 const res = item.result;
                 return (
@@ -926,6 +988,17 @@ export default function ToolWorkspace({
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           {item.status === 'processing' ? 'Optimizing' : 'Queued'}
                         </span>
+                      )}
+
+                      {item.status === 'error' && (
+                        <button
+                          type="button"
+                          onClick={() => retryItem(item.id)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Retry</span>
+                        </button>
                       )}
 
                       {item.status === 'done' && res && (
@@ -1032,7 +1105,6 @@ export default function ToolWorkspace({
         )}
       </div>
 
-      {/* Single Clean Privacy Line */}
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
         <span>Processed locally in your browser · Zero uploads</span>
