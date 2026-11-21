@@ -8,14 +8,20 @@ import {
   Loader2,
   Trash2,
   Eye,
+  Briefcase,
 } from 'lucide-react';
-import { validateImageFile, formatFileSize } from '../engine/imageEngine';
+import {
+  validateImageFile,
+  formatFileSize,
+  downscaleForAI,
+  processImage,
+} from '../engine/imageEngine';
 
 const BG_PRESETS = [
   { id: 'transparent', label: 'Transparent', value: 'transparent' },
   { id: 'white', label: 'White', value: '#ffffff' },
-  { id: 'passport-blue', label: 'Passport Blue', value: '#2563eb' },
-  { id: 'sky', label: 'Sky Blue', value: '#38bdf8' },
+  { id: 'studio-blue', label: 'Studio Blue', value: '#3b82f6' },
+  { id: 'light-blue', label: 'Sky Blue', value: '#93c5fd' },
   { id: 'dark', label: 'Dark', value: '#0f172a' },
 ];
 
@@ -28,6 +34,7 @@ export default function BgRemoverTool() {
   const [showOriginal, setShowOriginal] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExportingJob, setIsExportingJob] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [progressPercent, setProgressPercent] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -51,9 +58,6 @@ export default function BgRemoverTool() {
       return;
     }
 
-    if (originalUrl) URL.revokeObjectURL(originalUrl);
-    if (resultUrl) URL.revokeObjectURL(resultUrl);
-
     setErrorMsg(null);
     setFile(picked);
     setOriginalUrl(URL.createObjectURL(picked));
@@ -61,11 +65,10 @@ export default function BgRemoverTool() {
     setResultUrl(null);
     setShowOriginal(false);
     setBgColor('transparent');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const resetAll = () => {
-    if (originalUrl) URL.revokeObjectURL(originalUrl);
-    if (resultUrl) URL.revokeObjectURL(resultUrl);
     setFile(null);
     setOriginalUrl(null);
     setResultBlob(null);
@@ -81,34 +84,38 @@ export default function BgRemoverTool() {
     setIsProcessing(true);
     setErrorMsg(null);
     setProgressPercent(5);
-    setStatusText('Loading AI model (first run takes 10–25 sec, cached after)...');
+    setStatusText('Optimizing image for mobile memory...');
 
     try {
-      // Lazy-load AI library only when user clicks process
+      // Prevent low-RAM mobile crashes on huge 12MP–48MP photos
+      const safeInput = await downscaleForAI(file, 2048);
+
+      setStatusText('Loading compact AI model (~40MB on first use, cached afterward)...');
       const { removeBackground } = await import('@imgly/background-removal');
 
-      const blob = await removeBackground(file, {
+      const blob = await removeBackground(safeInput, {
+        model: 'isnet_quint8',
         progress: (key: string, current: number, total: number) => {
-          if (total > 0) {
-            const pct = Math.min(99, Math.round((current / total) * 100));
-            setProgressPercent(pct);
-            if (key.includes('fetch')) {
-              setStatusText(`Downloading AI model (${pct}%)...`);
-            } else {
-              setStatusText(`Removing background with AI (${pct}%)...`);
-            }
-          }
+          if (total <= 0) return;
+          const ratio = Math.min(1, current / total);
+          const isFetch = key.includes('fetch');
+          const mapped = isFetch ? Math.round(10 + ratio * 55) : Math.round(65 + ratio * 33);
+
+          // Keep progress monotonic so bar never jumps backwards across files
+          setProgressPercent((prev) => Math.max(prev, Math.min(99, mapped)));
+          setStatusText(
+            isFetch ? 'Downloading compact AI model...' : 'Separating foreground with AI...'
+          );
         },
       });
 
-      if (resultUrl) URL.revokeObjectURL(resultUrl);
       setResultBlob(blob);
       setResultUrl(URL.createObjectURL(blob));
       setProgressPercent(100);
     } catch (err) {
       console.error(err);
       setErrorMsg(
-        'AI প্রসেসিংয়ে সমস্যা হয়েছে। ছবির সাইজ ছোট করে আবার চেষ্টা করুন অথবা ইন্টারনেট কানেকশন চেক করুন।'
+        'AI background removal failed. Please check your internet connection (needed on first run to fetch the model) or try a smaller photo.'
       );
     } finally {
       setIsProcessing(false);
@@ -116,51 +123,94 @@ export default function BgRemoverTool() {
     }
   };
 
+  const renderCompositedBlob = (fillHex: string, mime: 'image/jpeg' | 'image/png'): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      if (!resultUrl) return reject(new Error('No cutout available.'));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas unavailable.'));
+
+        ctx.fillStyle = fillHex;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        canvas.toBlob(
+          (blob) => {
+            canvas.width = 0;
+            canvas.height = 0;
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to render final image.'));
+          },
+          mime,
+          0.92
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load cutout image for export.'));
+      img.src = resultUrl;
+    });
+  };
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+
   const handleDownload = async () => {
     if (!resultBlob || !file) return;
+    setErrorMsg(null);
     const baseName = file.name.replace(/\.[^/.]+$/, '');
 
-    // Transparent PNG সরাসরি ডাউনলোড
     if (bgColor === 'transparent') {
-      const a = document.createElement('a');
-      a.href = resultUrl!;
-      a.download = `${baseName}_no_bg.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      triggerDownload(resultBlob, `${baseName}_no_bg.png`);
       return;
     }
 
-    // সলিড কালার ব্যাকগ্রাউন্ড বসিয়ে ডাউনলোড
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+    try {
+      const solidBlob = await renderCompositedBlob(bgColor, 'image/jpeg');
+      triggerDownload(solidBlob, `${baseName}_new_bg.jpg`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Download failed.');
+    }
+  };
 
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+  // One-click BD Job Photo Flow: Cutout + Solid BG -> 300x300 px -> Under 100KB JPG
+  const handleDownloadJobPhoto = async () => {
+    if (!resultBlob || !file) return;
+    setIsExportingJob(true);
+    setErrorMsg(null);
 
-      canvas.toBlob(
-        (finalBlob) => {
-          if (!finalBlob) return;
-          const url = URL.createObjectURL(finalBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${baseName}_bg_replaced.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1500);
-        },
-        'image/jpeg',
-        0.92
-      );
-    };
-    img.src = resultUrl!;
+    try {
+      const chosenBg = bgColor === 'transparent' ? '#ffffff' : bgColor;
+      const solidBlob = await renderCompositedBlob(chosenBg, 'image/jpeg');
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const tempFile = new File([solidBlob], `${baseName}_job.jpg`, { type: 'image/jpeg' });
+
+      const jobRes = await processImage(tempFile, {
+        format: 'image/jpeg',
+        width: 300,
+        height: 300,
+        fitMode: 'cover',
+        targetSizeKB: 100,
+      });
+
+      triggerDownload(jobRes.blob, `${baseName}_300x300_job.jpg`);
+      URL.revokeObjectURL(jobRes.url);
+      URL.revokeObjectURL(jobRes.originalUrl);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Could not export 300×300 job photo.');
+    } finally {
+      setIsExportingJob(false);
+    }
   };
 
   return (
@@ -168,6 +218,15 @@ export default function BgRemoverTool() {
       {/* Upload Box */}
       {!file && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload photo for background removal"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           onDragOver={(e) => {
             e.preventDefault();
             setIsDragging(true);
@@ -179,10 +238,10 @@ export default function BgRemoverTool() {
             handleFileSelect(e.dataTransfer.files);
           }}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 ${
             isDragging
-              ? 'border-blue-500 bg-blue-50/60'
-              : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+              ? 'border-purple-500 bg-purple-50/60'
+              : 'border-slate-300 hover:border-purple-400 hover:bg-slate-50'
           }`}
         >
           <input
@@ -199,7 +258,10 @@ export default function BgRemoverTool() {
             Select a Photo to Remove Background
           </p>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Portraits, Products, Logos · Runs 100% Free Inside Your Browser
+            Portraits, Products, Logos · Runs Locally in Your Browser
+          </p>
+          <p className="text-[11px] text-slate-400 mt-2">
+            Note: First run downloads a compact ~40MB open-source AI model from CDN (cached after).
           </p>
         </div>
       )}
@@ -223,7 +285,7 @@ export default function BgRemoverTool() {
             </button>
           </div>
 
-          {/* Image Preview Box */}
+          {/* Image Preview */}
           <div
             className="rounded-2xl border border-slate-200 overflow-hidden flex items-center justify-center min-h-[240px] max-h-[420px] p-3"
             style={
@@ -246,7 +308,7 @@ export default function BgRemoverTool() {
             />
           </div>
 
-          {/* Progress Bar */}
+          {/* Smooth Progress Bar */}
           {isProcessing && (
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-medium text-slate-600">
@@ -284,13 +346,13 @@ export default function BgRemoverTool() {
             </button>
           )}
 
-          {/* Background Replacement & Download After Result */}
+          {/* Background Replacement & Downloads After Result */}
           {resultUrl && (
             <div className="space-y-4 border-t border-slate-200 pt-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
                   Replace Background Color (Optional)
-                </label>
+                </span>
                 <div className="flex flex-wrap items-center gap-2">
                   {BG_PRESETS.map((preset) => (
                     <button
@@ -336,20 +398,32 @@ export default function BgRemoverTool() {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="flex-1 py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base font-semibold inline-flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  className="flex-1 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   {bgColor === 'transparent'
                     ? 'Download Transparent PNG'
-                    : 'Download with New Background (JPG)'}
+                    : 'Download with Background (JPG)'}
                 </button>
               </div>
+
+              {/* Direct Shortcut for Job Seekers */}
+              <button
+                type="button"
+                disabled={isExportingJob}
+                onClick={handleDownloadJobPhoto}
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Briefcase className="w-4 h-4" />
+                {isExportingJob
+                  ? 'Exporting 300×300 Job Photo...'
+                  : 'One-Click Export: 300×300 Job Photo (Under 100KB JPG)'}
+              </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Error Message */}
       {errorMsg && (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -357,10 +431,9 @@ export default function BgRemoverTool() {
         </div>
       )}
 
-      {/* Privacy Note */}
       <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
         <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span>100% On-Device AI: Your photo never leaves your phone or computer.</span>
+        <span>100% On-Device AI: Your photo never leaves your device (only the model loads from CDN).</span>
       </p>
     </div>
   );
