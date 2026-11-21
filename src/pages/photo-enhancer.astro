@@ -6,14 +6,14 @@ import { SEO_PAGES } from '../data/seoPages';
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const pageUrl = `${siteBase}/photo-enhancer`;
 
-const title = 'Photo Enhancer & HD Upscaler Free Online | ImageLab';
+const title = 'AI Photo Enhancer & 4× Upscaler Free Online | ImageLab';
 const description =
-  'Unblur soft photos, reduce image noise, restore fine clarity, and upscale up to 4x HD locally in your browser. Interactive split-screen compare, zero uploads.';
+  'Restore blurry, compressed, and low-resolution photos using real Swin2SR BSRGAN neural super-resolution directly in your browser. Zero uploads, free HD download.';
 
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Photo Enhancer & HD Upscaler',
+  name: 'ImageLab AI Photo Enhancer & 4x Super-Resolution',
   url: pageUrl,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
@@ -23,16 +23,16 @@ const schema = {
 
 const faqs = [
   {
-    q: 'How does the Photo Enhancer clear up blurry or noisy images?',
-    a: 'It runs a multi-stage restoration pipeline inside a background Web Worker: edge-preserving bilateral denoising removes grain first, followed by local haze recovery, luminance-only multi-scale deblurring (preventing color halos), and progressive 2× or 4× HD upscaling.',
+    q: 'How is this different from regular photo sharpening tools?',
+    a: 'Regular tools only boost contrast along edges, which creates gritty artifacts. ImageLab runs a real Swin2SR Real-World (BSRGAN) neural network directly on your GPU/WASM to remove blur and JPEG blocks while reconstructing smooth, crisp 4× HD textures.',
   },
   {
-    q: 'Can it completely rebuild severely out-of-focus faces?',
-    a: 'It significantly sharpens soft focus, compressed WhatsApp/social photos, noisy low-light shots, and low-resolution images. Extremely motion-blurred photos where facial detail no longer exists require server-side generative AI.',
+    q: 'Why does the very first image take longer?',
+    a: 'On your first visit, your browser downloads and caches the neural network weights once from CDN. Every image after that restores directly from local cache.',
   },
   {
-    q: 'Are my photos uploaded to a cloud server?',
-    a: 'No. Every pixel calculation runs locally on your own device with zero uploads, making it safe for private portraits and documents.',
+    q: 'Are my photos sent to an external server?',
+    a: 'No. Only the open-source AI model file is fetched from CDN; your actual photos are processed 100% locally inside your browser.',
   },
 ];
 ---
@@ -42,19 +42,19 @@ const faqs = [
     <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
       <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
       <span class="opacity-40">/</span>
-      <span class="text-zinc-700 font-medium">Photo Enhancer</span>
+      <span class="text-zinc-700 font-medium">AI Photo Enhancer</span>
     </nav>
 
     <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        Photo Enhancer & HD Upscaler
+        AI Photo Enhancer & 4× Upscaler
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Unblur soft details, remove grain, and upscale up to 4× HD — instant split-screen compare.
+        True Swin2SR neural restoration — removes blur and compression blocks without harsh sharpening.
       </p>
     </header>
 
-    <LiveEnhancerTool client:load />
+    <LiveEnhancerTool client:only="react" />
 
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section>
