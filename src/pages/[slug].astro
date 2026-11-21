@@ -52,7 +52,7 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
   description={page.metaDescription}
   schemas={[softwareSchema, faqSchema, breadcrumbSchema]}
 >
-  <article class="max-w-4xl mx-auto px-4 pt-6 sm:pt-10 pb-10">
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12">
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
       <a href="/" class="hover:text-blue-600 font-medium">Home</a>
@@ -61,19 +61,19 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
     </nav>
 
     <!-- SEO Header -->
-    <header class="text-center max-w-2xl mx-auto mb-7">
-      <span class="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-3">
+    <header class="text-center max-w-3xl mx-auto mb-8">
+      <span class="inline-block px-3.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-3 border border-blue-100">
         Free {page.category} Tool
       </span>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
         {page.h1}
       </h1>
-      <p class="text-slate-600 mt-2.5 text-sm sm:text-base">
+      <p class="text-slate-600 mt-3 text-sm sm:text-base">
         {page.subtitle}
       </p>
     </header>
 
-    <!-- Pre-configured Interactive Tool (Above the fold) -->
+    <!-- Wide Premium Interactive Workspace -->
     <ToolWorkspace
       client:load
       initialMode={page.toolType}
@@ -81,48 +81,48 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
       defaults={page.defaults}
     />
 
-    <!-- How-To Section -->
-    <section class="mt-12 bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-xl font-bold text-slate-900 mb-4">
-        How to Use {page.h1}
-      </h2>
-      <ol class="space-y-3 text-sm sm:text-base text-slate-700 list-decimal pl-5">
-        {page.howToSteps.map((step) => (
-          <li>{step}</li>
-        ))}
-      </ol>
-    </section>
+    <!-- Readable Below-the-Fold SEO Guides -->
+    <div class="max-w-5xl mx-auto">
+      <section class="mt-14 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
+          How to Use {page.h1}
+        </h2>
+        <ol class="space-y-3 text-sm sm:text-base text-slate-700 list-decimal pl-5">
+          {page.howToSteps.map((step) => (
+            <li>{step}</li>
+          ))}
+        </ol>
+      </section>
 
-    <!-- FAQ Section -->
-    <section class="mt-8">
-      <h2 class="text-xl font-bold text-slate-900 mb-4">
-        Frequently Asked Questions
-      </h2>
-      <div class="space-y-3">
-        {page.faqs.map((faq) => (
-          <div class="bg-white rounded-2xl border border-slate-200 p-5">
-            <h3 class="font-semibold text-slate-900 text-sm sm:text-base">{faq.q}</h3>
-            <p class="text-slate-600 text-sm mt-1.5 leading-relaxed">{faq.a}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+      <section class="mt-10">
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
+          Frequently Asked Questions
+        </h2>
+        <div class="space-y-3">
+          {page.faqs.map((faq) => (
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6">
+              <h3 class="font-bold text-slate-900 text-sm sm:text-base">{faq.q}</h3>
+              <p class="text-slate-600 text-sm mt-1.5 leading-relaxed">{faq.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-    <!-- Internal Linking Grid (Huge Google SEO Boost) -->
-    <nav aria-label="More Free Image Tools" class="mt-12 border-t border-slate-200 pt-8">
-      <h2 class="text-lg font-bold text-slate-900 mb-4">
-        Explore More Free Image Tools
-      </h2>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-        {relatedPages.map((item) => (
-          <a
-            href={`/${item.slug}`}
-            class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition shadow-2xs"
-          >
-            {item.shortName}
-          </a>
-        ))}
-      </div>
-    </nav>
+      <nav aria-label="More Free Image Tools" class="mt-12 border-t border-slate-200 pt-8">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">
+          Explore More Free Image Tools
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+          {relatedPages.map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:border-blue-500 hover:text-blue-600 transition shadow-2xs"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
   </article>
 </Layout>
