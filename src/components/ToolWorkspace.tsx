@@ -10,15 +10,18 @@ import {
   Sparkles,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   Eye,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import {
   processImage,
   formatFileSize,
   validateImageFile,
   type SupportedFormat,
+  type FitMode,
   type ProcessedImageResult,
 } from '../engine/imageEngine';
 import { downloadSingleImage, downloadBatchAsZip } from '../engine/zipHelper';
@@ -32,7 +35,7 @@ export interface ToolDefaults {
   targetSizeKB?: number;
   width?: number;
   height?: number;
-  fitMode?: 'contain' | 'cover' | 'stretch';
+  fitMode?: FitMode;
   brightness?: number;
   contrast?: number;
   saturate?: number;
@@ -43,6 +46,13 @@ interface ToolWorkspaceProps {
   showModeTabs?: boolean;
   defaults?: ToolDefaults;
 }
+
+interface FailedFile {
+  name: string;
+  reason: string;
+}
+
+const MAX_BATCH_FILES = 20;
 
 const MODE_TABS: { id: ToolMode; label: string; icon: React.ReactNode }[] = [
   { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-4 h-4" /> },
@@ -59,6 +69,7 @@ export default function ToolWorkspace({
   const [mode, setMode] = useState<ToolMode>(initialMode);
   const [files, setFiles] = useState<File[]>([]);
   const [results, setResults] = useState<ProcessedImageResult[]>([]);
+  const [failedFiles, setFailedFiles] = useState<FailedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressText, setProgressText] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -66,7 +77,7 @@ export default function ToolWorkspace({
   const [compareItem, setCompareItem] = useState<ProcessedImageResult | null>(null);
   const [showOriginalInModal, setShowOriginalInModal] = useState(false);
 
-  // Tool Settings State
+  // Tool Settings
   const [format, setFormat] = useState<SupportedFormat>(defaults.format ?? 'image/webp');
   const [quality, setQuality] = useState<number>(Math.round((defaults.quality ?? 0.85) * 100));
   const [targetSizeKB, setTargetSizeKB] = useState<string>(
@@ -74,16 +85,14 @@ export default function ToolWorkspace({
   );
   const [width, setWidth] = useState<string>(defaults.width ? String(defaults.width) : '');
   const [height, setHeight] = useState<string>(defaults.height ? String(defaults.height) : '');
-  const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'stretch'>(
-    defaults.fitMode ?? 'cover'
-  );
+  const [fitMode, setFitMode] = useState<FitMode>(defaults.fitMode ?? 'cover');
   const [brightness, setBrightness] = useState<number>(defaults.brightness ?? 100);
   const [contrast, setContrast] = useState<number>(defaults.contrast ?? 100);
   const [saturate, setSaturate] = useState<number>(defaults.saturate ?? 100);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cleanup Object URLs on unmount to protect phone RAM
+  // Cleanup blob URLs when results change or component unmounts
   useEffect(() => {
     return () => {
       results.forEach((r) => {
@@ -92,6 +101,16 @@ export default function ToolWorkspace({
       });
     };
   }, [results]);
+
+  // Close Compare modal with Escape key
+  useEffect(() => {
+    if (!compareItem) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCompareItem(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [compareItem]);
 
   const handleModeSwitch = (newMode: ToolMode) => {
     setMode(newMode);
@@ -114,10 +133,24 @@ export default function ToolWorkspace({
       else validFiles.push(file);
     });
 
-    if (errors.length > 0) setErrorMsg(errors[0]);
     if (validFiles.length > 0) {
-      setFiles((prev) => [...prev, ...validFiles].slice(0, 20)); // Max 20 files batch for mobile safety
+      setFiles((prev) => {
+        const combined = [...prev, ...validFiles];
+        if (combined.length > MAX_BATCH_FILES) {
+          errors.push(`Maximum ${MAX_BATCH_FILES} images per batch. Extra files were skipped.`);
+          return combined.slice(0, MAX_BATCH_FILES);
+        }
+        return combined;
+      });
     }
+
+    if (errors.length > 0) setErrorMsg(errors[0]);
+    // Reset input so user can re-select the exact same file if needed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFileAt = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -127,12 +160,9 @@ export default function ToolWorkspace({
   };
 
   const clearAll = () => {
-    results.forEach((r) => {
-      URL.revokeObjectURL(r.url);
-      URL.revokeObjectURL(r.originalUrl);
-    });
     setFiles([]);
     setResults([]);
+    setFailedFiles([]);
     setErrorMsg(null);
     setCompareItem(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -142,12 +172,7 @@ export default function ToolWorkspace({
     if (files.length === 0) return;
     setIsProcessing(true);
     setErrorMsg(null);
-
-    // Clear previous URLs
-    results.forEach((r) => {
-      URL.revokeObjectURL(r.url);
-      URL.revokeObjectURL(r.originalUrl);
-    });
+    setFailedFiles([]);
     setResults([]);
 
     const parsedTargetKB = Number(targetSizeKB) > 0 ? Number(targetSizeKB) : undefined;
@@ -155,12 +180,13 @@ export default function ToolWorkspace({
     const parsedH = Number(height) > 0 ? Number(height) : undefined;
 
     const processedList: ProcessedImageResult[] = [];
+    const failedList: FailedFile[] = [];
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        setProgressText(`Processing ${i + 1} of ${files.length}...`);
-        const file = files[i];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setProgressText(`Processing ${i + 1} of ${files.length}...`);
 
+      try {
         const res = await processImage(file, {
           format:
             mode === 'converter' || mode === 'compressor' || mode === 'resizer'
@@ -171,38 +197,29 @@ export default function ToolWorkspace({
           width: mode === 'resizer' ? parsedW : undefined,
           height: mode === 'resizer' ? parsedH : undefined,
           fitMode: mode === 'resizer' ? fitMode : undefined,
-          filters:
-            mode === 'enhancer'
-              ? { brightness, contrast, saturate }
-              : undefined,
+          filters: mode === 'enhancer' ? { brightness, contrast, saturate } : undefined,
         });
-
         processedList.push(res);
+      } catch (err) {
+        failedList.push({
+          name: file.name,
+          reason: err instanceof Error ? err.message : 'Failed to process this image.',
+        });
       }
-      setResults(processedList);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'প্রসেসিং করতে সমস্যা হয়েছে।');
-    } finally {
-      setIsProcessing(false);
-      setProgressText('');
     }
+
+    setResults(processedList);
+    setFailedFiles(failedList);
+    setIsProcessing(false);
+    setProgressText('');
   };
 
-  const applyAutoEnhance = () => {
-    setBrightness(106);
-    setContrast(114);
-    setSaturate(116);
-  };
-
-  const resetEnhance = () => {
-    setBrightness(100);
-    setContrast(100);
-    setSaturate(100);
-  };
+  const hasActiveTargetKB =
+    (mode === 'compressor' || mode === 'resizer') && Number(targetSizeKB) > 0;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Mode Switcher Tabs (Visible on Homepage) */}
+      {/* Mode Switcher Tabs */}
       {showModeTabs && (
         <div className="grid grid-cols-4 border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
           {MODE_TABS.map((tab) => {
@@ -227,8 +244,17 @@ export default function ToolWorkspace({
       )}
 
       <div className="p-4 sm:p-6 space-y-6">
-        {/* Upload Dropzone */}
+        {/* Keyboard-Accessible Upload Dropzone */}
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload images"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           onDragOver={(e) => {
             e.preventDefault();
             setIsDragging(true);
@@ -236,7 +262,7 @@ export default function ToolWorkspace({
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             isDragging
               ? 'border-blue-500 bg-blue-50/60'
               : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
@@ -257,35 +283,55 @@ export default function ToolWorkspace({
             Tap to Select Images or Drop Here
           </p>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            JPG, PNG, WEBP · Up to 20 images at once (Max 25MB each)
+            JPG, PNG, WEBP · Up to {MAX_BATCH_FILES} images per batch (Max 25MB each)
           </p>
         </div>
 
-        {/* Selected Files Bar */}
+        {/* Selected Files Queue with Individual Remove */}
         {files.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-            <span className="font-medium text-slate-700">
-              {files.length} {files.length === 1 ? 'image' : 'images'} ready
-            </span>
-            <button
-              type="button"
-              onClick={clearAll}
-              className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear All
-            </button>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
+              <span className="font-semibold text-slate-700">
+                {files.length} {files.length === 1 ? 'image' : 'images'} queued
+              </span>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Clear All
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+              {files.map((f, idx) => (
+                <span
+                  key={`${f.name}-${idx}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 max-w-[200px]"
+                >
+                  <span className="truncate">{f.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${f.name}`}
+                    onClick={() => removeFileAt(idx)}
+                    className="text-slate-400 hover:text-red-600 cursor-pointer shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Tool-Specific Controls */}
         <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-4">
-          {/* Format Selector (Convert / Compress / Resize) */}
+          {/* Format Selector */}
           {mode !== 'enhancer' && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
                 Output Format
-              </label>
+              </span>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [
@@ -311,29 +357,35 @@ export default function ToolWorkspace({
             </div>
           )}
 
-          {/* Quality Slider (Converter & Compressor) */}
-          {(mode === 'converter' || mode === 'compressor') && format !== 'image/png' && (
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-                <span>Quality</span>
-                <span>{quality}%</span>
+          {/* Quality Slider (Hidden when Target KB is active to avoid confusion) */}
+          {(mode === 'converter' || mode === 'compressor') &&
+            format !== 'image/png' &&
+            !hasActiveTargetKB && (
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                  <label htmlFor="quality-slider">Quality</label>
+                  <span>{quality}%</span>
+                </div>
+                <input
+                  id="quality-slider"
+                  type="range"
+                  min={10}
+                  max={100}
+                  value={quality}
+                  onChange={(e) => setQuality(Number(e.target.value))}
+                  className="w-full accent-blue-600"
+                />
               </div>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={quality}
-                onChange={(e) => setQuality(Number(e.target.value))}
-                className="w-full accent-blue-600"
-              />
-            </div>
-          )}
+            )}
 
-          {/* Target File Size KB (Compressor & Resizer) */}
+          {/* Target Max File Size KB */}
           {(mode === 'compressor' || mode === 'resizer') && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                Target Max Size in KB (Optional — Works with JPG/WEBP)
+              <label
+                htmlFor="target-kb-input"
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2"
+              >
+                Target Max Size in KB (Auto-adjusts quality & resolution)
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {TARGET_KB_PRESETS.map((kb) => (
@@ -350,7 +402,7 @@ export default function ToolWorkspace({
                         : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
                     }`}
                   >
-                    {kb} KB
+                    Under {kb} KB
                   </button>
                 ))}
                 {targetSizeKB && (
@@ -364,13 +416,20 @@ export default function ToolWorkspace({
                 )}
               </div>
               <input
+                id="target-kb-input"
                 type="number"
                 min={5}
-                placeholder="e.g. 50 (leave empty for normal quality)"
+                placeholder="e.g. 50 (leave empty for manual quality)"
                 value={targetSizeKB}
                 onChange={(e) => setTargetSizeKB(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {hasActiveTargetKB && format === 'image/png' && (
+                <p className="mt-1.5 text-xs text-amber-700 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>PNG is lossless and ignores Target KB. Switch to JPG or WEBP to hit {targetSizeKB} KB.</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -378,9 +437,9 @@ export default function ToolWorkspace({
           {mode === 'resizer' && (
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
                   Quick Presets
-                </label>
+                </span>
                 <div className="flex flex-wrap gap-1.5">
                   {RESIZE_PRESETS.map((preset) => (
                     <button
@@ -389,7 +448,7 @@ export default function ToolWorkspace({
                       onClick={() => {
                         setWidth(String(preset.width));
                         setHeight(String(preset.height));
-                        setFitMode('cover');
+                        setFitMode(preset.fitMode);
                         if (preset.targetSizeKB) {
                           setTargetSizeKB(String(preset.targetSizeKB));
                           setFormat('image/jpeg');
@@ -405,10 +464,11 @@ export default function ToolWorkspace({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label htmlFor="width-input" className="block text-xs font-medium text-slate-600 mb-1">
                     Width (px)
                   </label>
                   <input
+                    id="width-input"
                     type="number"
                     min={10}
                     placeholder="Auto"
@@ -418,10 +478,11 @@ export default function ToolWorkspace({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label htmlFor="height-input" className="block text-xs font-medium text-slate-600 mb-1">
                     Height (px)
                   </label>
                   <input
+                    id="height-input"
                     type="number"
                     min={10}
                     placeholder="Auto"
@@ -433,16 +494,18 @@ export default function ToolWorkspace({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label htmlFor="fitmode-select" className="block text-xs font-medium text-slate-600 mb-1">
                   Fit Mode (When both Width & Height are set)
                 </label>
                 <select
+                  id="fitmode-select"
                   value={fitMode}
-                  onChange={(e) => setFitMode(e.target.value as 'contain' | 'cover' | 'stretch')}
+                  onChange={(e) => setFitMode(e.target.value as FitMode)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="cover">Smart Center-Crop (No Stretching — Best for Photos)</option>
-                  <option value="stretch">Exact Fit (Stretch to dimensions)</option>
+                  <option value="cover">Smart Portrait Crop (Best for Faces & Job Photos)</option>
+                  <option value="contain">Fit Inside with White Padding (Best for Signatures & Logos)</option>
+                  <option value="stretch">Stretch to Exact Dimensions</option>
                 </select>
               </div>
             </div>
@@ -453,19 +516,27 @@ export default function ToolWorkspace({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Manual Adjustments
+                  Adjustments
                 </span>
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={applyAutoEnhance}
+                    onClick={() => {
+                      setBrightness(106);
+                      setContrast(114);
+                      setSaturate(116);
+                    }}
                     className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 cursor-pointer"
                   >
-                    ✨ Auto Enhance
+                    Auto Enhance
                   </button>
                   <button
                     type="button"
-                    onClick={resetEnhance}
+                    onClick={() => {
+                      setBrightness(100);
+                      setContrast(100);
+                      setSaturate(100);
+                    }}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-100 cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" /> Reset
@@ -475,10 +546,11 @@ export default function ToolWorkspace({
 
               <div>
                 <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                  <span>Brightness</span>
+                  <label htmlFor="brightness-slider">Brightness</label>
                   <span>{brightness}%</span>
                 </div>
                 <input
+                  id="brightness-slider"
                   type="range"
                   min={50}
                   max={150}
@@ -490,10 +562,11 @@ export default function ToolWorkspace({
 
               <div>
                 <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                  <span>Contrast</span>
+                  <label htmlFor="contrast-slider">Contrast</label>
                   <span>{contrast}%</span>
                 </div>
                 <input
+                  id="contrast-slider"
                   type="range"
                   min={50}
                   max={150}
@@ -505,10 +578,11 @@ export default function ToolWorkspace({
 
               <div>
                 <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                  <span>Saturation (Color)</span>
+                  <label htmlFor="saturate-slider">Saturation (Color)</label>
                   <span>{saturate}%</span>
                 </div>
                 <input
+                  id="saturate-slider"
                   type="range"
                   min={0}
                   max={200}
@@ -521,7 +595,7 @@ export default function ToolWorkspace({
           )}
         </div>
 
-        {/* Error Box */}
+        {/* Validation Error Box */}
         {errorMsg && (
           <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -551,11 +625,28 @@ export default function ToolWorkspace({
           )}
         </button>
 
-        {/* Privacy Trust Note */}
+        {/* Privacy Note */}
         <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>100% Private: Processed locally inside your device. Zero server uploads.</span>
         </p>
+
+        {/* Per-File Failures Box */}
+        {failedFiles.length > 0 && (
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm space-y-1.5">
+            <p className="font-semibold flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {failedFiles.length} {failedFiles.length === 1 ? 'file' : 'files'} could not be processed:
+            </p>
+            <ul className="list-disc pl-5 space-y-0.5 text-xs text-red-700">
+              {failedFiles.map((f, i) => (
+                <li key={i}>
+                  <strong>{f.name}:</strong> {f.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Results Section */}
         {results.length > 0 && (
@@ -588,21 +679,36 @@ export default function ToolWorkspace({
                       alt={item.fileName}
                       className="w-14 h-14 rounded-lg object-cover border border-slate-200 bg-white shrink-0"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-1">
                       <p className="text-sm font-semibold text-slate-800 truncate">
                         {item.fileName}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500">
                         {formatFileSize(item.originalSize)} →{' '}
                         <span className="font-semibold text-slate-800">
                           {formatFileSize(item.newSize)}
                         </span>{' '}
                         · {item.width}×{item.height}px
                       </p>
-                      {item.savedPercent > 0 && (
-                        <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
-                          Saved {item.savedPercent}%
-                        </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.savedPercent > 0 && (
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
+                            Saved {item.savedPercent}%
+                          </span>
+                        )}
+                        {item.savedPercent < 0 && (
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold">
+                            Larger by {Math.abs(item.savedPercent)}% (try JPG/WEBP)
+                          </span>
+                        )}
+                        {item.targetMissed && (
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-[11px] font-semibold">
+                            Could not reach {item.targetSizeKB} KB — closest size shown
+                          </span>
+                        )}
+                      </div>
+                      {item.warning && (
+                        <p className="text-[11px] text-amber-700">{item.warning}</p>
                       )}
                     </div>
                   </div>
@@ -635,9 +741,12 @@ export default function ToolWorkspace({
         )}
       </div>
 
-      {/* Before / After Compare Modal */}
+      {/* Accessible Before / After Compare Modal */}
       {compareItem && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image comparison preview"
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
           onClick={() => setCompareItem(null)}
         >
@@ -654,7 +763,7 @@ export default function ToolWorkspace({
                 onClick={() => setCompareItem(null)}
                 className="text-xs font-semibold text-slate-500 hover:text-slate-900 px-2 py-1 cursor-pointer"
               >
-                Close ✕
+                Close (ESC)
               </button>
             </div>
 
