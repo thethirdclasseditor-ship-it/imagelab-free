@@ -1,0 +1,45 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Contact Us | ImageLab"
+  description="Report a bug, suggest a new image tool preset, or contact the ImageLab team."
+>
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
+    <header>
+      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Support</p>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">Contact ImageLab</h1>
+      <p class="text-sm text-zinc-500 mt-2.5">
+        Found a bug, need a new exam/portal resize preset, or have a partnership question?
+      </p>
+    </header>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <a
+        href="https://github.com/thethirdclasseditor-ship-it/imagelab-free/issues"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="studio-card rounded-3xl p-6 hover:border-blue-500/40 transition flex flex-col justify-between gap-4"
+      >
+        <div>
+          <h2 class="text-base font-bold text-zinc-950">Bug Reports & Feature Requests</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Open an issue directly on our GitHub repository to request a new tool or report a browser issue.
+          </p>
+        </div>
+        <span class="text-xs font-semibold text-blue-600">Open GitHub Issues →</span>
+      </a>
+
+      <div class="studio-card rounded-3xl p-6 flex flex-col justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-zinc-950">General Inquiries</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            For legal, licensing, privacy, or sponsorship inquiries, reach out via our repository profile or support channel.
+          </p>
+        </div>
+        <span class="text-xs font-semibold text-zinc-700">Response time: 24–48 hours</span>
+      </div>
+    </div>
+  </article>
+</Layout>
