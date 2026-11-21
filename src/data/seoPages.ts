@@ -24,14 +24,14 @@ export const SEO_PAGES: SeoToolPage[] = [
     shortName: 'Compress to 20KB',
     title: 'Compress Image to 20KB Free Online | ImageLab',
     metaDescription:
-      'Reduce JPG, PNG, or WEBP photo size to under 20KB locally in your browser. Free, private, and ideal for strict online forms and signatures.',
+      'Reduce JPG, PNG, or WEBP photo size to under 20KB locally in your browser. Free, private, and ideal for strict web forms, icons, and signatures.',
     h1: 'Compress Image to 20KB',
     subtitle: 'Shrink photos safely under 20KB on your device with MozJPEG and auto-downscale.',
     defaults: { format: 'image/jpeg', targetSizeKB: 20 },
     proTips: [
-      'For crisp results under 20KB, crop extra empty background around your face or signature first.',
-      'Large 12MP camera photos are automatically scaled down just enough to keep text and edges readable.',
-      'Use JPG for government portals; choose WEBP if your website allows modern formats.',
+      'For crisp results under 20KB, crop extra empty background around your subject or signature first.',
+      'Large 12MP camera photos are automatically scaled down just enough to keep edges and details clear.',
+      'Use JPG for strict web portals; choose WEBP if your website supports modern formats.',
     ],
     howToSteps: [
       'Drop one or up to 20 images anywhere on this page.',
@@ -45,10 +45,10 @@ export const SEO_PAGES: SeoToolPage[] = [
       },
       {
         q: 'Will my output be exactly 20.0KB or slightly under?',
-        a: 'To prevent portal rejections, the engine targets at most 20KB—usually landing between 17KB and 19.9KB with the highest visual clarity possible.',
+        a: 'To prevent upload rejections, the engine targets at most 20KB—usually landing between 17KB and 19.9KB with the highest visual clarity possible.',
       },
       {
-        q: 'Are my application photos uploaded to any server?',
+        q: 'Are my photos uploaded to any server?',
         a: 'No. All compression runs locally inside your browser tab with zero server uploads.',
       },
     ],
@@ -62,12 +62,12 @@ export const SEO_PAGES: SeoToolPage[] = [
     metaDescription:
       'Compress JPG, PNG, or WEBP photos to under 50KB in seconds. 100% free browser-based MozJPEG compressor with batch ZIP download and zero uploads.',
     h1: 'Compress Image to 50KB',
-    subtitle: 'Meet strict 50KB form upload limits automatically without uploading private photos.',
+    subtitle: 'Meet strict 50KB upload limits automatically without uploading private photos.',
     defaults: { format: 'image/jpeg', targetSizeKB: 50 },
     proTips: [
-      '50KB is the most common limit for university admission, exam admit cards, and scholarship portals.',
-      'MozJPEG strips invisible EXIF camera metadata automatically, giving you sharper photos inside the 50KB budget.',
-      'Need exact 300×300 pixels too? Switch to our 300×300 Job Photo preset.',
+      '50KB is a common file-size cap for online application portals, profile avatars, and lightweight web thumbnails.',
+      'MozJPEG strips invisible EXIF camera metadata automatically, leaving more room for sharp image detail inside 50KB.',
+      'Need exact 300×300 pixels too? Switch to our 300×300 Square Photo preset.',
     ],
     howToSteps: [
       'Select or drop your photos anywhere on the screen.',
@@ -98,12 +98,12 @@ export const SEO_PAGES: SeoToolPage[] = [
     metaDescription:
       'Reduce photo size to under 100KB with sharp clarity using MozJPEG and LibWebP locally in your browser. Batch ZIP download, zero uploads.',
     h1: 'Compress Image to 100KB',
-    subtitle: 'Bring heavy camera photos cleanly under 100KB for job portals, CVs, and fast blogs.',
+    subtitle: 'Bring heavy camera photos cleanly under 100KB for fast blogs, CVs, and online portals.',
     defaults: { format: 'image/jpeg', targetSizeKB: 100 },
     proTips: [
-      '100KB is the sweet spot for passport portraits, NID scans, and fast-loading product thumbnails.',
+      '100KB is the sweet spot for ID portraits, scanned documents, and fast-loading product thumbnails.',
       'For blog posts and e-commerce listings, switch Output Format to WEBP for extra clarity under 100KB.',
-      'Use Split Compare with 2× zoom to verify text readability on scanned documents.',
+      'Use Split Compare with 2× zoom to verify text readability on scanned pages.',
     ],
     howToSteps: [
       'Drop up to 20 JPG, PNG, WEBP, or HEIC images anywhere.',
@@ -112,8 +112,8 @@ export const SEO_PAGES: SeoToolPage[] = [
     ],
     faqs: [
       {
-        q: 'Does 100KB work well for scanned documents and certificates?',
-        a: 'Yes. Standard single-page A4 photos and ID cards stay clearly readable under 100KB when compressed with MozJPEG.',
+        q: 'Does 100KB work well for scanned documents and IDs?',
+        a: 'Yes. Standard single-page photos and ID scans stay clearly readable under 100KB when compressed with MozJPEG.',
       },
       {
         q: 'Does ImageLab add watermarks or require signup?',
@@ -133,7 +133,7 @@ export const SEO_PAGES: SeoToolPage[] = [
     subtitle: 'Shrink multi-megabyte photos to under 200KB while keeping crisp, high-resolution detail.',
     defaults: { format: 'image/jpeg', targetSizeKB: 200 },
     proTips: [
-      'Ideal for e-passport/visa uploads (often capped at 240KB) and Shopify/Daraz product images.',
+      'Ideal for e-passport/visa uploads (often capped at 240KB) and online store product images.',
       'Switching output from JPG to WEBP typically preserves noticeably finer texture at the exact same 200KB cap.',
       'Press Ctrl+V to paste screenshots directly from your clipboard.',
     ],
@@ -166,7 +166,7 @@ export const SEO_PAGES: SeoToolPage[] = [
     defaults: { format: 'image/webp', quality: 0.82 },
     proTips: [
       'Quality 80%–85% is the perceptual sweet spot—up to 70% smaller files with virtually identical visual clarity.',
-      'PNG compression uses smart UPNG palette quantization (similar to TinyPNG) when quality is set below 95%.',
+      'PNG compression uses smart UPNG palette quantization when quality is set below 95%.',
       'Open Options to switch between manual quality presets and exact target KB caps.',
     ],
     howToSteps: [
@@ -211,7 +211,7 @@ export const SEO_PAGES: SeoToolPage[] = [
     faqs: [
       {
         q: 'Does WEBP conversion work on Safari and iPhone?',
-        a: 'Yes! Because ImageLab uses WebAssembly LibWebP rather than Safari Canvas encoding, WEBP works reliably on iPhone and macOS too.',
+        a: 'Yes. Because ImageLab uses WebAssembly LibWebP rather than Safari Canvas encoding, WEBP works reliably on iPhone and macOS too.',
       },
       {
         q: 'Will converting JPG to WEBP reduce image resolution?',
@@ -265,7 +265,7 @@ export const SEO_PAGES: SeoToolPage[] = [
     proTips: [
       'MozJPEG keeps converted JPGs compact (~2–3× smaller than standard browser Canvas exports).',
       'Transparent areas in WEBP stickers or logos are cleanly filled with solid white.',
-      'Need to tweak file weight? Open Options and switch between Compact (72%), Balanced (85%), or Crisp (92%).',
+      'Open Options to switch between Compact (72%), Balanced (85%), or Crisp (92%) quality.',
     ],
     howToSteps: [
       'Drag and drop your WEBP files anywhere on this page.',
@@ -274,8 +274,8 @@ export const SEO_PAGES: SeoToolPage[] = [
     ],
     faqs: [
       {
-        q: 'Why do some apps or government forms reject WEBP files?',
-        a: 'Many older desktop programs, print shops, and application portals only accept standard .jpg or .png formats.',
+        q: 'Why do some apps or upload portals reject WEBP files?',
+        a: 'Many older desktop programs, print shops, and upload systems only accept standard .jpg or .png formats.',
       },
       {
         q: 'What happens if my WEBP image has a transparent background?',
@@ -353,12 +353,12 @@ export const SEO_PAGES: SeoToolPage[] = [
     slug: 'resize-photo-300x300',
     category: 'Resize',
     toolType: 'resizer',
-    shortName: '300×300 Job Photo',
+    shortName: '300×300 Photo',
     title: 'Resize Photo to 300x300 (<100KB) | ImageLab',
     metaDescription:
-      'Resize your portrait to 300x300 pixels under 100KB for BD govt job, BCS, Teletalk, and exam portals. Smart top-biased crop, 100% private.',
+      'Resize portraits to exact 300x300 pixels under 100KB for official online forms, job applications, and profile portals. Smart crop, 100% private.',
     h1: 'Resize Photo to 300×300 Pixels',
-    subtitle: 'Exact 300×300 px JPG kept under 100KB—ideal for BCS, Teletalk, bank & exam portals.',
+    subtitle: 'Exact 300×300 px JPG kept under 100KB for job applications, ID portals, and profiles.',
     defaults: {
       format: 'image/jpeg',
       width: 300,
@@ -368,8 +368,8 @@ export const SEO_PAGES: SeoToolPage[] = [
     },
     proTips: [
       'Smart Portrait Crop automatically biases upward so the top of your head is not accidentally cut off.',
-      'Most Bangladesh government & Teletalk circulars ask for 300×300 px JPG under 100KB (always double-check your specific circular).',
-      'Need a clean white or light-blue background first? Use AI Background Remover and click its 1-click 300×300 export.',
+      'Many official application and HR portals ask for 300×300 px JPG under 100KB—always check your target portal requirements.',
+      'Need a clean white or light-blue background first? Use AI Background Remover and export straight to 300×300.',
     ],
     howToSteps: [
       'Select or drop your front-facing portrait photo anywhere.',
@@ -378,15 +378,15 @@ export const SEO_PAGES: SeoToolPage[] = [
     ],
     faqs: [
       {
-        q: 'Does this match Teletalk and Bangladesh govt job photo rules?',
-        a: 'Usually yes—most Teletalk, BCS, and bank job portals require 300×300 pixel JPG photos under 100KB. Always confirm the latest circular instructions before submitting.',
+        q: 'Does this keep the photo strictly under 100KB?',
+        a: 'Yes. The MozJPEG engine automatically optimizes the 300×300 JPG so it stays safely under the 100KB cap.',
       },
       {
         q: 'Will my face get stretched or cropped badly?',
         a: 'No. Smart Portrait Crop preserves natural proportions without stretching, and you can also frame manually in our Visual Crop tool.',
       },
       {
-        q: 'Is it safe to use my personal passport photo here?',
+        q: 'Is it safe to use my personal portrait photo here?',
         a: 'Yes. Your photo is processed 100% locally in your browser and never leaves your phone or computer.',
       },
     ],
@@ -411,12 +411,12 @@ export const SEO_PAGES: SeoToolPage[] = [
     proTips: [
       'Fit + White Padding (contain mode) is enabled by default so wide or tall phone photos of your signature never lose strokes.',
       'For the crispest look, sign with dark ink on plain white paper and crop close to the signature before resizing.',
-      'Most Bangladesh job and admission portals accept 300×80 px JPG under 60KB (verify your specific notice).',
+      'Ideal for digital documents, HR forms, and official portals requiring 300×80 px JPG under 60KB.',
     ],
     howToSteps: [
       'Upload a clear photo of your signature on white paper.',
       'ImageLab fits it cleanly inside 300×80 px with white padding under 60KB.',
-      'Preview with Compare and download your portal-ready JPG.',
+      'Preview with Compare and download your ready-to-upload JPG.',
     ],
     faqs: [
       {
@@ -447,7 +447,7 @@ export const SEO_PAGES: SeoToolPage[] = [
       fitMode: 'cover',
     },
     proTips: [
-      'Matches the common 600×600 px (300 DPI for 2×2 inch) digital requirement used by US visa and many e-passport portals.',
+      'Matches the common 600×600 px (300 DPI for 2×2 inch) digital requirement used by many visa and e-passport portals.',
       'Need a pure white background? Run your portrait through AI Background Remover first and pick White.',
       'Check exact framing with our Visual Crop tool if your subject is off-center.',
     ],
