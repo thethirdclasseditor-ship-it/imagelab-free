@@ -8,15 +8,15 @@ import {
   Minimize2,
   Maximize2,
   Sparkles,
-  ShieldCheck,
+  Lock,
   AlertCircle,
   AlertTriangle,
   Loader2,
   SlidersHorizontal,
-  CheckCircle2,
+  Check,
   Plus,
   X,
-  RefreshCw,
+  RotateCcw,
   ArrowRight,
   Eye,
 } from 'lucide-react';
@@ -69,10 +69,10 @@ interface WorkspaceItem {
 const MAX_BATCH_FILES = 20;
 
 const MODE_TABS: { id: ToolMode; label: string; icon: React.ReactNode }[] = [
-  { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-4 h-4" /> },
-  { id: 'compressor', label: 'Compress', icon: <Minimize2 className="w-4 h-4" /> },
-  { id: 'resizer', label: 'Resize', icon: <Maximize2 className="w-4 h-4" /> },
-  { id: 'enhancer', label: 'Enhance', icon: <Sparkles className="w-4 h-4" /> },
+  { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+  { id: 'compressor', label: 'Compress', icon: <Minimize2 className="w-3.5 h-3.5" /> },
+  { id: 'resizer', label: 'Resize', icon: <Maximize2 className="w-3.5 h-3.5" /> },
+  { id: 'enhancer', label: 'Enhance', icon: <Sparkles className="w-3.5 h-3.5" /> },
 ];
 
 export default function ToolWorkspace({
@@ -246,13 +246,13 @@ export default function ToolWorkspace({
 
     const remainingSlots = MAX_BATCH_FILES - items.length;
     if (remainingSlots <= 0) {
-      setErrorMsg(`Maximum ${MAX_BATCH_FILES} images allowed per batch. Clear some files first.`);
+      setErrorMsg(`Batch limit is ${MAX_BATCH_FILES} images.`);
       return;
     }
 
     const accepted = validFiles.slice(0, remainingSlots);
     if (validFiles.length > remainingSlots) {
-      errors.push(`Limit is ${MAX_BATCH_FILES} images per batch. Extra files were skipped.`);
+      errors.push(`Only ${MAX_BATCH_FILES} images allowed per batch. Extra files skipped.`);
     }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
@@ -272,10 +272,9 @@ export default function ToolWorkspace({
     void runBatchOnItems(newEntries, options, runId);
   };
 
-  // Always point ref to latest handler so window listeners never go stale
   addFilesHandlerRef.current = handleAddFiles;
 
-  // Full-Window Drag & Drop + Ctrl+V Clipboard Paste
+  // Full-Window Drag & Drop + Safe Clipboard Paste
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
       Boolean(e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files'));
@@ -297,9 +296,7 @@ export default function ToolWorkspace({
       if (!hasFiles(e)) return;
       e.preventDefault();
       dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-      if (dragDepthRef.current === 0) {
-        setIsGlobalDragging(false);
-      }
+      if (dragDepthRef.current === 0) setIsGlobalDragging(false);
     };
 
     const onDrop = (e: DragEvent) => {
@@ -314,7 +311,9 @@ export default function ToolWorkspace({
 
     const onPaste = (e: ClipboardEvent) => {
       const files = e.clipboardData?.files;
-      if (files && files.length > 0) {
+      if (!files || files.length === 0) return;
+      const hasImg = Array.from(files).some((f) => f.type.startsWith('image/'));
+      if (hasImg) {
         e.preventDefault();
         addFilesHandlerRef.current(files);
       }
@@ -339,16 +338,12 @@ export default function ToolWorkspace({
     setMode(newMode);
     setErrorMsg(null);
     setShowSettings(newMode === 'enhancer' || newMode === 'resizer');
-    if (items.length > 0) {
-      reprocessAll({ mode: newMode });
-    }
+    if (items.length > 0) reprocessAll({ mode: newMode });
   };
 
   const handleQuickFormatChange = (newFormat: SupportedFormat) => {
     setFormat(newFormat);
-    if (items.length > 0) {
-      reprocessAll({ format: newFormat });
-    }
+    if (items.length > 0) reprocessAll({ format: newFormat });
   };
 
   const removeItem = (id: string) => {
@@ -409,8 +404,7 @@ export default function ToolWorkspace({
     (mode === 'compressor' || mode === 'resizer') && Number(targetSizeKB) > 0;
 
   return (
-    <div className="space-y-5">
-      {/* Hidden Shared File Input */}
+    <div className="space-y-4 animate-fade-up">
       <input
         ref={fileInputRef}
         type="file"
@@ -420,27 +414,27 @@ export default function ToolWorkspace({
         onChange={(e) => handleAddFiles(e.target.files)}
       />
 
-      {/* FULL-SCREEN DROP ANYWHERE OVERLAY */}
+      {/* Full-Screen Glass Drop Overlay */}
       {isGlobalDragging && (
-        <div className="fixed inset-0 z-50 bg-blue-950/70 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none">
-          <div className="max-w-lg w-full rounded-3xl border-3 border-dashed border-blue-400 bg-white/95 dark:bg-slate-900/95 p-10 text-center shadow-2xl">
-            <div className="w-20 h-20 rounded-3xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-600/30">
-              <Upload className="w-10 h-10" />
+        <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
+          <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-600/30">
+              <Upload className="w-7 h-7" />
             </div>
-            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-              Drop Anywhere to Upload
+            <p className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              Release to upload
             </p>
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-2">
-              Release your images anywhere on the screen — instant local processing starts automatically.
+            <p className="text-sm text-zinc-500 mt-1.5">
+              Instant local processing starts automatically
             </p>
           </div>
         </div>
       )}
 
-      {/* Mode Switcher Tabs (Homepage) */}
+      {/* Segmented Mode Control (Homepage) */}
       {showModeTabs && (
         <div className="flex justify-center">
-          <div className="grid grid-cols-4 sm:inline-flex w-full sm:w-auto bg-slate-200/80 p-1.5 rounded-2xl gap-1 shadow-inner">
+          <div className="grid grid-cols-4 sm:inline-flex w-full sm:w-auto bg-zinc-100 border border-zinc-200/80 p-1 rounded-2xl gap-1">
             {MODE_TABS.map((tab) => {
               const active = mode === tab.id;
               return (
@@ -448,10 +442,10 @@ export default function ToolWorkspace({
                   key={tab.id}
                   type="button"
                   onClick={() => handleModeSwitch(tab.id)}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3.5 sm:px-5 rounded-xl text-xs sm:text-[13.5px] font-semibold transition-all cursor-pointer ${
                     active
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                 >
                   {tab.icon}
@@ -463,90 +457,86 @@ export default function ToolWorkspace({
         </div>
       )}
 
-      {/* PREMIUM LARGE WORKSPACE CARD */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 dark:shadow-none border border-slate-200 overflow-hidden">
-        {/* Subtle Premium Top Accent Bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600" />
-
-        {/* Spacious Pro Control Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-b border-slate-200 bg-slate-50/90">
+      {/* Masterclass Workspace Surface */}
+      <div className="studio-card rounded-3xl overflow-hidden">
+        {/* Clean Control Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2.5 text-sm">
             {mode !== 'enhancer' ? (
               <>
-                <span className="font-bold text-slate-700">Convert to</span>
+                <span className="text-xs font-semibold text-zinc-500">Format</span>
                 <select
-                  aria-label="Output image format"
+                  aria-label="Output format"
                   value={format}
                   onChange={(e) => handleQuickFormatChange(e.target.value as SupportedFormat)}
-                  className="bg-white border border-slate-300 hover:border-blue-500 rounded-xl px-3.5 py-2 font-bold text-slate-900 text-sm shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="bg-white border border-zinc-300 hover:border-zinc-400 rounded-xl px-3 py-1.5 font-semibold text-zinc-900 text-xs sm:text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer transition"
                 >
-                  <option value="image/jpeg">JPG (MozJPEG)</option>
-                  <option value="image/webp">WEBP (Smallest)</option>
-                  <option value="image/png">PNG (UPNG)</option>
+                  <option value="image/jpeg">JPG · MozJPEG</option>
+                  <option value="image/webp">WEBP · LibWebP</option>
+                  <option value="image/png">PNG · UPNG</option>
                 </select>
 
                 {hasActiveTargetKB && (
-                  <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold">
-                    Max {targetSizeKB} KB
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tabular-nums">
+                    ≤ {targetSizeKB} KB
                   </span>
                 )}
                 {mode === 'resizer' && (width || height) && (
-                  <span className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
-                    {width || 'Auto'}×{height || 'Auto'} px
+                  <span className="px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 text-xs font-semibold tabular-nums">
+                    {width || 'Auto'}×{height || 'Auto'}
                   </span>
                 )}
                 {!hasActiveTargetKB && (mode === 'converter' || mode === 'compressor') && (
-                  <span className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold">
-                    Quality {quality}%
+                  <span className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-500 text-xs font-medium tabular-nums">
+                    Q{quality}
                   </span>
                 )}
               </>
             ) : (
-              <span className="font-bold text-slate-800 flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-semibold text-zinc-800 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-blue-600" />
-                Studio Batch Enhancer
+                Batch Enhancer
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
             {items.length > 0 && (
-              <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {completedResults.length}/{items.length} Ready
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold tabular-nums">
+                <Check className="w-3.5 h-3.5" />
+                {completedResults.length}/{items.length}
               </span>
             )}
 
             <button
               type="button"
               onClick={() => setShowSettings((s) => !s)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold border transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-[0.98] cursor-pointer ${
                 showSettings
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-300 hover:border-blue-500 hover:text-blue-600'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
               }`}
             >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>{showSettings ? 'Hide Options' : 'Options'}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Options</span>
             </button>
           </div>
         </div>
 
-        {/* Collapsible Pro Settings Panel */}
+        {/* Collapsible Settings Drawer */}
         {showSettings && (
-          <div className="px-5 sm:px-7 py-5 bg-slate-50 border-b border-slate-200 space-y-5">
+          <div className="px-5 sm:px-7 py-5 bg-zinc-50/80 border-b border-zinc-200/80 space-y-5 animate-scale-in">
             {(mode === 'converter' || mode === 'compressor') && !hasActiveTargetKB && (
               <div className="space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label htmlFor="pro-quality-slider" className="text-xs sm:text-sm font-bold text-slate-700">
-                    Quality{' '}
-                    <span className="text-blue-600">({quality}%)</span>
+                  <label htmlFor="pro-quality-slider" className="text-xs font-semibold text-zinc-700 tabular-nums">
+                    Quality · {quality}%
                   </label>
                   <div className="flex items-center gap-1.5">
                     {[
-                      { label: 'Smallest (70%)', q: 70 },
-                      { label: 'Balanced (85%)', q: 85 },
-                      { label: 'High (92%)', q: 92 },
+                      { label: 'Compact', q: 72 },
+                      { label: 'Balanced', q: 85 },
+                      { label: 'Crisp', q: 92 },
                     ].map((preset) => (
                       <button
                         key={preset.q}
@@ -556,10 +546,10 @@ export default function ToolWorkspace({
                           setSettingsDirty(false);
                           if (items.length > 0) reprocessAll({ quality: preset.q });
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                           quality === preset.q
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'
+                            ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                            : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100'
                         }`}
                       >
                         {preset.label}
@@ -577,20 +567,17 @@ export default function ToolWorkspace({
                     setQuality(Number(e.target.value));
                     setSettingsDirty(true);
                   }}
-                  className="w-full accent-blue-600"
+                  className="w-full"
                 />
               </div>
             )}
 
             {(mode === 'compressor' || mode === 'resizer') && (
-              <div>
-                <label
-                  htmlFor="pro-target-kb"
-                  className="block text-xs sm:text-sm font-bold text-slate-700 mb-2"
-                >
-                  Target Max File Size (KB) — Auto-optimizes quality & resolution
+              <div className="space-y-2.5">
+                <label htmlFor="pro-target-kb" className="block text-xs font-semibold text-zinc-700">
+                  Max File Size (KB)
                 </label>
-                <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {TARGET_KB_PRESETS.map((kb) => (
                     <button
                       key={kb}
@@ -601,15 +588,27 @@ export default function ToolWorkspace({
                         setSettingsDirty(false);
                         if (items.length > 0) reprocessAll({ targetSizeKB: next });
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer transition ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border tabular-nums transition cursor-pointer ${
                         targetSizeKB === String(kb)
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                          : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
                       }`}
                     >
-                      ≤ {kb} KB
+                      {kb} KB
                     </button>
                   ))}
+                  <input
+                    id="pro-target-kb"
+                    type="number"
+                    min={5}
+                    placeholder="Custom KB"
+                    value={targetSizeKB}
+                    onChange={(e) => {
+                      setTargetSizeKB(e.target.value);
+                      setSettingsDirty(true);
+                    }}
+                    className="w-28 bg-white border border-zinc-300 rounded-xl px-3 py-1.5 text-xs font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
                   {targetSizeKB && (
                     <button
                       type="button"
@@ -618,71 +617,54 @@ export default function ToolWorkspace({
                         setSettingsDirty(false);
                         if (items.length > 0) reprocessAll({ targetSizeKB: '' });
                       }}
-                      className="px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-red-600 cursor-pointer"
+                      className="px-2 py-1 text-xs font-medium text-zinc-500 hover:text-red-600 cursor-pointer"
                     >
-                      Clear
+                      Reset
                     </button>
                   )}
                 </div>
-                <input
-                  id="pro-target-kb"
-                  type="number"
-                  min={5}
-                  placeholder="Custom KB (e.g. 50)"
-                  value={targetSizeKB}
-                  onChange={(e) => {
-                    setTargetSizeKB(e.target.value);
-                    setSettingsDirty(true);
-                  }}
-                  className="w-full sm:w-64 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
             )}
 
             {mode === 'resizer' && (
-              <div className="space-y-3">
-                <div>
-                  <span className="block text-xs sm:text-sm font-bold text-slate-700 mb-2">
-                    One-Click Presets
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {RESIZE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          const w = String(preset.width);
-                          const h = String(preset.height);
-                          const kb = preset.targetSizeKB ? String(preset.targetSizeKB) : '';
-                          setWidth(w);
-                          setHeight(h);
-                          setFitMode(preset.fitMode);
-                          if (kb) {
-                            setTargetSizeKB(kb);
-                            setFormat('image/jpeg');
-                          }
-                          setSettingsDirty(false);
-                          if (items.length > 0) {
-                            reprocessAll({
-                              width: w,
-                              height: h,
-                              fitMode: preset.fitMode,
-                              targetSizeKB: kb,
-                              format: kb ? 'image/jpeg' : format,
-                            });
-                          }
-                        }}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600 cursor-pointer"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-3.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {RESIZE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        const w = String(preset.width);
+                        const h = String(preset.height);
+                        const kb = preset.targetSizeKB ? String(preset.targetSizeKB) : '';
+                        setWidth(w);
+                        setHeight(h);
+                        setFitMode(preset.fitMode);
+                        if (kb) {
+                          setTargetSizeKB(kb);
+                          setFormat('image/jpeg');
+                        }
+                        setSettingsDirty(false);
+                        if (items.length > 0) {
+                          reprocessAll({
+                            width: w,
+                            height: h,
+                            fitMode: preset.fitMode,
+                            targetSizeKB: kb,
+                            format: kb ? 'image/jpeg' : format,
+                          });
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-zinc-200 text-zinc-700 hover:border-blue-500 hover:text-blue-600 transition cursor-pointer"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
-                    <label htmlFor="pro-w" className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="pro-w" className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Width (px)
                     </label>
                     <input
@@ -695,11 +677,11 @@ export default function ToolWorkspace({
                         setWidth(e.target.value);
                         setSettingsDirty(true);
                       }}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums"
                     />
                   </div>
                   <div>
-                    <label htmlFor="pro-h" className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="pro-h" className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Height (px)
                     </label>
                     <input
@@ -712,11 +694,11 @@ export default function ToolWorkspace({
                         setHeight(e.target.value);
                         setSettingsDirty(true);
                       }}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums"
                     />
                   </div>
                   <div className="col-span-2 sm:col-span-1">
-                    <label htmlFor="pro-fit" className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label htmlFor="pro-fit" className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Fit Mode
                     </label>
                     <select
@@ -728,10 +710,10 @@ export default function ToolWorkspace({
                         setSettingsDirty(false);
                         if (items.length > 0) reprocessAll({ fitMode: next });
                       }}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold"
                     >
                       <option value="cover">Smart Portrait Crop</option>
-                      <option value="contain">Fit + White Padding (Signatures)</option>
+                      <option value="contain">Fit + Padding (Signatures)</option>
                       <option value="stretch">Exact Stretch</option>
                     </select>
                   </div>
@@ -740,9 +722,9 @@ export default function ToolWorkspace({
             )}
 
             {mode === 'enhancer' && (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-bold text-slate-700">Studio Adjustments</span>
+                  <span className="text-xs font-semibold text-zinc-700">Adjustments</span>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -754,9 +736,9 @@ export default function ToolWorkspace({
                         setWarmth(6);
                         setSettingsDirty(true);
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 cursor-pointer"
+                      className="btn-studio-accent px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
                     >
-                      Auto Enhance
+                      Auto
                     </button>
                     <button
                       type="button"
@@ -768,124 +750,62 @@ export default function ToolWorkspace({
                         setWarmth(0);
                         setSettingsDirty(true);
                       }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-zinc-600 text-xs font-semibold hover:bg-zinc-100 cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" /> Reset
+                      <RotateCcw className="w-3 h-3" /> Reset
                     </button>
                   </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 mb-1">
-                      <label htmlFor="enh-b">Brightness</label>
-                      <span className="font-bold">{brightness}%</span>
+                  {[
+                    { id: 'enh-b', label: 'Brightness', val: brightness, set: setBrightness, min: 50, max: 150, suffix: '%' },
+                    { id: 'enh-c', label: 'Contrast', val: contrast, set: setContrast, min: 50, max: 150, suffix: '%' },
+                    { id: 'enh-s', label: 'Saturation', val: saturate, set: setSaturate, min: 0, max: 200, suffix: '%' },
+                    { id: 'enh-sh', label: 'Sharpness', val: sharpness, set: setSharpness, min: 0, max: 100, suffix: '%' },
+                    { id: 'enh-w', label: 'Warmth', val: warmth, set: setWarmth, min: -50, max: 50, suffix: '' },
+                  ].map((s) => (
+                    <div key={s.id}>
+                      <div className="flex justify-between text-xs text-zinc-600 mb-1 tabular-nums">
+                        <label htmlFor={s.id}>{s.label}</label>
+                        <span className="font-semibold text-zinc-900">
+                          {s.id === 'enh-w' && s.val > 0 ? `+${s.val}` : s.val}
+                          {s.suffix}
+                        </span>
+                      </div>
+                      <input
+                        id={s.id}
+                        type="range"
+                        min={s.min}
+                        max={s.max}
+                        value={s.val}
+                        onChange={(e) => {
+                          s.set(Number(e.target.value));
+                          setSettingsDirty(true);
+                        }}
+                        className="w-full"
+                      />
                     </div>
-                    <input
-                      id="enh-b"
-                      type="range"
-                      min={50}
-                      max={150}
-                      value={brightness}
-                      onChange={(e) => {
-                        setBrightness(Number(e.target.value));
-                        setSettingsDirty(true);
-                      }}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 mb-1">
-                      <label htmlFor="enh-c">Contrast</label>
-                      <span className="font-bold">{contrast}%</span>
-                    </div>
-                    <input
-                      id="enh-c"
-                      type="range"
-                      min={50}
-                      max={150}
-                      value={contrast}
-                      onChange={(e) => {
-                        setContrast(Number(e.target.value));
-                        setSettingsDirty(true);
-                      }}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 mb-1">
-                      <label htmlFor="enh-s">Saturation</label>
-                      <span className="font-bold">{saturate}%</span>
-                    </div>
-                    <input
-                      id="enh-s"
-                      type="range"
-                      min={0}
-                      max={200}
-                      value={saturate}
-                      onChange={(e) => {
-                        setSaturate(Number(e.target.value));
-                        setSettingsDirty(true);
-                      }}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 mb-1">
-                      <label htmlFor="enh-sh">Sharpness (Clarity)</label>
-                      <span className="font-bold">{sharpness}%</span>
-                    </div>
-                    <input
-                      id="enh-sh"
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={sharpness}
-                      onChange={(e) => {
-                        setSharpness(Number(e.target.value));
-                        setSettingsDirty(true);
-                      }}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <div className="flex justify-between text-xs text-slate-600 mb-1">
-                      <label htmlFor="enh-w">Warmth (Cool ↔ Warm)</label>
-                      <span className="font-bold">{warmth > 0 ? `+${warmth}` : warmth}</span>
-                    </div>
-                    <input
-                      id="enh-w"
-                      type="range"
-                      min={-50}
-                      max={50}
-                      value={warmth}
-                      onChange={(e) => {
-                        setWarmth(Number(e.target.value));
-                        setSettingsDirty(true);
-                      }}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {items.length > 0 && settingsDirty && (
-              <div className="pt-1 flex justify-end">
+              <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={() => reprocessAll()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm cursor-pointer"
+                  className="btn-studio-accent inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  Apply New Settings ({items.length})
+                  Apply to {items.length} {items.length === 1 ? 'file' : 'files'}
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* EMPTY STATE: Big Premium Hero Dropzone */}
+        {/* EMPTY STATE: Spacious Minimalist Dropzone */}
         {items.length === 0 ? (
           <div className="p-6 sm:p-10">
             <div
@@ -899,53 +819,41 @@ export default function ToolWorkspace({
                 }
               }}
               onClick={() => fileInputRef.current?.click()}
-              className="group min-h-[300px] sm:min-h-[340px] flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/50 hover:bg-blue-50/30 rounded-3xl p-8 text-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="group min-h-[300px] sm:min-h-[350px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-600/25 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
-                <Upload className="w-9 h-9" />
+              <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 group-hover:shadow-md transition-all duration-200">
+                <Upload className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
               </div>
 
-              <span className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-blue-600 group-hover:bg-blue-700 text-white font-bold text-base sm:text-lg shadow-lg shadow-blue-600/20 transition">
+              <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
                 Select Images
               </span>
 
-              <p className="text-sm sm:text-base font-medium text-slate-600 mt-4">
-                or drag & drop files <strong className="text-slate-900">anywhere on this page</strong> · press{' '}
-                <kbd className="px-1.5 py-0.5 text-xs font-bold bg-white border border-slate-300 rounded-md shadow-2xs">
+              <p className="text-xs sm:text-sm text-zinc-500 mt-4">
+                Drop anywhere on screen or press{' '}
+                <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
                   Ctrl+V
-                </kbd>{' '}
-                to paste
+                </kbd>
               </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-                {['JPG', 'PNG', 'WEBP', 'AVIF', 'HEIC'].map((fmt) => (
-                  <span
-                    key={fmt}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold shadow-2xs"
-                  >
-                    {fmt}
-                  </span>
-                ))}
-                <span className="text-xs text-slate-400 font-medium ml-1">
-                  · Up to {MAX_BATCH_FILES} files (25MB each)
-                </span>
-              </div>
+              <p className="text-[11px] font-medium text-zinc-400 mt-3 tracking-wide uppercase">
+                JPG · PNG · WEBP · AVIF · HEIC · Up to {MAX_BATCH_FILES} files
+              </p>
             </div>
           </div>
         ) : (
-          /* ACTIVE STATE: Spacious Studio Workspace */
+          /* ACTIVE WORKSPACE */
           <div className="flex flex-col">
-            <div className="min-h-[290px] max-h-[560px] overflow-y-auto divide-y divide-slate-100">
+            <div className="min-h-[300px] max-h-[560px] overflow-y-auto divide-y divide-zinc-100">
               {items.map((item) => {
                 const res = item.result;
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 sm:px-7 py-4 sm:py-5 hover:bg-slate-50/80 transition"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 sm:px-7 py-4 hover:bg-zinc-50 transition animate-fade-up"
                   >
-                    {/* Left: Big Thumbnail + Clean Metadata */}
                     <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0 shadow-2xs flex items-center justify-center">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-100 shrink-0 flex items-center justify-center">
                         <img
                           src={res ? res.url : item.previewUrl}
                           alt={item.file.name}
@@ -957,23 +865,23 @@ export default function ToolWorkspace({
                       </div>
 
                       <div className="min-w-0 flex-1 space-y-1">
-                        <p className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                        <p className="text-sm font-semibold text-zinc-900 truncate">
                           {item.file.name}
                         </p>
 
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-slate-500">
-                          <span className="font-medium">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500 tabular-nums">
+                          <span>
                             {item.sourceFormat} · {formatFileSize(item.file.size)}
                           </span>
 
                           {item.status === 'done' && res && (
                             <>
-                              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="font-extrabold text-slate-900">
+                              <ArrowRight className="w-3 h-3 text-zinc-400" />
+                              <span className="font-semibold text-zinc-900">
                                 {res.outputFormat} · {formatFileSize(res.newSize)}
                               </span>
-                              <span className="hidden md:inline text-xs text-slate-400">
-                                ({res.width}×{res.height} px)
+                              <span className="hidden md:inline text-zinc-400">
+                                {res.width}×{res.height}
                               </span>
                             </>
                           )}
@@ -981,22 +889,24 @@ export default function ToolWorkspace({
 
                         {item.status === 'done' && res && (
                           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[10.5px] font-semibold">
                               {res.encoderUsed}
                             </span>
                             {res.savedPercent > 0 && (
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[11px] font-bold">
-                                -{res.savedPercent}% smaller
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 text-[10.5px] font-semibold tabular-nums">
+                                -{res.savedPercent}%
                               </span>
                             )}
                             {res.targetMissed && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-bold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[10.5px] font-semibold">
                                 <AlertTriangle className="w-3 h-3" />
                                 Closest to {res.targetSizeKB}KB
                               </span>
                             )}
                             {res.warning && (
-                              <span className="text-[11px] text-amber-700">{res.warning}</span>
+                              <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                                {res.warning}
+                              </span>
                             )}
                           </div>
                         )}
@@ -1010,33 +920,30 @@ export default function ToolWorkspace({
                       </div>
                     </div>
 
-                    {/* Right: Status + Big Clickable Action Buttons */}
-                    <div className="flex items-center justify-end gap-2.5 shrink-0">
+                    <div className="flex items-center justify-end gap-2 shrink-0">
                       {(item.status === 'queued' || item.status === 'processing') && (
-                        <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 text-blue-700 text-xs sm:text-sm font-bold">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {item.status === 'processing' ? 'Optimizing...' : 'Queued'}
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          {item.status === 'processing' ? 'Optimizing' : 'Queued'}
                         </span>
                       )}
 
                       {item.status === 'done' && res && (
                         <>
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500 hidden sm:block shrink-0" />
                           <button
                             type="button"
                             onClick={() => setCompareItem(res)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer transition"
-                            title="Split-Screen Compare"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                             <span>Compare</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => downloadSingleImage(res)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm shadow-blue-600/20 cursor-pointer transition"
+                            className="btn-studio-primary inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className="w-3.5 h-3.5" />
                             <span>Download</span>
                           </button>
                         </>
@@ -1046,7 +953,7 @@ export default function ToolWorkspace({
                         type="button"
                         aria-label={`Remove ${item.file.name}`}
                         onClick={() => removeItem(item.id)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                        className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1055,37 +962,36 @@ export default function ToolWorkspace({
                 );
               })}
 
-              {/* Subtle Roomy Drop Hint inside Active Workspace */}
               {items.length < 4 && (
-                <div
+                <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-8 text-center text-xs sm:text-sm text-slate-400 hover:text-blue-600 hover:bg-blue-50/20 cursor-pointer transition"
+                  className="w-full py-7 text-center text-xs font-medium text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-50 transition cursor-pointer"
                 >
-                  + Drag & drop more images anywhere on the screen, click here, or press{' '}
-                  <strong className="font-semibold">Ctrl+V</strong>
-                </div>
+                  Drop more files anywhere, paste, or click to add
+                </button>
               )}
             </div>
 
-            {/* Premium Bottom Action Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-slate-200 bg-slate-50/95">
+            {/* Bottom Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
                 disabled={items.length >= MAX_BATCH_FILES}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 text-sm font-bold text-slate-700 shadow-2xs cursor-pointer transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer tabular-nums"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add More Files ({items.length}/{MAX_BATCH_FILES})</span>
+                <span>Add Files ({items.length}/{MAX_BATCH_FILES})</span>
               </button>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={clearAll}
-                  title="Clear all files"
-                  aria-label="Clear all files"
-                  className="p-2.5 rounded-xl border border-slate-300 bg-white hover:bg-red-50 hover:border-red-300 hover:text-red-600 text-slate-600 transition cursor-pointer"
+                  title="Clear all"
+                  aria-label="Clear all"
+                  className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:text-red-600 hover:border-red-300 text-zinc-500 transition active:scale-95 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -1094,12 +1000,12 @@ export default function ToolWorkspace({
                   type="button"
                   disabled={completedResults.length === 0 || isAnyProcessing || isZipping}
                   onClick={handleDownloadZip}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-blue-600/20 transition cursor-pointer"
+                  className="btn-studio-accent inline-flex items-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm font-semibold cursor-pointer"
                 >
                   {isZipping ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Creating ZIP...</span>
+                      <span>Zipping...</span>
                     </>
                   ) : completedResults.length > 1 ? (
                     <>
@@ -1118,24 +1024,20 @@ export default function ToolWorkspace({
           </div>
         )}
 
-        {/* Validation Error Banner */}
         {errorMsg && (
-          <div className="mx-5 sm:mx-7 mb-5 flex items-start gap-2 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
-      {/* Trust Footnote */}
-      <p className="flex items-center justify-center gap-1.5 text-xs sm:text-sm text-slate-500">
-        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span>
-          100% Private · MozJPEG, LibWebP & UPNG run locally inside your browser with zero uploads.
-        </span>
+      {/* Single Clean Privacy Line */}
+      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Processed locally in your browser · Zero uploads</span>
       </p>
 
-      {/* Split-Screen Comparator */}
       {compareItem && (
         <SplitCompareModal item={compareItem} onClose={() => setCompareItem(null)} />
       )}
