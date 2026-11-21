@@ -1,0 +1,58 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="About ImageLab & Open-Source Credits | ImageLab"
+  description="Learn how ImageLab delivers studio-grade MozJPEG, LibWebP, PDF, and on-device AI tools completely free inside your browser."
+>
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
+    <header>
+      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">About</p>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">
+        Built for Speed & Privacy
+      </h1>
+      <p class="text-sm text-zinc-500 mt-2.5 leading-relaxed">
+        ImageLab is a browser-native image and PDF studio designed so anyone can convert,
+        compress, crop, watermark, and enhance photos without uploading private files to remote servers.
+      </p>
+    </header>
+
+    <div class="studio-card rounded-3xl p-6 sm:p-8 space-y-6 text-sm text-zinc-600 leading-relaxed">
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">Why Browser-First Architecture?</h2>
+        <p>
+          Traditional online converters upload your personal IDs, exam signatures, and client
+          photos to third-party servers. By running real C++/WebAssembly encoders and neural models
+          inside background Web Workers, ImageLab keeps processing instant, free, and strictly private.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-base font-bold text-zinc-950">Open-Source Credits & Licenses</h2>
+        <p class="text-xs text-zinc-500">
+          ImageLab is made possible by outstanding open-source projects. Our public frontend source
+          code is available on{' '}
+          <a
+            href="https://github.com/thethirdclasseditor-ship-it/imagelab-free"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-600 font-semibold hover:underline"
+          >
+            GitHub
+          </a>
+          .
+        </p>
+        <ul class="space-y-2 text-xs text-zinc-600 list-disc pl-5">
+          <li><strong>@jsquash/jpeg (MozJPEG) & @jsquash/webp (LibWebP)</strong> — Apache-2.0 / BSD licenses</li>
+          <li><strong>UPNG.js, JSZip, jsPDF & heic2any</strong> — MIT licenses</li>
+          <li><strong>@huggingface/transformers & Swin2SR</strong> — Apache-2.0 license</li>
+          <li>
+            <strong>@imgly/background-removal</strong> — AGPL-3.0 license (complete client-side
+            source code publicly available via our GitHub repository above)
+          </li>
+        </ul>
+      </section>
+    </div>
+  </article>
+</Layout>
