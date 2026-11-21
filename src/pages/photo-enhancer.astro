@@ -6,56 +6,89 @@ import { SEO_PAGES } from '../data/seoPages';
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const pageUrl = `${siteBase}/photo-enhancer`;
 
-const title = 'Free Online Photo Enhancer (Live Preview, HD) | ImageLab';
+const title = 'Photo Enhancer & HD Upscaler Free Online | ImageLab';
 const description =
-  'Enhance photo lighting, sharpness, contrast, warmth, and colors with real-time live preview. 100% free browser photo studio with zero server uploads.';
+  'Unblur soft photos, reduce image noise, restore fine clarity, and upscale up to 4x HD locally in your browser. Interactive split-screen compare, zero uploads.';
 
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Live Studio Photo Enhancer',
+  name: 'ImageLab Photo Enhancer & HD Upscaler',
   url: pageUrl,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description,
 };
+
+const faqs = [
+  {
+    q: 'How does the Photo Enhancer clear up blurry or noisy images?',
+    a: 'It runs a multi-stage restoration pipeline inside a background Web Worker: edge-preserving bilateral denoising removes grain first, followed by local haze recovery, luminance-only multi-scale deblurring (preventing color halos), and progressive 2× or 4× HD upscaling.',
+  },
+  {
+    q: 'Can it completely rebuild severely out-of-focus faces?',
+    a: 'It significantly sharpens soft focus, compressed WhatsApp/social photos, noisy low-light shots, and low-resolution images. Extremely motion-blurred photos where facial detail no longer exists require server-side generative AI.',
+  },
+  {
+    q: 'Are my photos uploaded to a cloud server?',
+    a: 'No. Every pixel calculation runs locally on your own device with zero uploads, making it safe for private portraits and documents.',
+  },
+];
 ---
 
 <Layout title={title} description={description} schemas={[schema]}>
-  <article class="max-w-5xl mx-auto px-4 pt-6 sm:pt-10 pb-10">
-    <nav aria-label="Breadcrumb" class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
-      <a href="/" class="hover:text-blue-600 font-medium">Home</a>
-      <span>/</span>
-      <span class="text-slate-700 font-medium">Studio Photo Enhancer</span>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Photo Enhancer</span>
     </nav>
 
-    <header class="text-center max-w-2xl mx-auto mb-7">
-      <span class="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-3">
-        Real-Time Live Preview
-      </span>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-        Live Studio Photo Enhancer
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Photo Enhancer & HD Upscaler
       </h1>
-      <p class="text-slate-600 mt-2.5 text-sm sm:text-base">
-        Watch brightness, contrast, clarity, and color warmth update in real time—plus one-click presets for dark photos, portraits, and scanned documents.
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Unblur soft details, remove grain, and upscale up to 4× HD — instant split-screen compare.
       </p>
     </header>
 
     <LiveEnhancerTool client:load />
 
-    <nav aria-label="More Tools" class="mt-12 border-t border-slate-200 pt-8">
-      <h2 class="text-lg font-bold text-slate-900 mb-4">More Free Tools</h2>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {SEO_PAGES.slice(0, 8).map((item) => (
-          <a
-            href={`/${item.slug}`}
-            class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition"
-          >
-            {item.shortName}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          {SEO_PAGES.slice(0, 8).map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
   </article>
 </Layout>
