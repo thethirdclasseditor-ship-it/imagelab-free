@@ -1,8 +1,3 @@
-import { pipeline, RawImage, env } from '@huggingface/transformers';
-
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-
 const MODEL_ID = 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr';
 const SCALE = 4;
 const TILE_SIZE = 128;
@@ -37,15 +32,79 @@ export type AiEnhanceMessage =
       error: string;
     };
 
-type UpscalerFn = (input: RawImage) => Promise<RawImage | RawImage[]>;
+interface RawImageLike {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  channels: number;
+}
+
+interface TransformersModule {
+  pipeline: (
+    task: string,
+    model: string,
+    options: Record<string, unknown>
+  ) => Promise<(input: RawImageLike) => Promise<RawImageLike | RawImageLike[]>>;
+  RawImage: new (
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    channels: number
+  ) => RawImageLike;
+  env: {
+    allowLocalModels: boolean;
+    useBrowserCache: boolean;
+  };
+}
+
+type UpscalerFn = (input: RawImageLike) => Promise<RawImageLike | RawImageLike[]>;
 
 const workerScope = self as unknown as {
   postMessage: (msg: AiEnhanceMessage, transfer?: Transferable[]) => void;
   onmessage: ((event: MessageEvent<AiEnhanceRequest>) => void) | null;
 };
 
+let cachedLib: TransformersModule | null = null;
 let cachedUpscaler: UpscalerFn | null = null;
 let cachedBackend: 'WebGPU' | 'WASM' = 'WASM';
+
+async function loadTransformersBrowserLib(jobId: number): Promise<TransformersModule> {
+  if (cachedLib) return cachedLib;
+
+  workerScope.postMessage({
+    type: 'progress',
+    id: jobId,
+    phase: 'loading',
+    percent: 2,
+    status: 'Loading AI runtime...',
+  });
+
+  const cdnUrls = [
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.0',
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.0/+esm',
+  ];
+
+  let lastErr: unknown = null;
+  for (const url of cdnUrls) {
+    try {
+      const mod = (await import(/* @vite-ignore */ url)) as TransformersModule;
+      if (mod?.pipeline && mod?.RawImage && mod?.env) {
+        mod.env.allowLocalModels = false;
+        mod.env.useBrowserCache = true;
+        cachedLib = mod;
+        return mod;
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  throw new Error(
+    lastErr instanceof Error
+      ? `Could not load AI runtime from CDN: ${lastErr.message}`
+      : 'Could not load AI runtime from CDN.'
+  );
+}
 
 async function hasUsableWebGPU(): Promise<boolean> {
   try {
@@ -60,14 +119,17 @@ async function hasUsableWebGPU(): Promise<boolean> {
   }
 }
 
-async function getUpscaler(jobId: number): Promise<{ fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }> {
+async function getUpscaler(
+  jobId: number,
+  lib: TransformersModule
+): Promise<{ fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }> {
   if (cachedUpscaler) {
     return { fn: cachedUpscaler, backend: cachedBackend };
   }
 
-  const progressCb = (info: { status?: string; progress?: number; file?: string }) => {
+  const progressCb = (info: { status?: string; progress?: number }) => {
     if (info.status === 'progress' && typeof info.progress === 'number') {
-      const pct = Math.min(99, Math.max(2, Math.round(info.progress)));
+      const pct = Math.min(99, Math.max(4, Math.round(info.progress)));
       workerScope.postMessage({
         type: 'progress',
         id: jobId,
@@ -80,7 +142,7 @@ async function getUpscaler(jobId: number): Promise<{ fn: UpscalerFn; backend: 'W
         type: 'progress',
         id: jobId,
         phase: 'loading',
-        percent: 4,
+        percent: 5,
         status: 'Preparing AI restoration model (cached after first use)...',
       });
     }
@@ -109,12 +171,7 @@ async function getUpscaler(jobId: number): Promise<{ fn: UpscalerFn; backend: 'W
   let lastError: unknown = null;
   for (const cand of candidates) {
     try {
-      const pipe = await (pipeline as unknown as (
-        task: string,
-        model: string,
-        options: Record<string, unknown>
-      ) => Promise<UpscalerFn>)('image-to-image', MODEL_ID, cand.opts);
-
+      const pipe = await lib.pipeline('image-to-image', MODEL_ID, cand.opts);
       cachedUpscaler = pipe;
       cachedBackend = cand.backend;
       return { fn: pipe, backend: cand.backend };
@@ -135,13 +192,13 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
 
   try {
     const srcRgba = new Uint8ClampedArray(rgbaBuffer);
-    const { fn: upscaler, backend } = await getUpscaler(id);
+    const lib = await loadTransformersBrowserLib(id);
+    const { fn: upscaler, backend } = await getUpscaler(id, lib);
 
     const outW = srcW * SCALE;
     const outH = srcH * SCALE;
     const totalOutPixels = outW * outH;
 
-    // Accumulators for seamless feather-blended tiles
     const accR = new Float32Array(totalOutPixels);
     const accG = new Float32Array(totalOutPixels);
     const accB = new Float32Array(totalOutPixels);
@@ -177,7 +234,6 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
 
         const tw = ix1 - ix0;
         const th = iy1 - iy0;
-        // Pad tile to multiple of 8 for Swin2SR window alignment (edge-clamped, zero black borders)
         const pw = Math.ceil(tw / 8) * 8;
         const ph = Math.ceil(th / 8) * 8;
 
@@ -196,11 +252,11 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
           }
         }
 
-        const rawIn = new RawImage(tileRgb, pw, ph, 3);
+        const rawIn = new lib.RawImage(tileRgb, pw, ph, 3);
         const rawResult = await upscaler(rawIn);
         const rawOut = Array.isArray(rawResult) ? rawResult[0] : rawResult;
 
-        const outData = rawOut.data as Uint8ClampedArray;
+        const outData = rawOut.data;
         const outTileW = rawOut.width;
         const outCh = rawOut.channels;
         const validW = Math.min(tw * SCALE, outTileW);
