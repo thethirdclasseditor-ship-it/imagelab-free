@@ -52,28 +52,25 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
   description={page.metaDescription}
   schemas={[softwareSchema, faqSchema, breadcrumbSchema]}
 >
-  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12">
-    <!-- Breadcrumb -->
-    <nav aria-label="Breadcrumb" class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
-      <a href="/" class="hover:text-blue-600 font-medium">Home</a>
-      <span>/</span>
-      <span class="text-slate-700 font-medium">{page.shortName}</span>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <!-- Subtle Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">{page.shortName}</span>
     </nav>
 
-    <!-- SEO Header -->
-    <header class="text-center max-w-3xl mx-auto mb-8">
-      <span class="inline-block px-3.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-3 border border-blue-100">
-        Free {page.category} Tool
-      </span>
-      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
+    <!-- Editorial Header -->
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
         {page.h1}
       </h1>
-      <p class="text-slate-600 mt-3 text-sm sm:text-base">
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
         {page.subtitle}
       </p>
     </header>
 
-    <!-- Wide Premium Interactive Workspace -->
+    <!-- Wide Masterclass Workspace -->
     <ToolWorkspace
       client:load
       initialMode={page.toolType}
@@ -81,42 +78,48 @@ const relatedPages = SEO_PAGES.filter((p) => p.slug !== page.slug);
       defaults={page.defaults}
     />
 
-    <!-- Readable Below-the-Fold SEO Guides -->
-    <div class="max-w-5xl mx-auto">
-      <section class="mt-14 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
-          How to Use {page.h1}
-        </h2>
-        <ol class="space-y-3 text-sm sm:text-base text-slate-700 list-decimal pl-5">
-          {page.howToSteps.map((step) => (
-            <li>{step}</li>
+    <!-- Minimalist Below-the-Fold Guide & Accordion FAQ -->
+    <div class="max-w-4xl mx-auto mt-16 space-y-12">
+      <section class="studio-card rounded-3xl p-6 sm:p-8">
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">How it works</h2>
+        <ol class="grid sm:grid-cols-3 gap-4">
+          {page.howToSteps.map((step, index) => (
+            <li class="flex flex-col gap-2">
+              <span class="w-6 h-6 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-bold flex items-center justify-center tabular-nums">
+                {index + 1}
+              </span>
+              <p class="text-xs sm:text-[13px] text-zinc-600 leading-relaxed">{step}</p>
+            </li>
           ))}
         </ol>
       </section>
 
-      <section class="mt-10">
-        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
-          Frequently Asked Questions
-        </h2>
-        <div class="space-y-3">
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
           {page.faqs.map((faq) => (
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6">
-              <h3 class="font-bold text-slate-900 text-sm sm:text-base">{faq.q}</h3>
-              <p class="text-slate-600 text-sm mt-1.5 leading-relaxed">{faq.a}</p>
-            </div>
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
           ))}
         </div>
       </section>
 
-      <nav aria-label="More Free Image Tools" class="mt-12 border-t border-slate-200 pt-8">
-        <h2 class="text-lg font-bold text-slate-900 mb-4">
-          Explore More Free Image Tools
-        </h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
           {relatedPages.map((item) => (
             <a
               href={`/${item.slug}`}
-              class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:border-blue-500 hover:text-blue-600 transition shadow-2xs"
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
             >
               {item.shortName}
             </a>
