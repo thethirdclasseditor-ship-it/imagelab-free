@@ -1,0 +1,63 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Privacy Policy | ImageLab"
+  description="How ImageLab protects your privacy through 100% local browser processing with zero server image uploads."
+>
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
+    <header>
+      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Legal</p>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">Privacy Policy</h1>
+      <p class="text-xs text-zinc-500 mt-2">Last updated: November 2026</p>
+    </header>
+
+    <div class="studio-card rounded-3xl p-6 sm:p-8 space-y-6 text-sm text-zinc-600 leading-relaxed">
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">1. Zero Server Image Uploads</h2>
+        <p>
+          Every image conversion, compression, resize, crop, watermark, PDF creation, background
+          removal, and AI enhancement runs strictly inside your web browser using WebAssembly,
+          WebGPU, and browser Canvas APIs. Your photos, signatures, and documents are never
+          uploaded to or stored on ImageLab servers.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">2. Third-Party CDN Model Downloads</h2>
+        <p>
+          When you choose to run our on-device AI tools (AI Background Remover or AI Photo
+          Enhancer), your browser fetches the open-source AI model weights from public CDNs
+          (such as jsDelivr, Hugging Face, or IMG.LY) and caches them locally in your browser.
+          Only the model files are downloaded; your personal photos are never sent to those CDNs.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">3. Local Storage & Preferences</h2>
+        <p>
+          ImageLab stores your Dark/Light theme preference in your browser’s
+          <code>localStorage</code>. We do not require accounts or collect personal profiles.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">4. Hosting & Future Advertising</h2>
+        <p>
+          This site is hosted on Cloudflare Pages, which may process standard network access logs
+          (such as IP address and user agent) for security and DDoS protection. If advertising
+          partners (such as Google AdSense) are enabled in the future, they may use cookies
+          according to their respective privacy policies.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-base font-bold text-zinc-950">5. Contact</h2>
+        <p>
+          Questions regarding privacy? Reach out via our <a href="/contact" class="text-blue-600 font-semibold hover:underline">Contact page</a>.
+        </p>
+      </section>
+    </div>
+  </article>
+</Layout>
