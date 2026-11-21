@@ -12,36 +12,39 @@ const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname.replace(/\/+$/, '') || '/', Astro.site).toString()
   : Astro.url.href;
 
+const faviconSvg = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#09090B"/><path d="M9 11.5L16 8l7 3.5-7 3.5-7-3.5Z" fill="#fff"/><path d="M9 16l7 3.5 7-3.5" stroke="#60A5FA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M9 20.5L16 24l7-3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/></svg>'
+)}`;
+
 const navMenus = [
   {
-    label: 'Studio Tools',
+    label: 'Studio',
     items: [
-      { name: 'Crop & Rotate (Visual)', href: '/crop-image' },
-      { name: 'Live Photo Enhancer', href: '/photo-enhancer' },
-      { name: 'Batch Watermark Tool', href: '/watermark-image', badge: 'New' },
-      { name: 'Image to PDF (A4)', href: '/image-to-pdf', badge: 'PDF' },
-      { name: 'AI Background Remover', href: '/remove-background', badge: 'AI' },
+      { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image' },
+      { name: 'Photo Enhancer', desc: 'Real-time light, color & clarity', href: '/photo-enhancer' },
+      { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image' },
+      { name: 'Image to PDF', desc: 'Merge photos into clean A4 PDFs', href: '/image-to-pdf' },
+      { name: 'AI Background Remover', desc: 'On-device HD cutouts', href: '/remove-background' },
     ],
   },
   {
-    label: 'Compress & Convert',
+    label: 'Optimize',
     items: [
-      { name: 'Free Image Compressor', href: '/image-compressor' },
-      { name: 'Compress to 50KB', href: '/compress-image-to-50kb' },
-      { name: 'Compress to 100KB', href: '/compress-image-to-100kb' },
-      { name: 'JPG to WEBP', href: '/jpg-to-webp' },
-      { name: 'PNG to WEBP', href: '/png-to-webp' },
-      { name: 'WEBP to JPG', href: '/webp-to-jpg' },
-      { name: 'PNG to JPG', href: '/png-to-jpg' },
+      { name: 'Image Compressor', desc: 'MozJPEG, LibWebP & UPNG', href: '/image-compressor' },
+      { name: 'Compress to 50KB', desc: 'Auto-fit form upload limits', href: '/compress-image-to-50kb' },
+      { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb' },
+      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp' },
+      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg' },
+      { name: 'PNG to WEBP', desc: 'Smaller transparent graphics', href: '/png-to-webp' },
     ],
   },
   {
-    label: 'Job & Presets',
+    label: 'Presets',
     items: [
-      { name: '300×300 Job Photo (<100KB)', href: '/resize-photo-300x300' },
-      { name: '300×80 Signature (<60KB)', href: '/resize-signature-300x80' },
-      { name: 'Passport Photo (600×600)', href: '/passport-photo-resizer' },
-      { name: 'YouTube Thumbnail (1280×720)', href: '/youtube-thumbnail-resizer' },
+      { name: '300×300 Job Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300' },
+      { name: '300×80 Signature', desc: 'Clean padding under 60KB', href: '/resize-signature-300x80' },
+      { name: 'Passport 600×600', desc: 'Digital 2×2 inch standard', href: '/passport-photo-resizer' },
+      { name: 'YouTube 1280×720', desc: 'Crisp 16:9 HD thumbnails', href: '/youtube-thumbnail-resizer' },
     ],
   },
 ];
@@ -55,9 +58,19 @@ const navMenus = [
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" type="image/svg+xml" href={faviconSvg} />
 
     <!-- Google Search Console Verification Tag এখানে বসাবে -->
 
+    <!-- Masterclass Typography: Plus Jakarta Sans + Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Zero-flash Theme Init -->
     <script is:inline>
       (function () {
         try {
@@ -70,6 +83,7 @@ const navMenus = [
       })();
     </script>
 
+    <!-- Social Open Graph -->
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -81,42 +95,47 @@ const navMenus = [
     ))}
   </head>
 
-  <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased transition-colors duration-200">
-    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
-      <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-        <a href="/" class="flex items-center gap-2 font-extrabold text-lg text-slate-900 shrink-0">
-          <span class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm font-black shadow-xs">
-            IL
+  <body class="studio-canvas min-h-screen flex flex-col text-zinc-950 transition-colors duration-200">
+    <!-- Minimalist Frosted Navbar -->
+    <header class="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-zinc-200/80">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <!-- Geometric Brand Mark -->
+        <a href="/" class="flex items-center gap-2.5 group shrink-0">
+          <span class="w-8 h-8 rounded-[10px] bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 12 12 17 22 12" />
+              <polyline points="2 17 12 22 22 17" />
+            </svg>
           </span>
-          <span>ImageLab</span>
+          <span class="font-bold text-[17px] tracking-tight text-zinc-950">ImageLab</span>
         </a>
 
+        <!-- Clean Desktop Navigation -->
         <nav aria-label="Main navigation" class="hidden md:flex items-center gap-1">
           {navMenus.map((menu) => (
             <div class="relative group">
               <button
                 type="button"
-                class="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition cursor-pointer"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
               >
                 <span>{menu.label}</span>
-                <svg class="w-3.5 h-3.5 opacity-60 group-hover:rotate-180 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg class="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </button>
 
-              <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-150 absolute left-0 top-full pt-1.5 w-64 z-50">
-                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-0.5">
+              <div class="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-72 z-50">
+                <div class="studio-card rounded-2xl p-1.5 space-y-0.5">
                   {menu.items.map((item) => (
                     <a
                       href={item.href}
-                      class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 transition"
+                      class="block px-3 py-2.5 rounded-xl hover:bg-zinc-100 transition group/item"
                     >
-                      <span>{item.name}</span>
-                      {item.badge && (
-                        <span class="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">
-                          {item.badge}
-                        </span>
-                      )}
+                      <div class="text-[13px] font-semibold text-zinc-900 group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition">
+                        {item.name}
+                      </div>
+                      <div class="text-[11.5px] text-zinc-500 mt-0.5">{item.desc}</div>
                     </a>
                   ))}
                 </div>
@@ -125,27 +144,29 @@ const navMenus = [
           ))}
         </nav>
 
+        <!-- Right Actions -->
         <div class="flex items-center gap-2">
           <a
             href="/remove-background"
-            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition"
+            class="btn-studio-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-semibold"
           >
-            <span>✨</span>
-            <span class="hidden sm:inline">AI BG Remover</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+            </svg>
+            <span class="hidden sm:inline">Remove BG</span>
             <span class="sm:hidden">AI BG</span>
           </a>
 
           <button
             id="theme-toggle-btn"
             type="button"
-            aria-label="Toggle dark mode"
-            title="Switch Dark / Light mode"
-            class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+            aria-label="Toggle theme"
+            class="w-9 h-9 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center transition active:scale-95 cursor-pointer"
           >
-            <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
             </svg>
-            <svg class="w-4 h-4 hidden dark:block text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="w-4 h-4 hidden dark:block text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
@@ -154,28 +175,29 @@ const navMenus = [
           <button
             id="mobile-menu-btn"
             type="button"
-            aria-label="Open tools menu"
+            aria-label="Open menu"
             aria-expanded="false"
-            class="md:hidden p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer"
+            class="md:hidden w-9 h-9 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center transition cursor-pointer"
           >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 6h16M4 12h16M4 18h16" />
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
         </div>
       </div>
 
-      <div id="mobile-drawer" class="hidden md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-4 max-h-[75vh] overflow-y-auto shadow-lg">
+      <!-- Mobile Drawer -->
+      <div id="mobile-drawer" class="hidden md:hidden border-t border-zinc-200 bg-white px-4 py-4 space-y-5 max-h-[75vh] overflow-y-auto shadow-xl">
         {navMenus.map((menu) => (
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2 px-1">
               {menu.label}
             </p>
             <div class="grid grid-cols-2 gap-1.5">
               {menu.items.map((item) => (
                 <a
                   href={item.href}
-                  class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 hover:border-blue-500 hover:text-blue-600"
+                  class="px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-800 hover:border-blue-500 transition"
                 >
                   {item.name}
                 </a>
@@ -190,52 +212,64 @@ const navMenus = [
       <slot />
     </main>
 
-    <footer class="border-t border-slate-200 bg-white mt-16">
-      <div class="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 font-extrabold text-slate-900">
-            <span class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-black">IL</span>
-            <span>ImageLab</span>
+    <!-- Minimalist Architectural Footer -->
+    <footer class="border-t border-zinc-200/80 bg-white/70 dark:bg-[#0c0c0f] backdrop-blur-sm mt-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-2 font-bold text-zinc-950">
+              <span class="w-6 h-6 rounded-lg bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                  <polyline points="2 12 12 17 22 12" />
+                </svg>
+              </span>
+              <span>ImageLab</span>
+            </div>
+            <p class="text-xs text-zinc-500 leading-relaxed max-w-[220px]">
+              Browser-native image & PDF studio powered by WebAssembly. Zero uploads.
+            </p>
           </div>
-          <p class="text-xs text-slate-500 leading-relaxed">
-            100% browser-based image & PDF studio powered by WebAssembly (MozJPEG, LibWebP, UPNG). Zero server uploads.
-          </p>
+
+          <div>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Studio</p>
+            <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop & Rotate</a></li>
+              <li><a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">Photo Enhancer</a></li>
+              <li><a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Batch Watermark</a></li>
+              <li><a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a></li>
+              <li><a href="/remove-background" class="hover:text-zinc-950 dark:hover:text-white transition">AI Background Remover</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Optimize</p>
+            <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/jpg-to-webp" class="hover:text-zinc-950 dark:hover:text-white transition">JPG to WEBP</a></li>
+              <li><a href="/webp-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">WEBP to JPG</a></li>
+              <li><a href="/compress-image-to-50kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 50KB</a></li>
+              <li><a href="/compress-image-to-100kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 100KB</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Presets</p>
+            <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/resize-photo-300x300" class="hover:text-zinc-950 dark:hover:text-white transition">300×300 Job Photo</a></li>
+              <li><a href="/resize-signature-300x80" class="hover:text-zinc-950 dark:hover:text-white transition">300×80 Signature</a></li>
+              <li><a href="/passport-photo-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">Passport 600×600</a></li>
+              <li><a href="/youtube-thumbnail-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">YouTube 1280×720</a></li>
+            </ul>
+          </div>
         </div>
 
-        <div>
-          <p class="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">Pro Studio</p>
-          <ul class="space-y-2 text-xs text-slate-600">
-            <li><a href="/crop-image" class="hover:text-blue-600">Visual Crop & Rotate</a></li>
-            <li><a href="/photo-enhancer" class="hover:text-blue-600">Live Studio Enhancer</a></li>
-            <li><a href="/watermark-image" class="hover:text-blue-600">Batch Watermark Tool</a></li>
-            <li><a href="/image-to-pdf" class="hover:text-blue-600">Image to PDF (A4)</a></li>
-            <li><a href="/remove-background" class="hover:text-blue-600">AI Background Remover</a></li>
-          </ul>
+        <div class="mt-8 pt-6 border-t border-zinc-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-500">
+          <span>© {new Date().getFullYear()} ImageLab</span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Processed locally on your device
+          </span>
         </div>
-
-        <div>
-          <p class="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">Compress & Convert</p>
-          <ul class="space-y-2 text-xs text-slate-600">
-            <li><a href="/jpg-to-webp" class="hover:text-blue-600">JPG to WEBP</a></li>
-            <li><a href="/png-to-webp" class="hover:text-blue-600">PNG to WEBP</a></li>
-            <li><a href="/compress-image-to-50kb" class="hover:text-blue-600">Compress to 50KB</a></li>
-            <li><a href="/compress-image-to-100kb" class="hover:text-blue-600">Compress to 100KB</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <p class="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">Job & Exam Presets</p>
-          <ul class="space-y-2 text-xs text-slate-600">
-            <li><a href="/resize-photo-300x300" class="hover:text-blue-600">300×300 Job Photo</a></li>
-            <li><a href="/resize-signature-300x80" class="hover:text-blue-600">300×80 Signature</a></li>
-            <li><a href="/passport-photo-resizer" class="hover:text-blue-600">Passport Photo (600×600)</a></li>
-            <li><a href="/youtube-thumbnail-resizer" class="hover:text-blue-600">YouTube Thumbnail</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="border-t border-slate-200 py-4 px-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} ImageLab · Free Forever & 100% Private Local Processing.
       </div>
     </footer>
 
