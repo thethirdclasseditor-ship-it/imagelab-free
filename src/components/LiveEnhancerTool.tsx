@@ -10,63 +10,94 @@ import {
   ChevronsLeftRight,
   ZoomIn,
   ZoomOut,
-  SlidersHorizontal,
   ArrowRight,
-  RotateCcw,
+  Cpu,
 } from 'lucide-react';
 import {
+  processImage,
   formatFileSize,
   validateImageFile,
   type SupportedFormat,
 } from '../engine/imageEngine';
-import {
-  enhancePhoto,
-  type UpscaleFactor,
-  type EnhancedPhotoResult,
-} from '../engine/enhanceEngine';
+import type { AiEnhanceMessage, AiEnhanceRequest } from '../engine/aiEnhance.worker';
 
-type EnhanceStrength = 'balanced' | 'deblur' | 'denoise';
+type QualityMode = 'hd' | 'ultra';
 
-const STRENGTH_MODES: {
-  id: EnhanceStrength;
-  label: string;
-  deblur: number;
-  denoise: number;
-  clarity: number;
-  autoTone: boolean;
-}[] = [
-  { id: 'balanced', label: 'Balanced Restore', deblur: 60, denoise: 25, clarity: 42, autoTone: true },
-  { id: 'deblur', label: 'Strong Deblur', deblur: 88, denoise: 18, clarity: 55, autoTone: true },
-  { id: 'denoise', label: 'Clean Noise', deblur: 45, denoise: 68, clarity: 32, autoTone: true },
-];
+interface AiResultState {
+  blob: Blob;
+  url: string;
+  originalUrl: string;
+  rawCanvasBlob: Blob;
+  fileName: string;
+  originalWidth: number;
+  originalHeight: number;
+  width: number;
+  height: number;
+  backend: 'WebGPU' | 'WASM';
+  processingMs: number;
+}
+
+let aiWorkerSingleton: Worker | null = null;
+let jobSeq = 1;
+
+function getAiWorker(): Worker {
+  if (!aiWorkerSingleton) {
+    aiWorkerSingleton = new Worker(new URL('../engine/aiEnhance.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+  }
+  return aiWorkerSingleton;
+}
+
+async function normalizeHeic(file: File): Promise<Blob> {
+  const isHeic =
+    /\.(heic|heif)$/i.test(file.name) ||
+    file.type === 'image/heic' ||
+    file.type === 'image/heif';
+  if (!isHeic) return file;
+  const { default: heic2any } = await import('heic2any');
+  const res = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.96 });
+  return Array.isArray(res) ? res[0] : res;
+}
+
+function loadImg(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not decode this image file.'));
+    };
+    img.src = url;
+  });
+}
 
 export default function LiveEnhancerTool() {
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<EnhancedPhotoResult | null>(null);
+  const [result, setResult] = useState<AiResultState | null>(null);
+  const [qualityMode, setQualityMode] = useState<QualityMode>('hd');
+  const [format, setFormat] = useState<SupportedFormat>('image/jpeg');
+
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isReEncoding, setIsReEncoding] = useState(false);
+  const [progressPct, setProgressPct] = useState(0);
+  const [progressStatus, setProgressStatus] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
-  // Built-in Split-Screen Stage State
+  // Split-screen compare state
   const [splitPos, setSplitPos] = useState(50);
   const [zoomed, setZoomed] = useState(false);
-  const [showFineTune, setShowFineTune] = useState(false);
-
-  // True Restoration Settings
-  const [upscale, setUpscale] = useState<UpscaleFactor>(2);
-  const [strengthMode, setStrengthMode] = useState<EnhanceStrength>('balanced');
-  const [deblur, setDeblur] = useState(60);
-  const [denoise, setDenoise] = useState(25);
-  const [clarity, setClarity] = useState(42);
-  const [autoTone, setAutoTone] = useState(true);
-  const [format, setFormat] = useState<SupportedFormat>('image/jpeg');
-  const [dirty, setDirty] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const draggingSplitRef = useRef(false);
   const dragDepthRef = useRef(0);
-  const runIdRef = useRef(0);
+  const activeRunIdRef = useRef(0);
   const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
 
   useEffect(() => {
@@ -78,44 +109,169 @@ export default function LiveEnhancerTool() {
     };
   }, [result]);
 
-  const runEnhancement = async (
-    targetFile: File,
-    overrides?: {
-      upscale?: UpscaleFactor;
-      deblur?: number;
-      denoise?: number;
-      clarity?: number;
-      autoTone?: boolean;
-      format?: SupportedFormat;
-    }
-  ) => {
-    const runId = ++runIdRef.current;
+  const runAiRestore = async (targetFile: File, mode: QualityMode, outFormat: SupportedFormat) => {
+    const runId = ++activeRunIdRef.current;
+    const t0 = performance.now();
+
     setIsProcessing(true);
     setErrorMsg(null);
-    setDirty(false);
+    setProgressPct(2);
+    setProgressStatus('Preparing image for Neural Super-Resolution...');
 
     try {
-      const res = await enhancePhoto(targetFile, {
-        upscale: overrides?.upscale ?? upscale,
-        deblur: overrides?.deblur ?? deblur,
-        denoise: overrides?.denoise ?? denoise,
-        clarity: overrides?.clarity ?? clarity,
-        autoTone: overrides?.autoTone ?? autoTone,
-        format: overrides?.format ?? format,
-        quality: 0.92,
+      const normalized = await normalizeHeic(targetFile);
+      const img = await loadImg(normalized);
+      const origW = img.naturalWidth;
+      const origH = img.naturalHeight;
+
+      // Cap AI input side so 4x output stays crisp (up to 2048px HD or 2816px Ultra) without crashing RAM
+      const maxInputSide = mode === 'ultra' ? 704 : 512;
+      let inW = origW;
+      let inH = origH;
+      if (Math.max(inW, inH) > maxInputSide) {
+        const s = maxInputSide / Math.max(inW, inH);
+        inW = Math.max(16, Math.round(inW * s));
+        inH = Math.max(16, Math.round(inH * s));
+      }
+
+      const inCanvas = document.createElement('canvas');
+      inCanvas.width = inW;
+      inCanvas.height = inH;
+      const inCtx = inCanvas.getContext('2d', { willReadFrequently: true });
+      if (!inCtx) throw new Error('Canvas unavailable.');
+
+      inCtx.fillStyle = '#FFFFFF';
+      inCtx.fillRect(0, 0, inW, inH);
+      inCtx.imageSmoothingEnabled = true;
+      inCtx.imageSmoothingQuality = 'high';
+      inCtx.drawImage(img, 0, 0, inW, inH);
+
+      const inImgData = inCtx.getImageData(0, 0, inW, inH);
+      const transferBuf = inImgData.data.slice().buffer;
+      inCanvas.width = 0;
+      inCanvas.height = 0;
+
+      const worker = getAiWorker();
+      const jobId = jobSeq++;
+
+      const aiOutput = await new Promise<{
+        rgbaBuffer: ArrayBuffer;
+        width: number;
+        height: number;
+        backend: 'WebGPU' | 'WASM';
+      }>((resolve, reject) => {
+        const handleMsg = (e: MessageEvent<AiEnhanceMessage>) => {
+          const msg = e.data;
+          if (msg.id !== jobId) return;
+
+          if (msg.type === 'progress') {
+            if (activeRunIdRef.current === runId) {
+              setProgressPct(msg.percent);
+              setProgressStatus(msg.status);
+            }
+          } else if (msg.type === 'done') {
+            worker.removeEventListener('message', handleMsg);
+            worker.removeEventListener('error', handleErr);
+            resolve({
+              rgbaBuffer: msg.rgbaBuffer,
+              width: msg.width,
+              height: msg.height,
+              backend: msg.backend,
+            });
+          } else if (msg.type === 'error') {
+            worker.removeEventListener('message', handleMsg);
+            worker.removeEventListener('error', handleErr);
+            reject(new Error(msg.error));
+          }
+        };
+
+        const handleErr = () => {
+          worker.removeEventListener('message', handleMsg);
+          worker.removeEventListener('error', handleErr);
+          reject(new Error('AI worker crashed. Try Standard HD mode or a smaller photo.'));
+        };
+
+        worker.addEventListener('message', handleMsg);
+        worker.addEventListener('error', handleErr);
+
+        const req: AiEnhanceRequest = {
+          id: jobId,
+          rgbaBuffer: transferBuf,
+          width: inW,
+          height: inH,
+        };
+        worker.postMessage(req, [transferBuf]);
       });
 
-      if (runIdRef.current !== runId) {
-        URL.revokeObjectURL(res.url);
-        URL.revokeObjectURL(res.originalUrl);
+      if (activeRunIdRef.current !== runId) return;
+
+      setProgressPct(98);
+      setProgressStatus('Encoding HD output...');
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = aiOutput.width;
+      outCanvas.height = aiOutput.height;
+      const outCtx = outCanvas.getContext('2d');
+      if (!outCtx) throw new Error('Output canvas unavailable.');
+
+      const outData = new ImageData(
+        new Uint8ClampedArray(aiOutput.rgbaBuffer),
+        aiOutput.width,
+        aiOutput.height
+      );
+      outCtx.putImageData(outData, 0, 0);
+
+      const rawPngBlob = await new Promise<Blob>((resolve, reject) => {
+        outCanvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Failed to build output bitmap.'))),
+          'image/png'
+        );
+      });
+      outCanvas.width = 0;
+      outCanvas.height = 0;
+
+      // Encode cleanly with our MozJPEG / LibWebP / UPNG engine
+      const baseName = targetFile.name.replace(/\.[^/.]+$/, '');
+      const tempFile = new File([rawPngBlob], `${baseName}_ai_hd.png`, { type: 'image/png' });
+      const encoded = await processImage(tempFile, {
+        format: outFormat,
+        quality: outFormat === 'image/png' ? 1 : 0.92,
+      });
+
+      if (activeRunIdRef.current !== runId) {
+        URL.revokeObjectURL(encoded.url);
+        URL.revokeObjectURL(encoded.originalUrl);
         return;
       }
-      setResult(res);
+
+      URL.revokeObjectURL(encoded.originalUrl);
+
+      setResult({
+        blob: encoded.blob,
+        url: encoded.url,
+        originalUrl: URL.createObjectURL(normalized),
+        rawCanvasBlob: rawPngBlob,
+        fileName: encoded.fileName,
+        originalWidth: origW,
+        originalHeight: origH,
+        width: aiOutput.width,
+        height: aiOutput.height,
+        backend: aiOutput.backend,
+        processingMs: Math.round(performance.now() - t0),
+      });
+      setProgressPct(100);
     } catch (err) {
-      if (runIdRef.current !== runId) return;
-      setErrorMsg(err instanceof Error ? err.message : 'Enhancement failed.');
+      if (activeRunIdRef.current !== runId) return;
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'AI enhancement failed. Check your internet connection on first run.'
+      );
     } finally {
-      if (runIdRef.current === runId) setIsProcessing(false);
+      if (activeRunIdRef.current === runId) {
+        setIsProcessing(false);
+        setProgressStatus('');
+      }
     }
   };
 
@@ -130,14 +286,15 @@ export default function LiveEnhancerTool() {
 
     if (fileInputRef.current) fileInputRef.current.value = '';
     setFile(picked);
+    setResult(null);
     setSplitPos(50);
     setZoomed(false);
-    void runEnhancement(picked);
+    void runAiRestore(picked, qualityMode, format);
   };
 
   selectHandlerRef.current = handleFileSelect;
 
-  // Full-Window Drag & Drop + Clipboard Paste
+  // Global Drop Anywhere + Ctrl+V Paste
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
       Boolean(e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files'));
@@ -187,7 +344,44 @@ export default function LiveEnhancerTool() {
     };
   }, []);
 
-  // Split-Screen Drag Handlers
+  // Re-encode already restored bitmap instantaneously when switching JPG / PNG / WEBP
+  const handleFormatChange = async (nextFmt: SupportedFormat) => {
+    setFormat(nextFmt);
+    if (!result || !file) return;
+    setIsReEncoding(true);
+    try {
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const tempFile = new File([result.rawCanvasBlob], `${baseName}_ai_hd.png`, {
+        type: 'image/png',
+      });
+      const encoded = await processImage(tempFile, {
+        format: nextFmt,
+        quality: nextFmt === 'image/png' ? 1 : 0.92,
+      });
+      URL.revokeObjectURL(encoded.originalUrl);
+
+      setResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              blob: encoded.blob,
+              url: encoded.url,
+              fileName: encoded.fileName,
+            }
+          : null
+      );
+    } finally {
+      setIsReEncoding(false);
+    }
+  };
+
+  const handleModeSwitch = (nextMode: QualityMode) => {
+    setQualityMode(nextMode);
+    if (file && !isProcessing) {
+      void runAiRestore(file, nextMode, format);
+    }
+  };
+
   const updateSplit = (clientX: number) => {
     const el = stageRef.current;
     if (!el) return;
@@ -215,32 +409,6 @@ export default function LiveEnhancerTool() {
     }
   };
 
-  const handleUpscaleChange = (factor: UpscaleFactor) => {
-    setUpscale(factor);
-    if (file) void runEnhancement(file, { upscale: factor });
-  };
-
-  const handleStrengthSelect = (modeObj: (typeof STRENGTH_MODES)[number]) => {
-    setStrengthMode(modeObj.id);
-    setDeblur(modeObj.deblur);
-    setDenoise(modeObj.denoise);
-    setClarity(modeObj.clarity);
-    setAutoTone(modeObj.autoTone);
-    if (file) {
-      void runEnhancement(file, {
-        deblur: modeObj.deblur,
-        denoise: modeObj.denoise,
-        clarity: modeObj.clarity,
-        autoTone: modeObj.autoTone,
-      });
-    }
-  };
-
-  const handleFormatChange = (nextFmt: SupportedFormat) => {
-    setFormat(nextFmt);
-    if (file) void runEnhancement(file, { format: nextFmt });
-  };
-
   const handleDownload = () => {
     if (!result) return;
     const a = document.createElement('a');
@@ -252,12 +420,13 @@ export default function LiveEnhancerTool() {
   };
 
   const resetAll = () => {
-    runIdRef.current++;
+    activeRunIdRef.current++;
     setFile(null);
     setResult(null);
     setIsProcessing(false);
     setErrorMsg(null);
-    setDirty(false);
+    setProgressPct(0);
+    setProgressStatus('');
   };
 
   return (
@@ -270,7 +439,6 @@ export default function LiveEnhancerTool() {
         onChange={(e) => handleFileSelect(e.target.files)}
       />
 
-      {/* Full-Screen Drop Overlay */}
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
@@ -278,188 +446,58 @@ export default function LiveEnhancerTool() {
               <Upload className="w-7 h-7" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
-              Release to enhance photo
-            </p>
-            <p className="text-sm text-zinc-500 mt-1.5">
-              Auto-deblur, denoise & HD upscale starts immediately
+              Release for AI Restoration
             </p>
           </div>
         </div>
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Top Restoration Control Strip */}
+        {/* Clean AI Control Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500">Upscale</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-semibold text-zinc-500">AI Engine</span>
             <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
-              {([1, 2, 4] as const).map((factor) => (
-                <button
-                  key={factor}
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => handleUpscaleChange(factor)}
-                  className={`px-3 py-1 rounded-[10px] text-xs font-semibold tabular-nums transition cursor-pointer ${
-                    upscale === factor
-                      ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
-                >
-                  {factor === 1 ? '1× Original' : `${factor}× HD`}
-                </button>
-              ))}
-            </div>
-
-            <div className="hidden md:flex items-center gap-1 pl-2">
-              {STRENGTH_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => handleStrengthSelect(m)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                    strengthMode === m.id
-                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
-                      : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => handleModeSwitch('hd')}
+                className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                  qualityMode === 'hd'
+                    ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Standard HD (Up to 2K)
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => handleModeSwitch('ultra')}
+                className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                  qualityMode === 'ultra'
+                    ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Ultra Detail (Up to 3K)
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowFineTune((s) => !s)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              showFineTune
-                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
-                : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Fine-Tune</span>
-          </button>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-[11px] font-semibold">
+            <Cpu className="w-3.5 h-3.5 text-blue-600" />
+            Swin2SR Real-World 4× AI
+          </span>
         </div>
 
-        {/* Optional Restoration Fine-Tune Drawer */}
-        {showFineTune && (
-          <div className="px-5 sm:px-7 py-5 bg-zinc-50/80 border-b border-zinc-200/80 space-y-4 animate-scale-in">
-            {/* Mobile Strength Selector */}
-            <div className="flex md:hidden flex-wrap gap-1.5">
-              {STRENGTH_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => handleStrengthSelect(m)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer ${
-                    strengthMode === m.id
-                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
-                      : 'bg-white text-zinc-700 border-zinc-200'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-5">
-              <div>
-                <div className="flex justify-between text-xs text-zinc-600 mb-1 tabular-nums">
-                  <label htmlFor="enh-deblur">Deblur & Sharpness</label>
-                  <span className="font-semibold text-zinc-900">{deblur}%</span>
-                </div>
-                <input
-                  id="enh-deblur"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={deblur}
-                  onChange={(e) => {
-                    setDeblur(Number(e.target.value));
-                    setDirty(true);
-                  }}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs text-zinc-600 mb-1 tabular-nums">
-                  <label htmlFor="enh-denoise">Noise Reduction</label>
-                  <span className="font-semibold text-zinc-900">{denoise}%</span>
-                </div>
-                <input
-                  id="enh-denoise"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={denoise}
-                  onChange={(e) => {
-                    setDenoise(Number(e.target.value));
-                    setDirty(true);
-                  }}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs text-zinc-600 mb-1 tabular-nums">
-                  <label htmlFor="enh-clarity">Detail Clarity</label>
-                  <span className="font-semibold text-zinc-900">{clarity}%</span>
-                </div>
-                <input
-                  id="enh-clarity"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={clarity}
-                  onChange={(e) => {
-                    setClarity(Number(e.target.value));
-                    setDirty(true);
-                  }}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoTone}
-                  onChange={(e) => {
-                    setAutoTone(e.target.checked);
-                    setDirty(true);
-                  }}
-                  className="rounded accent-blue-600 w-4 h-4"
-                />
-                <span>Auto haze & dynamic range recovery</span>
-              </label>
-
-              {file && dirty && (
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => void runEnhancement(file)}
-                  className="btn-studio-accent inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Re-Enhance</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Empty Upload State vs Built-In Split-Screen Result Stage */}
+        {/* Empty Upload State vs Built-In Split-Screen AI Stage */}
         {!file ? (
           <div className="p-6 sm:p-10">
             <div
               role="button"
               tabIndex={0}
-              aria-label="Select blurry or low-resolution photo to enhance"
+              aria-label="Select blurry or low-res photo for AI enhancement"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -474,7 +512,7 @@ export default function LiveEnhancerTool() {
               </div>
 
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
-                Select Photo to Enhance
+                Select Photo to Restore
               </span>
 
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
@@ -484,26 +522,28 @@ export default function LiveEnhancerTool() {
                 </kbd>
               </p>
 
-              <p className="text-[11px] font-medium text-zinc-400 mt-3 tracking-wide uppercase">
-                Auto Deblur · Edge Denoise · 2× & 4× HD Upscale
+              <p className="text-[11px] text-zinc-400 mt-3 max-w-md">
+                True neural super-resolution · Removes blur & compression blocks without sharpening artifacts (first run caches the AI model once)
               </p>
             </div>
           </div>
         ) : (
           <div>
-            {/* Interactive Built-In Before/After Split Stage */}
+            {/* Stage */}
             <div className="relative bg-zinc-950 p-4 sm:p-6">
               <div className="flex items-center justify-between gap-3 mb-3 text-xs text-zinc-400">
                 <span className="truncate font-medium max-w-[240px]">{file.name}</span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setZoomed((z) => !z)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
-                  >
-                    {zoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
-                    <span>{zoomed ? '100%' : 'Inspect 2×'}</span>
-                  </button>
+                  {result && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomed((z) => !z)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
+                    >
+                      {zoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
+                      <span>{zoomed ? '100%' : 'Inspect 2×'}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={resetAll}
@@ -521,24 +561,21 @@ export default function LiveEnhancerTool() {
                 onPointerMove={result ? handleSplitMove : undefined}
                 onPointerUp={result ? handleSplitUp : undefined}
                 onPointerCancel={result ? handleSplitUp : undefined}
-                className="relative w-full h-[50vh] sm:h-[58vh] min-h-[300px] rounded-2xl overflow-hidden bg-black/50 select-none touch-none cursor-ew-resize"
+                className="relative w-full h-[50vh] sm:h-[58vh] min-h-[320px] rounded-2xl overflow-hidden bg-black/50 select-none touch-none cursor-ew-resize"
               >
                 {result ? (
                   <>
-                    {/* Right Side: Enhanced HD Result */}
                     <img
                       src={result.url}
-                      alt="Enhanced HD result"
+                      alt="AI Restored HD"
                       draggable={false}
                       className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
                         zoomed ? 'scale-175' : 'scale-100'
                       }`}
                     />
-
-                    {/* Left Side: Original */}
                     <img
                       src={result.originalUrl}
-                      alt="Original photo"
+                      alt="Original Photo"
                       draggable={false}
                       style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}
                       className={`absolute inset-0 w-full h-full object-contain transition-transform duration-200 ${
@@ -546,15 +583,13 @@ export default function LiveEnhancerTool() {
                       }`}
                     />
 
-                    {/* Corner Labels */}
                     <div className="pointer-events-none absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-zinc-950/75 text-white text-[11px] font-semibold backdrop-blur-xs tabular-nums">
                       Before · {result.originalWidth}×{result.originalHeight}
                     </div>
                     <div className="pointer-events-none absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-blue-600/90 text-white text-[11px] font-semibold backdrop-blur-xs tabular-nums">
-                      Enhanced · {result.width}×{result.height}
+                      AI Restored · {result.width}×{result.height}
                     </div>
 
-                    {/* Draggable Divider Line */}
                     <div
                       className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.85)]"
                       style={{ left: `${splitPos}%` }}
@@ -565,23 +600,35 @@ export default function LiveEnhancerTool() {
                     </div>
                   </>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                    <p className="text-sm font-semibold">Enhancing & upscaling photo...</p>
+                  <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center gap-4">
+                    <Loader2 className="w-9 h-9 animate-spin text-blue-500" />
+                    <div className="w-full max-w-sm space-y-2">
+                      <div className="flex justify-between text-xs font-semibold text-zinc-300 tabular-nums">
+                        <span className="truncate">{progressStatus || 'Initializing AI...'}</span>
+                        <span>{progressPct}%</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{ width: `${Math.max(4, progressPct)}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Re-processing subtle overlay when switching 2x <-> 4x */}
                 {isProcessing && result && (
-                  <div className="absolute inset-0 bg-zinc-950/55 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2.5">
+                  <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-3 px-6">
                     <Loader2 className="w-7 h-7 animate-spin text-blue-400" />
-                    <span className="text-xs font-semibold">Applying {upscale}× restoration...</span>
+                    <span className="text-xs font-semibold tabular-nums">
+                      {progressStatus || 'Re-running AI restoration...'} ({progressPct}%)
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Clean Result Metadata & Export Footer */}
+            {/* Export Footer */}
             <div className="flex flex-wrap items-center justify-between gap-4 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-600 tabular-nums">
                 {result && (
@@ -592,14 +639,9 @@ export default function LiveEnhancerTool() {
                       {result.width}×{result.height} px
                     </span>
                     <span className="px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 font-semibold">
-                      {formatFileSize(result.newSize)} · {result.encoderUsed}
+                      {formatFileSize(result.blob.size)} · {result.backend}
                     </span>
                     <span className="text-zinc-400">{(result.processingMs / 1000).toFixed(1)}s</span>
-                    {result.cappedByMemory && (
-                      <span className="text-amber-700 dark:text-amber-400 font-medium">
-                        (Capped at 4K for device safety)
-                      </span>
-                    )}
                   </>
                 )}
               </div>
@@ -608,8 +650,8 @@ export default function LiveEnhancerTool() {
                 <select
                   aria-label="Output format"
                   value={format}
-                  disabled={isProcessing}
-                  onChange={(e) => handleFormatChange(e.target.value as SupportedFormat)}
+                  disabled={isProcessing || isReEncoding}
+                  onChange={(e) => void handleFormatChange(e.target.value as SupportedFormat)}
                   className="bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer"
                 >
                   <option value="image/jpeg">JPG · MozJPEG</option>
@@ -619,12 +661,12 @@ export default function LiveEnhancerTool() {
 
                 <button
                   type="button"
-                  disabled={!result || isProcessing}
+                  disabled={!result || isProcessing || isReEncoding}
                   onClick={handleDownload}
                   className="btn-studio-accent inline-flex items-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download HD</span>
+                  <span>{isReEncoding ? 'Preparing...' : 'Download AI HD'}</span>
                 </button>
               </div>
             </div>
@@ -641,7 +683,7 @@ export default function LiveEnhancerTool() {
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed locally in your browser · Zero uploads</span>
+        <span>On-device AI inference · Photos stay on your device (model loads once from CDN)</span>
       </p>
     </div>
   );
