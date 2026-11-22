@@ -11,7 +11,7 @@ const homeSchema = {
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Browser-native image converter, compressor, visual cropper, watermark studio, AI background remover, and PDF creator.',
+    'Browser-native image converter, compressor, visual cropper, privacy blur, EXIF remover, watermark studio, AI background remover, and PDF creator.',
 };
 
 const studioTools = [
@@ -23,13 +23,6 @@ const studioTools = [
     icon: 'sparkles',
   },
   {
-    href: '/crop-image',
-    title: 'Visual Crop & Rotate',
-    desc: 'Exact aspect ratios & framing guides.',
-    tag: 'Editor',
-    icon: 'crop',
-  },
-  {
     href: '/photo-enhancer',
     title: 'AI Photo Enhancer',
     desc: 'Neural super-resolution & clarity.',
@@ -37,11 +30,25 @@ const studioTools = [
     icon: 'sliders',
   },
   {
-    href: '/image-to-pdf',
-    title: 'Image to PDF',
-    desc: 'Merge up to 30 photos into clean A4.',
-    tag: 'Document',
-    icon: 'file',
+    href: '/crop-image',
+    title: 'Visual Crop & Rotate',
+    desc: 'Exact aspect ratios & framing guides.',
+    tag: 'Editor',
+    icon: 'crop',
+  },
+  {
+    href: '/blur-image',
+    title: 'Privacy Blur & Redact',
+    desc: 'Pixelate, blur, or blackout faces & IDs.',
+    tag: 'Privacy',
+    icon: 'eyeoff',
+  },
+  {
+    href: '/exif-remover',
+    title: 'EXIF Metadata Remover',
+    desc: 'Inspect & strip GPS and camera tags.',
+    tag: 'Privacy',
+    icon: 'shield',
   },
   {
     href: '/watermark-image',
@@ -50,6 +57,13 @@ const studioTools = [
     tag: 'Batch',
     icon: 'stamp',
   },
+  {
+    href: '/image-to-pdf',
+    title: 'Image to PDF',
+    desc: 'Merge up to 30 photos into clean A4.',
+    tag: 'Document',
+    icon: 'file',
+  },
 ];
 
 const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
@@ -57,7 +71,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
 
 <Layout
   title="ImageLab — Browser Image & PDF Studio"
-  description="Convert JPG, PNG, WEBP, HEIC, compress to target KB, crop visually, remove backgrounds with AI, watermark, and create PDFs locally. 100% free."
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, blur faces, remove EXIF, remove backgrounds with AI, watermark, and create PDFs locally."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
@@ -110,6 +124,20 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
                   <circle cx="12" cy="4" r="2" />
                   <circle cx="10" cy="12" r="2" />
                   <circle cx="14" cy="20" r="2" />
+                </svg>
+              )}
+              {tool.icon === 'eyeoff' && (
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                  <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                  <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+                  <path d="m2 2 20 20" />
+                </svg>
+              )}
+              {tool.icon === 'shield' && (
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                  <path d="m9 12 2 2 4-4" />
                 </svg>
               )}
               {tool.icon === 'file' && (
