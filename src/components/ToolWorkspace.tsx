@@ -110,35 +110,12 @@ export default function ToolWorkspace({
   const listScrollRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
 
-  // Race-condition-free live queue refs
   const itemsRef = useRef<WorkspaceItem[]>([]);
   const sessionIdRef = useRef(0);
   const activeRunnerRef = useRef<number | null>(null);
   const runnerSeqRef = useRef(0);
-  const activeOptionsRef = useRef<ProcessOptions>({});
   const trackedUrlsRef = useRef<Set<string>>(new Set());
   const addFilesHandlerRef = useRef<(files: FileList | null) => void>(() => {});
-
-  itemsRef.current = items;
-
-  const trackUrl = (url: string) => {
-    trackedUrlsRef.current.add(url);
-    return url;
-  };
-
-  const releaseUrl = (url?: string) => {
-    if (!url) return;
-    URL.revokeObjectURL(url);
-    trackedUrlsRef.current.delete(url);
-  };
-
-  useEffect(() => {
-    return () => {
-      sessionIdRef.current++;
-      trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
-      trackedUrlsRef.current.clear();
-    };
-  }, []);
 
   const buildProcessOptions = (overrides?: {
     mode?: ToolMode;
@@ -162,10 +139,7 @@ export default function ToolWorkspace({
     const parsedH = Number(activeHStr) > 0 ? Number(activeHStr) : undefined;
 
     return {
-      format:
-        activeMode === 'converter' || activeMode === 'compressor' || activeMode === 'resizer'
-          ? activeFormat
-          : undefined,
+      format: activeFormat,
       quality: activeQuality / 100,
       targetSizeKB:
         activeMode === 'compressor' || activeMode === 'resizer' ? parsedTargetKB : undefined,
@@ -179,8 +153,29 @@ export default function ToolWorkspace({
     };
   };
 
-  // Sync latest options on render
-  activeOptionsRef.current = buildProcessOptions();
+  // Snapshot committed options (NEVER mutated mid-batch just by dragging sliders before clicking Apply)
+  const activeOptionsRef = useRef<ProcessOptions>(buildProcessOptions());
+
+  itemsRef.current = items;
+
+  const trackUrl = (url: string) => {
+    trackedUrlsRef.current.add(url);
+    return url;
+  };
+
+  const releaseUrl = (url?: string) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    trackedUrlsRef.current.delete(url);
+  };
+
+  useEffect(() => {
+    return () => {
+      sessionIdRef.current++;
+      trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      trackedUrlsRef.current.clear();
+    };
+  }, []);
 
   const updateItemState = (id: string, updater: (item: WorkspaceItem) => WorkspaceItem) => {
     const next = itemsRef.current.map((it) => (it.id === id ? updater(it) : it));
@@ -188,7 +183,6 @@ export default function ToolWorkspace({
     setItems(next);
   };
 
-  // True sequential queue runner: adding more files mid-batch NEVER aborts in-progress files
   const pumpQueue = async () => {
     if (activeRunnerRef.current !== null) return;
 
@@ -210,7 +204,6 @@ export default function ToolWorkspace({
         try {
           const res = await processImage(nextItem.file, activeOptionsRef.current);
 
-          // Discard if session was cleared/restarted or item was deleted mid-flight
           const stillExists = itemsRef.current.some((it) => it.id === nextItem.id);
           if (sessionIdRef.current !== session || !stillExists) {
             URL.revokeObjectURL(res.url);
@@ -252,12 +245,12 @@ export default function ToolWorkspace({
   };
 
   const reprocessAll = (overrides?: Parameters<typeof buildProcessOptions>[0]) => {
+    activeOptionsRef.current = buildProcessOptions(overrides);
+    setSettingsDirty(false);
     if (itemsRef.current.length === 0) return;
 
     sessionIdRef.current++;
     activeRunnerRef.current = null;
-    setSettingsDirty(false);
-    activeOptionsRef.current = buildProcessOptions(overrides);
 
     const resetList = itemsRef.current.map((it) => ({
       ...it,
@@ -302,6 +295,12 @@ export default function ToolWorkspace({
     }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
+    // If queue was idle, snapshot the current UI settings cleanly before starting
+    if (activeRunnerRef.current === null) {
+      activeOptionsRef.current = buildProcessOptions();
+      setSettingsDirty(false);
+    }
+
     const newEntries: WorkspaceItem[] = accepted.map((file) => ({
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       file,
@@ -310,13 +309,10 @@ export default function ToolWorkspace({
       status: 'queued',
     }));
 
-    // Prepend newest uploads to the TOP of the list so they are immediately visible
     const nextList = [...newEntries, ...itemsRef.current];
     itemsRef.current = nextList;
     setItems(nextList);
-    setSettingsDirty(false);
 
-    // Scroll list smoothly to top so user immediately sees newly added images
     requestAnimationFrame(() => {
       listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -326,7 +322,6 @@ export default function ToolWorkspace({
 
   addFilesHandlerRef.current = handleAddFiles;
 
-  // Full-Window Drag & Drop + Safe Clipboard Paste
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
       Boolean(e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files'));
@@ -390,12 +385,12 @@ export default function ToolWorkspace({
     setMode(newMode);
     setErrorMsg(null);
     setShowSettings(newMode === 'enhancer' || newMode === 'resizer');
-    if (itemsRef.current.length > 0) reprocessAll({ mode: newMode });
+    reprocessAll({ mode: newMode });
   };
 
   const handleQuickFormatChange = (newFormat: SupportedFormat) => {
     setFormat(newFormat);
-    if (itemsRef.current.length > 0) reprocessAll({ format: newFormat });
+    reprocessAll({ format: newFormat });
   };
 
   const retryItem = (id: string) => {
@@ -473,7 +468,6 @@ export default function ToolWorkspace({
         onChange={(e) => handleAddFiles(e.target.files)}
       />
 
-      {/* Full-Screen Glass Drop Overlay */}
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
@@ -490,7 +484,6 @@ export default function ToolWorkspace({
         </div>
       )}
 
-      {/* Segmented Mode Control (Homepage) */}
       {showModeTabs && (
         <div className="flex justify-center">
           <div className="grid grid-cols-4 sm:inline-flex w-full sm:w-auto bg-zinc-100 border border-zinc-200/80 p-1 rounded-2xl gap-1">
@@ -516,45 +509,35 @@ export default function ToolWorkspace({
         </div>
       )}
 
-      {/* Masterclass Workspace Surface */}
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Clean Control Header */}
+        {/* Control Header (Output format selector now available in all modes including Enhancer) */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2.5 text-sm">
-            {mode !== 'enhancer' ? (
-              <>
-                <span className="text-xs font-semibold text-zinc-500">Format</span>
-                <select
-                  aria-label="Output format"
-                  value={format}
-                  onChange={(e) => handleQuickFormatChange(e.target.value as SupportedFormat)}
-                  className="bg-white border border-zinc-300 hover:border-zinc-400 rounded-xl px-3 py-1.5 font-semibold text-zinc-900 text-xs sm:text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer transition"
-                >
-                  <option value="image/jpeg">JPG · MozJPEG</option>
-                  <option value="image/webp">WEBP · LibWebP</option>
-                  <option value="image/png">PNG · UPNG</option>
-                </select>
+            <span className="text-xs font-semibold text-zinc-500">Format</span>
+            <select
+              aria-label="Output format"
+              value={format}
+              onChange={(e) => handleQuickFormatChange(e.target.value as SupportedFormat)}
+              className="bg-white border border-zinc-300 hover:border-zinc-400 rounded-xl px-3 py-1.5 font-semibold text-zinc-900 text-xs sm:text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer transition"
+            >
+              <option value="image/jpeg">JPG · MozJPEG</option>
+              <option value="image/webp">WEBP · LibWebP</option>
+              <option value="image/png">PNG · UPNG</option>
+            </select>
 
-                {hasActiveTargetKB && (
-                  <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tabular-nums">
-                    ≤ {targetSizeKB} KB
-                  </span>
-                )}
-                {mode === 'resizer' && (width || height) && (
-                  <span className="px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 text-xs font-semibold tabular-nums">
-                    {width || 'Auto'}×{height || 'Auto'}
-                  </span>
-                )}
-                {!hasActiveTargetKB && (mode === 'converter' || mode === 'compressor') && (
-                  <span className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-500 text-xs font-medium tabular-nums">
-                    Q{quality}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-xs sm:text-sm font-semibold text-zinc-800 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-blue-600" />
-                Batch Enhancer
+            {hasActiveTargetKB && (
+              <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tabular-nums">
+                ≤ {targetSizeKB} KB
+              </span>
+            )}
+            {mode === 'resizer' && (width || height) && (
+              <span className="px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 text-xs font-semibold tabular-nums">
+                {width || 'Auto'}×{height || 'Auto'}
+              </span>
+            )}
+            {!hasActiveTargetKB && (mode === 'converter' || mode === 'compressor') && (
+              <span className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-500 text-xs font-medium tabular-nums">
+                Q{quality}
               </span>
             )}
           </div>
@@ -582,7 +565,6 @@ export default function ToolWorkspace({
           </div>
         </div>
 
-        {/* Collapsible Settings Drawer */}
         {showSettings && (
           <div className="px-5 sm:px-7 py-5 bg-zinc-50/80 border-b border-zinc-200/80 space-y-5 animate-scale-in">
             {(mode === 'converter' || mode === 'compressor') && !hasActiveTargetKB && (
@@ -602,8 +584,7 @@ export default function ToolWorkspace({
                         type="button"
                         onClick={() => {
                           setQuality(preset.q);
-                          setSettingsDirty(false);
-                          if (itemsRef.current.length > 0) reprocessAll({ quality: preset.q });
+                          reprocessAll({ quality: preset.q });
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                           quality === preset.q
@@ -644,8 +625,7 @@ export default function ToolWorkspace({
                       onClick={() => {
                         const next = String(kb);
                         setTargetSizeKB(next);
-                        setSettingsDirty(false);
-                        if (itemsRef.current.length > 0) reprocessAll({ targetSizeKB: next });
+                        reprocessAll({ targetSizeKB: next });
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border tabular-nums transition cursor-pointer ${
                         targetSizeKB === String(kb)
@@ -673,8 +653,7 @@ export default function ToolWorkspace({
                       type="button"
                       onClick={() => {
                         setTargetSizeKB('');
-                        setSettingsDirty(false);
-                        if (itemsRef.current.length > 0) reprocessAll({ targetSizeKB: '' });
+                        reprocessAll({ targetSizeKB: '' });
                       }}
                       className="px-2 py-1 text-xs font-medium text-zinc-500 hover:text-red-600 cursor-pointer"
                     >
@@ -703,16 +682,13 @@ export default function ToolWorkspace({
                           setTargetSizeKB(kb);
                           setFormat('image/jpeg');
                         }
-                        setSettingsDirty(false);
-                        if (itemsRef.current.length > 0) {
-                          reprocessAll({
-                            width: w,
-                            height: h,
-                            fitMode: preset.fitMode,
-                            targetSizeKB: kb,
-                            format: kb ? 'image/jpeg' : format,
-                          });
-                        }
+                        reprocessAll({
+                          width: w,
+                          height: h,
+                          fitMode: preset.fitMode,
+                          targetSizeKB: kb,
+                          format: kb ? 'image/jpeg' : format,
+                        });
                       }}
                       className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-zinc-200 text-zinc-700 hover:border-blue-500 hover:text-blue-600 transition cursor-pointer"
                     >
@@ -766,8 +742,7 @@ export default function ToolWorkspace({
                       onChange={(e) => {
                         const next = e.target.value as FitMode;
                         setFitMode(next);
-                        setSettingsDirty(false);
-                        if (itemsRef.current.length > 0) reprocessAll({ fitMode: next });
+                        reprocessAll({ fitMode: next });
                       }}
                       className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold"
                     >
@@ -864,7 +839,6 @@ export default function ToolWorkspace({
           </div>
         )}
 
-        {/* EMPTY STATE */}
         {items.length === 0 ? (
           <div className="p-6 sm:p-10">
             <div
@@ -901,7 +875,6 @@ export default function ToolWorkspace({
             </div>
           </div>
         ) : (
-          /* ACTIVE WORKSPACE (Newest always at TOP) */
           <div className="flex flex-col">
             <div
               ref={listScrollRef}
@@ -957,6 +930,11 @@ export default function ToolWorkspace({
                             {res.savedPercent > 0 && (
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 text-[10.5px] font-semibold tabular-nums">
                                 -{res.savedPercent}%
+                              </span>
+                            )}
+                            {res.savedPercent < 0 && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[10.5px] font-semibold tabular-nums">
+                                +{Math.abs(res.savedPercent)}% larger
                               </span>
                             )}
                             {res.targetMissed && (
@@ -1046,7 +1024,6 @@ export default function ToolWorkspace({
               )}
             </div>
 
-            {/* Bottom Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
