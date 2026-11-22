@@ -19,6 +19,22 @@ import {
   RotateCcw,
   ArrowRight,
   Eye,
+  Zap,
+  Layers,
+  Gauge,
+  User,
+  PenTool,
+  UserCheck,
+  Monitor,
+  Square,
+  RectangleVertical,
+  Crop,
+  Maximize,
+  MoveHorizontal,
+  Sun,
+  Contrast,
+  Palette,
+  Flame,
 } from 'lucide-react';
 import {
   processImage,
@@ -71,11 +87,48 @@ interface WorkspaceItem {
 const MAX_BATCH_FILES = 20;
 
 const MODE_TABS: { id: ToolMode; label: string; icon: React.ReactNode }[] = [
-  { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-3.5 h-3.5" /> },
-  { id: 'compressor', label: 'Compress', icon: <Minimize2 className="w-3.5 h-3.5" /> },
-  { id: 'resizer', label: 'Resize', icon: <Maximize2 className="w-3.5 h-3.5" /> },
-  { id: 'enhancer', label: 'Enhance', icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'compressor', label: 'Compress', icon: <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'resizer', label: 'Resize', icon: <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'enhancer', label: 'Enhance', icon: <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> },
 ];
+
+const FORMAT_PILLS: { id: SupportedFormat; label: string; title: string; icon: React.ReactNode }[] = [
+  {
+    id: 'image/jpeg',
+    label: 'JPG',
+    title: 'JPG — Best for photos & forms',
+    icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" />,
+  },
+  {
+    id: 'image/webp',
+    label: 'WEBP',
+    title: 'WEBP — Smallest size for websites',
+    icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" />,
+  },
+  {
+    id: 'image/png',
+    label: 'PNG',
+    title: 'PNG — Crisp & transparent',
+    icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" />,
+  },
+];
+
+const FIT_MODE_OPTIONS: { id: FitMode; label: string; icon: React.ReactNode }[] = [
+  { id: 'cover', label: 'Smart Crop', icon: <Crop className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'contain', label: 'Fit + Pad', icon: <Maximize className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'stretch', label: 'Stretch', icon: <MoveHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
+function getResizePresetIcon(id: string): React.ReactNode {
+  if (id === 'portrait-300') return <User className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (id === 'signature-300x80') return <PenTool className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (id === 'passport-600') return <UserCheck className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (id === 'youtube-thumb') return <Monitor className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (id === 'insta-square') return <Square className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (id === 'insta-portrait') return <RectangleVertical className="w-3.5 h-3.5" aria-hidden="true" />;
+  return <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />;
+}
 
 export default function ToolWorkspace({
   initialMode = 'converter',
@@ -321,7 +374,6 @@ export default function ToolWorkspace({
 
   addFilesHandlerRef.current = handleAddFiles;
 
-  // Receive chained workflow handoff file automatically on mount
   useEffect(() => {
     void consumeHandoffFile().then((handoffFile) => {
       if (handoffFile) {
@@ -480,7 +532,7 @@ export default function ToolWorkspace({
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-600/30">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
               Release to upload
@@ -518,33 +570,55 @@ export default function ToolWorkspace({
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
+        {/* Control Header with Icon Segmented Format Pills */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2.5 text-sm">
-            <span className="text-xs font-semibold text-zinc-500">Format</span>
-            <select
+            <span className="text-xs font-semibold text-zinc-500">Output</span>
+            <div
+              role="radiogroup"
               aria-label="Output format"
-              value={format}
-              onChange={(e) => handleQuickFormatChange(e.target.value as SupportedFormat)}
-              className="bg-white border border-zinc-300 hover:border-zinc-400 rounded-xl px-3 py-1.5 font-semibold text-zinc-900 text-xs sm:text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer transition"
+              className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl"
             >
-              <option value="image/jpeg">JPG · MozJPEG</option>
-              <option value="image/webp">WEBP · LibWebP</option>
-              <option value="image/png">PNG · UPNG</option>
-            </select>
+              {FORMAT_PILLS.map((pill) => {
+                const active = format === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    title={pill.title}
+                    onClick={() => handleQuickFormatChange(pill.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                      {pill.icon}
+                    </span>
+                    <span>{pill.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {hasActiveTargetKB && (
-              <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tabular-nums">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold tabular-nums">
+                <Gauge className="w-3.5 h-3.5" aria-hidden="true" />
                 ≤ {targetSizeKB} KB
               </span>
             )}
             {mode === 'resizer' && (width || height) && (
-              <span className="px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 text-xs font-semibold tabular-nums">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 text-xs font-semibold tabular-nums">
+                <Maximize2 className="w-3 h-3" aria-hidden="true" />
                 {width || 'Auto'}×{height || 'Auto'}
               </span>
             )}
             {!hasActiveTargetKB && (mode === 'converter' || mode === 'compressor') && (
-              <span className="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-500 text-xs font-medium tabular-nums">
-                Q{quality}
+              <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-500 text-xs font-medium tabular-nums">
+                Quality {quality}%
               </span>
             )}
           </div>
@@ -552,7 +626,7 @@ export default function ToolWorkspace({
           <div className="flex items-center gap-2">
             {items.length > 0 && (
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold tabular-nums">
-                <Check className="w-3.5 h-3.5" />
+                <Check className="w-3.5 h-3.5" aria-hidden="true" />
                 {completedResults.length}/{items.length}
               </span>
             )}
@@ -566,7 +640,7 @@ export default function ToolWorkspace({
                   : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
               }`}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Options</span>
             </button>
           </div>
@@ -580,11 +654,11 @@ export default function ToolWorkspace({
                   <label htmlFor="pro-quality-slider" className="text-xs font-semibold text-zinc-700 tabular-nums">
                     Quality · {quality}%
                   </label>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {[
-                      { label: 'Compact', q: 72 },
-                      { label: 'Balanced', q: 85 },
-                      { label: 'Crisp', q: 92 },
+                      { label: 'Compact', q: 72, icon: <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" /> },
+                      { label: 'Balanced', q: 85, icon: <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+                      { label: 'High', q: 92, icon: <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> },
                     ].map((preset) => (
                       <button
                         key={preset.q}
@@ -593,13 +667,14 @@ export default function ToolWorkspace({
                           setQuality(preset.q);
                           reprocessAll({ quality: preset.q });
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                           quality === preset.q
                             ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                             : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100'
                         }`}
                       >
-                        {preset.label}
+                        {preset.icon}
+                        <span>{preset.label}</span>
                       </button>
                     ))}
                   </div>
@@ -634,13 +709,14 @@ export default function ToolWorkspace({
                         setTargetSizeKB(next);
                         reprocessAll({ targetSizeKB: next });
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border tabular-nums transition cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border tabular-nums transition cursor-pointer ${
                         targetSizeKB === String(kb)
                           ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                           : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
                       }`}
                     >
-                      {kb} KB
+                      <Gauge className="w-3.5 h-3.5 opacity-75" aria-hidden="true" />
+                      <span>{kb} KB</span>
                     </button>
                   ))}
                   <input
@@ -697,15 +773,16 @@ export default function ToolWorkspace({
                           format: kb ? 'image/jpeg' : format,
                         });
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-zinc-200 text-zinc-700 hover:border-blue-500 hover:text-blue-600 transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-zinc-200 text-zinc-700 hover:border-blue-500 hover:text-blue-600 transition cursor-pointer"
                     >
-                      {preset.label}
+                      <span className="text-zinc-400">{getResizePresetIcon(preset.id)}</span>
+                      <span>{preset.label}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
+                <div className="grid grid-cols-2 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-3">
                     <label htmlFor="pro-w" className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Width (px)
                     </label>
@@ -722,7 +799,7 @@ export default function ToolWorkspace({
                       className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums"
                     />
                   </div>
-                  <div>
+                  <div className="sm:col-span-3">
                     <label htmlFor="pro-h" className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Height (px)
                     </label>
@@ -739,24 +816,33 @@ export default function ToolWorkspace({
                       className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums"
                     />
                   </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label htmlFor="pro-fit" className="block text-[11px] font-semibold text-zinc-500 mb-1">
+                  <div className="col-span-2 sm:col-span-6">
+                    <span className="block text-[11px] font-semibold text-zinc-500 mb-1">
                       Fit Mode
-                    </label>
-                    <select
-                      id="pro-fit"
-                      value={fitMode}
-                      onChange={(e) => {
-                        const next = e.target.value as FitMode;
-                        setFitMode(next);
-                        reprocessAll({ fitMode: next });
-                      }}
-                      className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-semibold"
-                    >
-                      <option value="cover">Smart Portrait Crop</option>
-                      <option value="contain">Fit + Padding (Signatures)</option>
-                      <option value="stretch">Exact Stretch</option>
-                    </select>
+                    </span>
+                    <div className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5">
+                      {FIT_MODE_OPTIONS.map((opt) => {
+                        const active = fitMode === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setFitMode(opt.id);
+                              reprocessAll({ fitMode: opt.id });
+                            }}
+                            className={`inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                              active
+                                ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                                : 'text-zinc-600 hover:text-zinc-900'
+                            }`}
+                          >
+                            {opt.icon}
+                            <span className="truncate">{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -777,9 +863,10 @@ export default function ToolWorkspace({
                         setWarmth(6);
                         setSettingsDirty(true);
                       }}
-                      className="btn-studio-accent px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+                      className="btn-studio-accent inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
                     >
-                      Auto
+                      <Sparkles className="w-3 h-3" aria-hidden="true" />
+                      <span>Auto</span>
                     </button>
                     <button
                       type="button"
@@ -793,22 +880,25 @@ export default function ToolWorkspace({
                       }}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-zinc-600 text-xs font-semibold hover:bg-zinc-100 cursor-pointer"
                     >
-                      <RotateCcw className="w-3 h-3" /> Reset
+                      <RotateCcw className="w-3 h-3" aria-hidden="true" /> Reset
                     </button>
                   </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
                   {[
-                    { id: 'enh-b', label: 'Brightness', val: brightness, set: setBrightness, min: 50, max: 150, suffix: '%' },
-                    { id: 'enh-c', label: 'Contrast', val: contrast, set: setContrast, min: 50, max: 150, suffix: '%' },
-                    { id: 'enh-s', label: 'Saturation', val: saturate, set: setSaturate, min: 0, max: 200, suffix: '%' },
-                    { id: 'enh-sh', label: 'Sharpness', val: sharpness, set: setSharpness, min: 0, max: 100, suffix: '%' },
-                    { id: 'enh-w', label: 'Warmth', val: warmth, set: setWarmth, min: -50, max: 50, suffix: '' },
+                    { id: 'enh-b', label: 'Brightness', icon: <Sun className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />, val: brightness, set: setBrightness, min: 50, max: 150, suffix: '%' },
+                    { id: 'enh-c', label: 'Contrast', icon: <Contrast className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />, val: contrast, set: setContrast, min: 50, max: 150, suffix: '%' },
+                    { id: 'enh-s', label: 'Saturation', icon: <Palette className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />, val: saturate, set: setSaturate, min: 0, max: 200, suffix: '%' },
+                    { id: 'enh-sh', label: 'Sharpness', icon: <Sparkles className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />, val: sharpness, set: setSharpness, min: 0, max: 100, suffix: '%' },
+                    { id: 'enh-w', label: 'Warmth', icon: <Flame className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />, val: warmth, set: setWarmth, min: -50, max: 50, suffix: '' },
                   ].map((s) => (
                     <div key={s.id}>
                       <div className="flex justify-between text-xs text-zinc-600 mb-1 tabular-nums">
-                        <label htmlFor={s.id}>{s.label}</label>
+                        <label htmlFor={s.id} className="inline-flex items-center gap-1.5">
+                          {s.icon}
+                          <span>{s.label}</span>
+                        </label>
                         <span className="font-semibold text-zinc-900">
                           {s.id === 'enh-w' && s.val > 0 ? `+${s.val}` : s.val}
                           {s.suffix}
@@ -839,7 +929,8 @@ export default function ToolWorkspace({
                   onClick={() => reprocessAll()}
                   className="btn-studio-accent inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                 >
-                  Apply to {items.length} {items.length === 1 ? 'file' : 'files'}
+                  <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Apply to {items.length} {items.length === 1 ? 'file' : 'files'}</span>
                 </button>
               </div>
             )}
@@ -862,7 +953,7 @@ export default function ToolWorkspace({
               className="group min-h-[300px] sm:min-h-[350px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
               <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 group-hover:shadow-md transition-all duration-200">
-                <Upload className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                <Upload className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
               </div>
 
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
@@ -918,7 +1009,7 @@ export default function ToolWorkspace({
 
                           {item.status === 'done' && res && (
                             <>
-                              <ArrowRight className="w-3 h-3 text-zinc-400" />
+                              <ArrowRight className="w-3 h-3 text-zinc-400" aria-hidden="true" />
                               <span className="font-semibold text-zinc-900">
                                 {res.outputFormat} · {formatFileSize(res.newSize)}
                               </span>
@@ -931,12 +1022,9 @@ export default function ToolWorkspace({
 
                         {item.status === 'done' && res && (
                           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[10.5px] font-semibold">
-                              {res.encoderUsed}
-                            </span>
                             {res.savedPercent > 0 && (
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 text-[10.5px] font-semibold tabular-nums">
-                                -{res.savedPercent}%
+                                -{res.savedPercent}% saved
                               </span>
                             )}
                             {res.savedPercent < 0 && (
@@ -946,7 +1034,7 @@ export default function ToolWorkspace({
                             )}
                             {res.targetMissed && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[10.5px] font-semibold">
-                                <AlertTriangle className="w-3 h-3" />
+                                <AlertTriangle className="w-3 h-3" aria-hidden="true" />
                                 Closest to {res.targetSizeKB}KB
                               </span>
                             )}
@@ -960,7 +1048,7 @@ export default function ToolWorkspace({
 
                         {item.status === 'error' && (
                           <p className="text-xs text-red-600 flex items-center gap-1 pt-0.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             <span>{item.error}</span>
                           </p>
                         )}
@@ -970,7 +1058,7 @@ export default function ToolWorkspace({
                     <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
                       {(item.status === 'queued' || item.status === 'processing') && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                           {item.status === 'processing' ? 'Optimizing' : 'Queued'}
                         </span>
                       )}
@@ -981,7 +1069,7 @@ export default function ToolWorkspace({
                           onClick={() => retryItem(item.id)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 cursor-pointer"
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Retry</span>
                         </button>
                       )}
@@ -990,7 +1078,7 @@ export default function ToolWorkspace({
                         <>
                           <ContinueToMenu
                             compact
-                            label="Next"
+                            label="Send to"
                             onPrepareFile={() => ({ blob: res.blob, fileName: res.fileName })}
                           />
                           <button
@@ -998,7 +1086,7 @@ export default function ToolWorkspace({
                             onClick={() => setCompareItem(res)}
                             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Compare</span>
                           </button>
                           <button
@@ -1006,7 +1094,7 @@ export default function ToolWorkspace({
                             onClick={() => downloadSingleImage(res)}
                             className="btn-studio-primary inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                           >
-                            <Download className="w-3.5 h-3.5" />
+                            <Download className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Download</span>
                           </button>
                         </>
@@ -1018,7 +1106,7 @@ export default function ToolWorkspace({
                         onClick={() => removeItem(item.id)}
                         className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition cursor-pointer"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -1043,7 +1131,7 @@ export default function ToolWorkspace({
                 onClick={() => fileInputRef.current?.click()}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer tabular-nums"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden="true" />
                 <span>Add Files ({items.length}/{MAX_BATCH_FILES})</span>
               </button>
 
@@ -1055,7 +1143,7 @@ export default function ToolWorkspace({
                   aria-label="Clear all"
                   className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:text-red-600 hover:border-red-300 text-zinc-500 transition active:scale-95 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
 
                 <button
@@ -1066,17 +1154,17 @@ export default function ToolWorkspace({
                 >
                   {isZipping ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                       <span>Zipping...</span>
                     </>
                   ) : completedResults.length > 1 ? (
                     <>
-                      <Archive className="w-4 h-4" />
+                      <Archive className="w-4 h-4" aria-hidden="true" />
                       <span>Download ZIP ({completedResults.length})</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4" aria-hidden="true" />
                       <span>Download {formatLabel}</span>
                     </>
                   )}
@@ -1088,15 +1176,15 @@ export default function ToolWorkspace({
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed locally in your browser · Zero uploads</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
 
       {compareItem && (
