@@ -11,9 +11,11 @@ interface HandoffTarget {
 const HANDOFF_TARGETS: HandoffTarget[] = [
   { path: '/crop-image', label: 'Crop & Rotate', desc: 'Frame or lock aspect ratio' },
   { path: '/remove-background', label: 'AI Background Remover', desc: 'Cutout & swap backdrop' },
+  { path: '/blur-image', label: 'Privacy Blur & Redact', desc: 'Pixelate or blackout sensitive areas' },
   { path: '/image-compressor', label: 'Compress / Convert', desc: 'Optimize JPG, WEBP or PNG' },
   { path: '/compress-image-to-50kb', label: 'Compress to 50KB', desc: 'Fit strict portal limits' },
   { path: '/resize-photo-300x300', label: '300×300 Photo', desc: 'Square portrait under 100KB' },
+  { path: '/image-to-pdf', label: 'Image to PDF', desc: 'Add directly to an A4 PDF' },
 ];
 
 interface ContinueToMenuProps {
@@ -51,8 +53,8 @@ export default function ContinueToMenu({
     if (disabled || isSending) return;
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      const menuWidth = 236;
-      const estHeight = targets.length * 52 + 16;
+      const menuWidth = 244;
+      const estHeight = Math.min(window.innerHeight * 0.65, targets.length * 50 + 28);
       const openUp = window.innerHeight - rect.bottom < estHeight + 16 && rect.top > estHeight;
       const left = Math.max(
         12,
@@ -141,10 +143,10 @@ export default function ContinueToMenu({
             position: 'fixed',
             left: `${coords.left}px`,
             top: `${coords.top}px`,
-            width: '236px',
+            width: '244px',
             transform: coords.openUp ? 'translateY(-100%)' : 'none',
           }}
-          className="z-50 studio-card rounded-2xl p-1.5 shadow-2xl animate-scale-in"
+          className="z-50 studio-card rounded-2xl p-1.5 shadow-2xl max-h-[65vh] overflow-y-auto animate-scale-in"
         >
           <p className="px-3 pt-1.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-zinc-400">
             Send directly to tool
