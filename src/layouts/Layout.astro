@@ -76,6 +76,9 @@ const navMenus: { label: string; items: NavItem[] }[] = [
     items: [
       { name: 'QR Code Generator', desc: 'Static SVG/PNG with logo · never expires', href: '/qr-code-generator', icon: 'lucide:qr-code' },
       { name: 'Barcode Generator', desc: 'EAN-13, UPC-A, Code 128 & bulk ZIP', href: '/barcode-generator', icon: 'lucide:barcode' },
+      { name: 'SVG to PNG', desc: 'Render vector SVGs up to 4096px HD', href: '/svg-to-png', icon: 'lucide:file-code-2' },
+      { name: 'Favicon Generator', desc: 'Multi-size .ICO, Apple & PWA icon pack', href: '/favicon-generator', icon: 'lucide:globe' },
+      { name: 'Color Palette Picker', desc: 'Extract HEX/RGB/HSL & CSS from photos', href: '/color-picker', icon: 'lucide:palette' },
     ],
   },
   {
@@ -312,10 +315,19 @@ const navMenus: { label: string; items: NavItem[] }[] = [
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Image &amp; Graphics</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Graphics</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Generator</a></li>
               <li><a href="/barcode-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Barcode Generator</a></li>
+              <li><a href="/svg-to-png" class="hover:text-zinc-950 dark:hover:text-white transition">SVG to PNG</a></li>
+              <li><a href="/favicon-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Favicon Generator</a></li>
+              <li><a href="/color-picker" class="hover:text-zinc-950 dark:hover:text-white transition">Color Palette Picker</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Image Studio</p>
+            <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/image-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">Image to Text (OCR)</a></li>
               <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop &amp; Rotate</a></li>
               <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur &amp; Redact</a></li>
@@ -336,23 +348,13 @@ const navMenus: { label: string; items: NavItem[] }[] = [
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Optimize</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Popular</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/heic-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">HEIC to JPG</a></li>
-              <li><a href="/avif-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">AVIF to JPG</a></li>
               <li><a href="/jpg-to-webp" class="hover:text-zinc-950 dark:hover:text-white transition">JPG to WEBP</a></li>
-              <li><a href="/webp-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">WEBP to JPG</a></li>
               <li><a href="/compress-image-to-50kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 50KB</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Presets</p>
-            <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/resize-photo-300x300" class="hover:text-zinc-950 dark:hover:text-white transition">300×300 Photo</a></li>
               <li><a href="/resize-signature-300x80" class="hover:text-zinc-950 dark:hover:text-white transition">300×80 Signature</a></li>
-              <li><a href="/passport-photo-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">Passport 600×600</a></li>
-              <li><a href="/youtube-thumbnail-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">YouTube 1280×720</a></li>
             </ul>
           </div>
         </div>
