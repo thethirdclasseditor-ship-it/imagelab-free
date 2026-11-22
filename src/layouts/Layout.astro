@@ -72,6 +72,13 @@ const navMenus: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: 'Graphics',
+    items: [
+      { name: 'QR Code Generator', desc: 'Static SVG/PNG with logo · never expires', href: '/qr-code-generator', icon: 'lucide:qr-code' },
+      { name: 'Barcode Generator', desc: 'EAN-13, UPC-A, Code 128 & bulk ZIP', href: '/barcode-generator', icon: 'lucide:barcode' },
+    ],
+  },
+  {
     label: 'Optimize',
     items: [
       { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg', icon: 'lucide:smartphone' },
@@ -141,7 +148,7 @@ const navMenus: { label: string; items: NavItem[] }[] = [
   <body class="studio-canvas min-h-screen flex flex-col text-zinc-950 transition-colors duration-200">
     <!-- Minimalist Frosted Navbar -->
     <header class="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-zinc-200/80">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         <a href="/" class="flex items-center gap-2 group shrink-0">
           <img
             src="/logo.png?v=2"
@@ -153,14 +160,14 @@ const navMenus: { label: string; items: NavItem[] }[] = [
           <span class="font-bold text-[18px] tracking-tight text-zinc-950">ImageLab</span>
         </a>
 
-        <nav aria-label="Main navigation" class="hidden md:flex items-center gap-1">
+        <nav aria-label="Main navigation" class="hidden md:flex items-center gap-0.5 lg:gap-1">
           {navMenus.map((menu) => (
             <div class="relative group nav-dropdown">
               <button
                 type="button"
                 aria-haspopup="true"
                 aria-expanded="false"
-                class="nav-dropdown-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
+                class="nav-dropdown-btn inline-flex items-center gap-1 px-2.5 lg:px-3 py-2 rounded-xl text-[13px] lg:text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
               >
                 <span>{menu.label}</span>
                 <Icon
@@ -204,13 +211,13 @@ const navMenus: { label: string; items: NavItem[] }[] = [
 
           <a
             href="/guides"
-            class="px-3 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition"
+            class="px-2.5 lg:px-3 py-2 rounded-xl text-[13px] lg:text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition"
           >
             Guides
           </a>
         </nav>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
           <a
             href="/image-to-text"
             class="btn-studio-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-semibold"
@@ -300,20 +307,20 @@ const navMenus: { label: string; items: NavItem[] }[] = [
               <span>ImageLab</span>
             </div>
             <p class="text-xs text-zinc-500 leading-relaxed max-w-[210px]">
-              Fast, private image &amp; PDF tools right in your browser.
+              Fast, private image, PDF &amp; graphic tools right in your browser.
             </p>
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Image Studio</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Image &amp; Graphics</p>
             <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Generator</a></li>
+              <li><a href="/barcode-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Barcode Generator</a></li>
               <li><a href="/image-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">Image to Text (OCR)</a></li>
               <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop &amp; Rotate</a></li>
               <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur &amp; Redact</a></li>
               <li><a href="/exif-remover" class="hover:text-zinc-950 dark:hover:text-white transition">EXIF Metadata Remover</a></li>
               <li><a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Batch Watermark</a></li>
-              <li><a href="/remove-background" class="hover:text-zinc-950 dark:hover:text-white transition">AI Background Remover <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">(Soon)</span></a></li>
-              <li><a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">AI Photo Enhancer <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">(Soon)</span></a></li>
             </ul>
           </div>
 
