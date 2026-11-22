@@ -8,24 +8,24 @@ const pageUrl = `${siteBase}/remove-background`;
 
 const title = 'AI Background Remover Free Online (HD) | ImageLab';
 const description =
-  'Remove image backgrounds automatically in HD directly inside your browser. Swap to transparent PNG, white, or custom colors and export 300×300 portraits with zero uploads.';
+  'Remove image backgrounds automatically in HD inside your browser using BiRefNet AI. Refine edges with Edge Softness and Erase/Restore brushes, swap colors, and export 300×300 portraits.';
 
 const faqs = [
   {
+    q: 'What makes Studio HD different from Fast Lite mode?',
+    a: 'Studio HD runs MIT-licensed BiRefNet_lite (512px) for high-precision cutouts across portraits, products, animals, and objects. Fast Lite runs Apache-2.0 MODNet—ultra-lightweight and fast on older phones for quick portrait matting.',
+  },
+  {
+    q: 'Can I fix edges if the AI misses fine hair or glass?',
+    a: 'Yes. Switch to the Erase or Restore brush right above the preview to paint out leftover background or bring back missed details, and dial Edge Softness (0–4) for natural anti-aliased transitions.',
+  },
+  {
     q: 'Does ImageLab upload my photo to remove the background?',
-    a: 'No. Background segmentation runs 100% locally inside your browser using on-device AI. Only the open-source model weights are cached from CDN on first use.',
+    a: 'No. Segmentation runs 100% locally inside your browser on WebGPU or WebAssembly. Only the open-source AI weights are cached once from CDN.',
   },
   {
-    q: 'Can I replace the removed background with white or light blue?',
-    a: 'Yes. After cutout completes, pick Transparent PNG, White, Light Blue, Sky Blue, Gray, or any custom hex color—and download full-resolution HD or a 300×300 portrait under 100KB.',
-  },
-  {
-    q: 'Why does the first image take a few extra seconds?',
-    a: 'Your browser downloads and caches the AI segmentation weights once on the first run. Every image after that starts immediately from local cache.',
-  },
-  {
-    q: 'Does it support iPhone HEIC and large phone photos?',
-    a: 'Yes. HEIC files are decoded locally, and oversized photos are safely capped at 2048px before inference to keep mobile memory fast and stable.',
+    q: 'Can I replace the background with white or export a 300×300 portrait?',
+    a: 'Yes. Pick Transparent PNG, White, Light Blue, Sky Blue, Gray, or any custom hex color—then export full-resolution HD, save a 300×300 portrait under 100KB, or click Continue to crop or compress further.',
   },
 ];
 
@@ -77,7 +77,7 @@ const faqSchema = {
         AI Background Remover
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Remove backgrounds in HD locally in your browser — export transparent PNG or solid colors.
+        On-device BiRefNet HD cutouts with Edge Softness and manual Erase/Restore touch-up brushes.
       </p>
     </header>
 
@@ -94,21 +94,21 @@ const faqSchema = {
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section class="grid sm:grid-cols-3 gap-4">
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Full-Resolution Transparent PNG</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">BiRefNet Studio + Fast Lite</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            No low-resolution paywalls—save clean alpha-channel cutouts ready for design tools and product listings.
+            General-purpose MIT BiRefNet cutouts for people, products, and pets—with instant fallback to lightweight MODNet.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">1-Click Background Colors</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Manual Erase & Restore Brush</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Switch to pure white, light blue, or any custom color and export directly as optimized MozJPEG.
+            Fine-tune tricky hair or transparent edges directly on the canvas with Edge Softness, Invert, and unlimited Undo.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Private On-Device Portraits</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Private HD & 300×300 Export</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Safe for personal ID photos and client shoots—images stay strictly inside your browser memory.
+            Export lossless transparent PNG, solid color MozJPEG, or chain directly into Crop and Compress with zero uploads.
           </p>
         </div>
       </section>
