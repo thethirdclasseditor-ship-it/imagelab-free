@@ -49,7 +49,16 @@ const navMenus = [
       { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image' },
       { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover' },
       { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image' },
-      { name: 'Image to PDF', desc: 'Merge photos into clean A4 PDFs', href: '/image-to-pdf' },
+    ],
+  },
+  {
+    label: 'PDF Tools',
+    items: [
+      { name: 'Merge PDF', desc: 'Combine multiple PDFs losslessly', href: '/merge-pdf' },
+      { name: 'Split & Extract PDF', desc: 'Extract ranges or separate pages', href: '/split-pdf' },
+      { name: 'Compress PDF', desc: 'Shrink scanned & photo PDFs', href: '/compress-pdf' },
+      { name: 'PDF to JPG', desc: 'Render PDF pages to HD images', href: '/pdf-to-jpg' },
+      { name: 'Image to PDF', desc: 'Merge up to 30 photos into A4 PDF', href: '/image-to-pdf' },
     ],
   },
   {
@@ -231,7 +240,7 @@ const navMenus = [
     <!-- Minimalist Footer -->
     <footer class="border-t border-zinc-200/80 bg-white/70 dark:bg-[#0c0c0f] backdrop-blur-sm mt-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-        <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+        <div class="grid sm:grid-cols-2 md:grid-cols-5 gap-8 text-sm">
           <div class="space-y-2.5">
             <div class="flex items-center gap-2 font-bold text-zinc-950">
               <img
@@ -243,13 +252,13 @@ const navMenus = [
               />
               <span>ImageLab</span>
             </div>
-            <p class="text-xs text-zinc-500 leading-relaxed max-w-[220px]">
+            <p class="text-xs text-zinc-500 leading-relaxed max-w-[200px]">
               Browser-native image & PDF studio powered by WebAssembly. Zero uploads.
             </p>
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Studio</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Image Studio</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/remove-background" class="hover:text-zinc-950 dark:hover:text-white transition">AI Background Remover</a></li>
               <li><a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">AI Photo Enhancer</a></li>
@@ -257,6 +266,16 @@ const navMenus = [
               <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur & Redact</a></li>
               <li><a href="/exif-remover" class="hover:text-zinc-950 dark:hover:text-white transition">EXIF Metadata Remover</a></li>
               <li><a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Batch Watermark</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">PDF Suite</p>
+            <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/merge-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Merge PDF</a></li>
+              <li><a href="/split-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Split & Extract PDF</a></li>
+              <li><a href="/compress-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Compress PDF</a></li>
+              <li><a href="/pdf-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">PDF to JPG</a></li>
               <li><a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a></li>
             </ul>
           </div>
@@ -269,7 +288,6 @@ const navMenus = [
               <li><a href="/jpg-to-webp" class="hover:text-zinc-950 dark:hover:text-white transition">JPG to WEBP</a></li>
               <li><a href="/webp-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">WEBP to JPG</a></li>
               <li><a href="/compress-image-to-50kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 50KB</a></li>
-              <li><a href="/compress-image-to-100kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 100KB</a></li>
             </ul>
           </div>
 
