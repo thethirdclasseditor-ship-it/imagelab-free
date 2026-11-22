@@ -1,0 +1,144 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import OrganizePdfTool from '../components/OrganizePdfTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/organize-pdf`;
+
+const title = 'Organize, Rotate & Watermark PDF Free | ImageLab';
+const description =
+  'Reorder PDF pages visually, rotate upside-down scans 90°, delete unwanted pages, and stamp custom text watermarks directly in your browser with zero uploads.';
+
+const faqs = [
+  {
+    q: 'Does rotating or reordering PDF pages reduce quality?',
+    a: 'No. Page rotation, reordering, and deletion operate losslessly on the original PDF pages, keeping all vector text, links, and resolution completely unchanged.',
+  },
+  {
+    q: 'Can I add a diagonal CONFIDENTIAL or Bengali watermark to every page?',
+    a: 'Yes. Toggle Watermark On in the top bar, type any English or বাংলা text, pick your color, opacity, and size, preview it live on the thumbnails, and download.',
+  },
+  {
+    q: 'What if I accidentally delete a page?',
+    a: 'Click Undo Delete in the top toolbar anytime before saving to bring removed pages right back.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free PDF Page Organizer, Rotator & Watermark Tool',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Organize & Rotate PDF', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Organize &amp; Rotate PDF</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Organize &amp; Rotate PDF
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Reorder pages visually, fix sideways scans, remove blank pages &amp; stamp watermarks privately.
+      </p>
+    </header>
+
+    <OrganizePdfTool client:only="react">
+      <div
+        slot="fallback"
+        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+        <p class="text-xs font-semibold text-zinc-500">Loading PDF Organizer...</p>
+      </div>
+    </OrganizePdfTool>
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Visual Page Thumbnails</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Spot sideways or blank pages instantly, rearrange the order, or reverse the entire document in one click.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Lossless 90° Rotation</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Rotate individual pages or the whole PDF cleanly without re-compressing text or images.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Built-In PDF Watermark</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Stamp custom English or বাংলা text diagonally across every page with live opacity and color preview.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More PDF Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related PDF tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/sign-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Sign PDF</a>
+          <a href="/merge-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Merge PDF</a>
+          <a href="/split-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Split PDF</a>
+          <a href="/compress-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Compress PDF</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
