@@ -11,14 +11,14 @@ const homeSchema = {
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Browser-native image converter, compressor, visual cropper, privacy blur, EXIF remover, watermark studio, AI background remover, and full PDF suite.',
+    'Browser-native image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, watermark studio, AI background remover, and full PDF suite.',
 };
 
 const imageStudioTools = [
   {
     href: '/remove-background',
     title: 'AI Background Remover',
-    desc: 'HD cutouts & 300×300 portrait exports.',
+    desc: 'BiRefNet HD cutouts & touch-up brush.',
     tag: 'On-Device AI',
     icon: 'sparkles',
   },
@@ -28,6 +28,13 @@ const imageStudioTools = [
     desc: 'Neural super-resolution & clarity.',
     tag: 'WebGPU AI',
     icon: 'sliders',
+  },
+  {
+    href: '/image-to-text',
+    title: 'Image to Text (OCR)',
+    desc: 'Extract English & বাংলা text offline.',
+    tag: 'OCR',
+    icon: 'ocr',
   },
   {
     href: '/crop-image',
@@ -102,7 +109,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
 
 <Layout
   title="ImageLab — Browser Image & PDF Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, blur faces, remove EXIF, remove backgrounds with AI, and merge/split/compress PDFs locally."
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), blur faces, remove EXIF, remove backgrounds with AI, and manage PDFs locally."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
@@ -112,7 +119,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
         Image & PDF Studio.
       </h1>
       <p class="text-zinc-500 mt-3.5 text-sm sm:text-base font-medium">
-        MozJPEG, LibWebP, PDF Suite & on-device AI — free, instant, zero uploads.
+        MozJPEG, LibWebP, PDF Suite, OCR & on-device AI — free, instant, zero uploads.
       </p>
     </div>
 
@@ -136,6 +143,17 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
               {tool.icon === 'sparkles' && (
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                </svg>
+              )}
+              {tool.icon === 'ocr' && (
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                  <path d="M7 8h8" />
+                  <path d="M7 12h10" />
+                  <path d="M7 16h6" />
                 </svg>
               )}
               {tool.icon === 'crop' && (
@@ -322,7 +340,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
         <div>
           <h3 class="text-sm font-bold text-zinc-950">WebAssembly Codecs</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Real MozJPEG, LibWebP, UPNG & PDF engines running in background threads.
+            Real MozJPEG, LibWebP, UPNG, OCR & PDF engines running in background threads.
           </p>
         </div>
       </div>
