@@ -19,6 +19,7 @@ import {
   validateImageFile,
   normalizeImageBlob,
 } from '../engine/imageEngine';
+import { consumeHandoffFile } from '../engine/handoff';
 
 interface PdfImageItem {
   id: string;
@@ -31,9 +32,7 @@ type OrientationOption = 'auto' | 'portrait' | 'landscape';
 type MarginOption = 'none' | 'small' | 'normal';
 
 const MAX_PAGES = 30;
-// Cap PDF page images to 2000px longest side (~240 DPI on A4) to prevent mobile OOM
 const PDF_MAX_IMAGE_SIDE = 2000;
-// Cap 'fit' mode page longest side at 297mm (A4 height) so 4K photos never become 1-meter-wide PDFs
 const FIT_MODE_MAX_MM = 297;
 
 export default function ImageToPdfTool() {
@@ -53,7 +52,7 @@ export default function ImageToPdfTool() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const trackedUrlsRef = useRef<Set<string>>(new Set());
-  const addFilesRef = useRef<(files: FileList | null) => void>(() => {});
+  const addFilesRef = useRef<(files: FileList | File[] | null) => void>(() => {});
 
   useEffect(() => {
     return () => {
@@ -62,7 +61,7 @@ export default function ImageToPdfTool() {
     };
   }, []);
 
-  const addFiles = async (incoming: FileList | null) => {
+  const addFiles = async (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     setErrorMsg(null);
     setDoneMessage(null);
@@ -120,6 +119,14 @@ export default function ImageToPdfTool() {
   addFilesRef.current = (files) => {
     void addFiles(files);
   };
+
+  useEffect(() => {
+    void consumeHandoffFile().then((handoffFile) => {
+      if (handoffFile) {
+        addFilesRef.current([handoffFile]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
@@ -205,7 +212,6 @@ export default function ImageToPdfTool() {
     setDoneMessage(null);
   };
 
-  // True streaming page-by-page PDF build using binary Uint8Array (zero Base64 heap bloat)
   const handleGeneratePdf = async () => {
     if (items.length === 0) return;
     setIsGenerating(true);
@@ -231,7 +237,6 @@ export default function ImageToPdfTool() {
         const imgW = res.width;
         const imgH = res.height;
 
-        // Release temporary URLs immediately before next page
         URL.revokeObjectURL(res.url);
         URL.revokeObjectURL(res.originalUrl);
 
@@ -324,7 +329,6 @@ export default function ImageToPdfTool() {
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Top Settings Strip */}
         <div className="p-4 sm:px-6 bg-zinc-50/80 border-b border-zinc-200/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
           <div>
             <label htmlFor="pdf-size" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
