@@ -8,7 +8,7 @@ export type SupportedFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 export type FitMode = 'contain' | 'cover' | 'stretch';
 
 export interface CropRect {
-  x: number; // pixels in source image
+  x: number;
   y: number;
   width: number;
   height: number;
@@ -29,6 +29,7 @@ export interface ProcessOptions {
   targetSizeKB?: number;          // Max target KB (works for JPG, WEBP & PNG)
   width?: number;
   height?: number;
+  maxSide?: number;               // Optional max longest-side cap (e.g. 2000 for PDFs)
   fitMode?: FitMode;
   cropRect?: CropRect;
   rotation?: 0 | 90 | 180 | 270;
@@ -59,7 +60,9 @@ export interface ProcessedImageResult {
 
 const MAX_FILE_SIZE_MB = 25;
 // Safe under iOS Safari's ~16.7M pixel canvas cap
-const MAX_TOTAL_PIXELS = 16_000_000;
+export const MAX_SAFE_CANVAS_PIXELS = 16_000_000;
+// Blocks malicious decompression bombs (e.g. 30,000x30,000 PNG) while allowing 48-64MP phones
+const MAX_DECODE_PIXELS = 100_000_000;
 const IMAGE_EXT_REGEX = /\.(jpe?g|png|webp|avif|gif|bmp|heic|heif)$/i;
 
 // ================= LAZY WEB WORKER BRIDGE =================
@@ -91,7 +94,6 @@ function getCodecWorker(): Worker | null {
         job.resolve(res);
       };
       codecWorker.onerror = () => {
-        // Fallback smoothly to native Canvas if worker fails to load
         workerDisabled = true;
         codecWorker = null;
         pendingJobs.forEach((job) => job.reject(new Error('Worker unavailable')));
@@ -105,52 +107,54 @@ function getCodecWorker(): Worker | null {
   return codecWorker;
 }
 
-async function encodeInWorker(
+export async function encodeCanvasWithCodec(
   canvas: HTMLCanvasElement,
   format: SupportedFormat,
   quality: number,
   targetBytes?: number
-): Promise<{ blob: Blob; encoderUsed: EncoderName | 'Canvas'; targetHit: boolean } | null> {
+): Promise<{ blob: Blob; encoderUsed: EncoderName | 'Canvas'; targetHit: boolean }> {
   const worker = getCodecWorker();
-  if (!worker) return null;
+  if (worker) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const rgbaCopy = imgData.data.slice().buffer;
+      const id = jobCounter++;
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const rgbaCopy = imgData.data.slice().buffer;
-  const id = jobCounter++;
-
-  const req: EncodeWorkerRequest = {
-    id,
-    rgbaBuffer: rgbaCopy,
-    width: canvas.width,
-    height: canvas.height,
-    format,
-    quality,
-    targetBytes,
-  };
-
-  try {
-    const res = await new Promise<EncodeWorkerResponse>((resolve, reject) => {
-      pendingJobs.set(id, { resolve, reject });
-      worker.postMessage(req, [rgbaCopy]);
-    });
-
-    if (res.ok && res.buffer && res.mime && res.encoderUsed) {
-      return {
-        blob: new Blob([res.buffer], { type: res.mime }),
-        encoderUsed: res.encoderUsed,
-        targetHit: res.targetHit ?? true,
+      const req: EncodeWorkerRequest = {
+        id,
+        rgbaBuffer: rgbaCopy,
+        width: canvas.width,
+        height: canvas.height,
+        format,
+        quality,
+        targetBytes,
       };
+
+      try {
+        const res = await new Promise<EncodeWorkerResponse>((resolve, reject) => {
+          pendingJobs.set(id, { resolve, reject });
+          worker.postMessage(req, [rgbaCopy]);
+        });
+
+        if (res.ok && res.buffer && res.mime && res.encoderUsed) {
+          return {
+            blob: new Blob([res.buffer], { type: res.mime }),
+            encoderUsed: res.encoderUsed,
+            targetHit: res.targetHit ?? true,
+          };
+        }
+      } catch {
+        // Fall through to native Canvas fallback
+      }
     }
-    return null;
-  } catch {
-    return null;
   }
+
+  const fallback = await nativeCanvasFallback(canvas, format, quality, targetBytes);
+  return { ...fallback, encoderUsed: 'Canvas' };
 }
 
-// ================= HELPERS =================
+// ================= HELPERS & SECURITY VALIDATION =================
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -170,10 +174,18 @@ export function detectSourceFormat(file: File): string {
 }
 
 export function validateImageFile(file: File): string | null {
+  const isSvg =
+    file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+  if (isSvg) {
+    return `"${file.name}" is an SVG vector file. Please upload a raster image (JPG, PNG, WEBP, AVIF, or HEIC).`;
+  }
   const isImageMime = file.type.startsWith('image/');
   const isImageExt = IMAGE_EXT_REGEX.test(file.name);
   if (!isImageMime && !isImageExt) {
     return `"${file.name}" is not a supported image file.`;
+  }
+  if (file.size === 0) {
+    return `"${file.name}" is empty.`;
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     return `"${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB limit.`;
@@ -181,7 +193,72 @@ export function validateImageFile(file: File): string | null {
   return null;
 }
 
-async function normalizeHeicIfNeeded(file: File): Promise<Blob> {
+/** Verifies actual magic-byte file headers and guards against PNG pixel-flood bombs */
+export async function validateMagicBytes(file: File): Promise<string | null> {
+  try {
+    const headerBuf = await file.slice(0, 24).arrayBuffer();
+    const b = new Uint8Array(headerBuf);
+    if (b.length < 4) return `"${file.name}" is not a valid image file.`;
+
+    const isJpeg = b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+    const isPng =
+      b.length >= 8 &&
+      b[0] === 0x89 &&
+      b[1] === 0x50 &&
+      b[2] === 0x4e &&
+      b[3] === 0x47 &&
+      b[4] === 0x0d &&
+      b[5] === 0x0a &&
+      b[6] === 0x1a &&
+      b[7] === 0x0a;
+    const isGif =
+      b.length >= 6 &&
+      b[0] === 0x47 &&
+      b[1] === 0x49 &&
+      b[2] === 0x46 &&
+      b[3] === 0x38 &&
+      (b[4] === 0x37 || b[4] === 0x39) &&
+      b[5] === 0x61;
+    const isBmp = b[0] === 0x42 && b[1] === 0x4d;
+    const isWebp =
+      b.length >= 12 &&
+      b[0] === 0x52 &&
+      b[1] === 0x49 &&
+      b[2] === 0x46 &&
+      b[3] === 0x46 &&
+      b[8] === 0x57 &&
+      b[9] === 0x45 &&
+      b[10] === 0x42 &&
+      b[11] === 0x50;
+    const isIsoBmff =
+      b.length >= 12 &&
+      b[4] === 0x66 &&
+      b[5] === 0x74 &&
+      b[6] === 0x79 &&
+      b[7] === 0x70;
+
+    if (!isJpeg && !isPng && !isGif && !isBmp && !isWebp && !isIsoBmff) {
+      return `"${file.name}" does not match a valid image signature (renamed or unsupported file).`;
+    }
+
+    // Pre-decode PNG IHDR dimension check (prevents decompression bombs)
+    if (isPng && b.length >= 24) {
+      const view = new DataView(headerBuf);
+      const pngW = view.getUint32(16, false);
+      const pngH = view.getUint32(20, false);
+      if (pngW === 0 || pngH === 0 || pngW * pngH > MAX_DECODE_PIXELS) {
+        return `"${file.name}" dimensions (${pngW}×${pngH}) exceed the safe browser decode limit.`;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Decodes HEIC/HEIF using native browser fast-path first, falling back to modern heic-to/csp */
+export async function normalizeImageBlob(file: File): Promise<Blob> {
   const isHeic =
     /\.(heic|heif)$/i.test(file.name) ||
     file.type === 'image/heic' ||
@@ -189,13 +266,23 @@ async function normalizeHeicIfNeeded(file: File): Promise<Blob> {
 
   if (!isHeic) return file;
 
-  const { default: heic2any } = await import('heic2any');
-  const converted = await heic2any({
+  // Native fast-path (works directly on Safari/iOS/macOS with zero extra WASM download)
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file);
+      bitmap.close();
+      return file;
+    } catch {
+      // Fall through to libheif WASM decoder
+    }
+  }
+
+  const { heicTo } = await import('heic-to/csp');
+  return heicTo({
     blob: file,
-    toType: 'image/jpeg',
+    type: 'image/jpeg',
     quality: 0.95,
   });
-  return Array.isArray(converted) ? converted[0] : converted;
 }
 
 function loadImage(blob: Blob, fileName = 'image'): Promise<HTMLImageElement> {
@@ -204,6 +291,14 @@ function loadImage(blob: Blob, fileName = 'image'): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
+      if (img.naturalWidth * img.naturalHeight > MAX_DECODE_PIXELS) {
+        reject(
+          new Error(
+            `"${fileName}" (${img.naturalWidth}×${img.naturalHeight}) exceeds safe browser memory limits.`
+          )
+        );
+        return;
+      }
       resolve(img);
     };
     img.onerror = () => {
@@ -248,7 +343,7 @@ function applyPixelAdjustments(
   const b = (filters.brightness ?? 100) / 100;
   const c = (filters.contrast ?? 100) / 100;
   const s = (filters.saturate ?? 100) / 100;
-  const warmth = filters.warmth ?? 0; // -50 to 50
+  const warmth = filters.warmth ?? 0;
   const grayAmt = (filters.grayscale ?? 0) / 100;
   const sharpness = (filters.sharpness ?? 0) / 100;
 
@@ -291,7 +386,6 @@ function applyPixelAdjustments(
     }
   }
 
-  // Fast 3x3 sharpening pass (unsharp convolution)
   if (sharpness > 0 && w > 2 && h > 2) {
     const src = new Uint8ClampedArray(d);
     const amt = sharpness * 0.85;
@@ -436,9 +530,12 @@ async function nativeCanvasFallback(
   return { blob, targetHit: true };
 }
 
-/** Downscale large photos before running on-device AI to avoid mobile RAM crashes */
+/** Downscale large photos before on-device AI without turning transparent PNG backgrounds black */
 export async function downscaleForAI(file: File, maxSide = 2048): Promise<Blob> {
-  const normalized = await normalizeHeicIfNeeded(file);
+  const sigErr = await validateMagicBytes(file);
+  if (sigErr) throw new Error(sigErr);
+
+  const normalized = await normalizeImageBlob(file);
   const img = await loadImage(normalized, file.name);
   const { naturalWidth: w, naturalHeight: h } = img;
   if (Math.max(w, h) <= maxSide) return normalized;
@@ -453,11 +550,21 @@ export async function downscaleForAI(file: File, maxSide = 2048): Promise<Blob> 
   const ctx = canvas.getContext('2d');
   if (!ctx) return normalized;
 
+  const mayHaveAlpha =
+    normalized.type === 'image/png' ||
+    normalized.type === 'image/webp' ||
+    normalized.type === 'image/gif' ||
+    /\.(png|webp|gif)$/i.test(file.name);
+
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, nw, nh);
 
-  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
+  const blob = await canvasToBlob(
+    canvas,
+    mayHaveAlpha ? 'image/png' : 'image/jpeg',
+    mayHaveAlpha ? 1 : 0.92
+  );
   canvas.width = 0;
   canvas.height = 0;
   return blob;
@@ -471,8 +578,11 @@ export async function processImage(
   const error = validateImageFile(file);
   if (error) throw new Error(error);
 
+  const sigErr = await validateMagicBytes(file);
+  if (sigErr) throw new Error(sigErr);
+
   const sourceFormat = detectSourceFormat(file);
-  const normalizedBlob = await normalizeHeicIfNeeded(file);
+  const normalizedBlob = await normalizeImageBlob(file);
   const img = await loadImage(normalizedBlob, file.name);
 
   const origW = options.cropRect ? Math.round(options.cropRect.width) : img.naturalWidth;
@@ -491,9 +601,19 @@ export async function processImage(
     targetW = Math.round((targetH * origW) / origH);
   }
 
-  // Enforce total pixel cap (safe for iOS Safari 16.7MP limit)
-  if (targetW * targetH > MAX_TOTAL_PIXELS) {
-    const scale = Math.sqrt(MAX_TOTAL_PIXELS / (targetW * targetH));
+  // Optional longest-side cap (used by Image to PDF to prevent 12MP mobile OOM)
+  if (!lockDimensions && options.maxSide && options.maxSide > 0) {
+    const longest = Math.max(targetW, targetH);
+    if (longest > options.maxSide) {
+      const s = options.maxSide / longest;
+      targetW = Math.max(1, Math.round(targetW * s));
+      targetH = Math.max(1, Math.round(targetH * s));
+    }
+  }
+
+  // Enforce safe pixel cap (iOS Safari 16.7MP limit)
+  if (targetW * targetH > MAX_SAFE_CANVAS_PIXELS) {
+    const scale = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (targetW * targetH));
     targetW = Math.max(1, Math.floor(targetW * scale));
     targetH = Math.max(1, Math.floor(targetH * scale));
   }
@@ -508,13 +628,6 @@ export async function processImage(
   const targetBytes =
     options.targetSizeKB && options.targetSizeKB > 0 ? options.targetSizeKB * 1024 : undefined;
 
-  const encodeCanvas = async (canvas: HTMLCanvasElement) => {
-    const workerRes = await encodeInWorker(canvas, format, quality, targetBytes);
-    if (workerRes) return workerRes;
-    const fallback = await nativeCanvasFallback(canvas, format, quality, targetBytes);
-    return { ...fallback, encoderUsed: 'Canvas' as const };
-  };
-
   let canvas = renderToCanvas(img, targetW, targetH, format, {
     fitMode: options.fitMode,
     hasExplicitBothDims: hasExplicitW && hasExplicitH,
@@ -525,21 +638,23 @@ export async function processImage(
     filters: options.filters,
   });
 
-  let encoded = await encodeCanvas(canvas);
+  let encoded = await encodeCanvasWithCodec(canvas, format, quality, targetBytes);
   let finalW = canvas.width;
   let finalH = canvas.height;
   let targetMissed = false;
 
-  // If Target KB was not met and dimensions are not locked, progressively downscale
+  // Smart proportional downscale estimator (converges in 1–3 passes instead of 9 blind loops)
   if (targetBytes && !encoded.targetHit && !lockDimensions) {
     let currW = targetW;
     let currH = targetH;
     let smallestSoFar = encoded;
 
-    for (let pass = 0; pass < 9; pass++) {
-      const nextW = Math.round(currW * 0.8);
-      const nextH = Math.round(currH * 0.8);
-      if (Math.min(nextW, nextH) < 100) break;
+    for (let pass = 0; pass < 6; pass++) {
+      const ratio = Math.sqrt(targetBytes / Math.max(1, smallestSoFar.blob.size)) * 0.92;
+      const stepScale = Math.max(0.45, Math.min(0.86, ratio));
+      const nextW = Math.round(currW * stepScale);
+      const nextH = Math.round(currH * stepScale);
+      if (Math.min(nextW, nextH) < 96) break;
 
       canvas.width = 0;
       canvas.height = 0;
@@ -554,7 +669,7 @@ export async function processImage(
         filters: options.filters,
       });
 
-      const attempt = await encodeCanvas(canvas);
+      const attempt = await encodeCanvasWithCodec(canvas, format, quality, targetBytes);
       if (attempt.blob.size < smallestSoFar.blob.size) {
         smallestSoFar = attempt;
         finalW = canvas.width;
@@ -574,7 +689,6 @@ export async function processImage(
     targetMissed = true;
   }
 
-  // Free canvas memory immediately
   canvas.width = 0;
   canvas.height = 0;
 
