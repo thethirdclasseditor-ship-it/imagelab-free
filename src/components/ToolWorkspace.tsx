@@ -31,8 +31,10 @@ import {
   type ProcessedImageResult,
 } from '../engine/imageEngine';
 import { downloadSingleImage, downloadBatchAsZip } from '../engine/zipHelper';
+import { consumeHandoffFile } from '../engine/handoff';
 import { RESIZE_PRESETS, TARGET_KB_PRESETS } from '../data/presets';
 import SplitCompareModal from './SplitCompareModal';
+import ContinueToMenu from './ContinueToMenu';
 
 export type ToolMode = 'converter' | 'compressor' | 'resizer' | 'enhancer';
 
@@ -115,7 +117,7 @@ export default function ToolWorkspace({
   const activeRunnerRef = useRef<number | null>(null);
   const runnerSeqRef = useRef(0);
   const trackedUrlsRef = useRef<Set<string>>(new Set());
-  const addFilesHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+  const addFilesHandlerRef = useRef<(files: FileList | File[] | null) => void>(() => {});
 
   const buildProcessOptions = (overrides?: {
     mode?: ToolMode;
@@ -153,9 +155,7 @@ export default function ToolWorkspace({
     };
   };
 
-  // Snapshot committed options (NEVER mutated mid-batch just by dragging sliders before clicking Apply)
   const activeOptionsRef = useRef<ProcessOptions>(buildProcessOptions());
-
   itemsRef.current = items;
 
   const trackUrl = (url: string) => {
@@ -263,7 +263,7 @@ export default function ToolWorkspace({
     void pumpQueue();
   };
 
-  const handleAddFiles = (incoming: FileList | null) => {
+  const handleAddFiles = (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     setErrorMsg(null);
 
@@ -295,7 +295,6 @@ export default function ToolWorkspace({
     }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
-    // If queue was idle, snapshot the current UI settings cleanly before starting
     if (activeRunnerRef.current === null) {
       activeOptionsRef.current = buildProcessOptions();
       setSettingsDirty(false);
@@ -321,6 +320,15 @@ export default function ToolWorkspace({
   };
 
   addFilesHandlerRef.current = handleAddFiles;
+
+  // Receive chained workflow handoff file automatically on mount
+  useEffect(() => {
+    void consumeHandoffFile().then((handoffFile) => {
+      if (handoffFile) {
+        addFilesHandlerRef.current([handoffFile]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
@@ -510,7 +518,6 @@ export default function ToolWorkspace({
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Control Header (Output format selector now available in all modes including Enhancer) */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2.5 text-sm">
             <span className="text-xs font-semibold text-zinc-500">Format</span>
@@ -960,7 +967,7 @@ export default function ToolWorkspace({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 shrink-0">
+                    <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
                       {(item.status === 'queued' || item.status === 'processing') && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -981,6 +988,11 @@ export default function ToolWorkspace({
 
                       {item.status === 'done' && res && (
                         <>
+                          <ContinueToMenu
+                            compact
+                            label="Next"
+                            onPrepareFile={() => ({ blob: res.blob, fileName: res.fileName })}
+                          />
                           <button
                             type="button"
                             onClick={() => setCompareItem(res)}
