@@ -10,12 +10,51 @@ export interface ResizePreset {
 }
 
 export const RESIZE_PRESETS: ResizePreset[] = [
-  { id: 'job-photo', label: 'Job Photo (300×300)', width: 300, height: 300, fitMode: 'cover', targetSizeKB: 100 },
-  { id: 'job-sign', label: 'Signature (300×80)', width: 300, height: 80, fitMode: 'contain', targetSizeKB: 60 },
-  { id: 'passport', label: 'Passport (600×600)', width: 600, height: 600, fitMode: 'cover', targetSizeKB: 240 },
-  { id: 'ig-square', label: 'Instagram Post (1080×1080)', width: 1080, height: 1080, fitMode: 'cover' },
-  { id: 'yt-thumb', label: 'YouTube Thumb (1280×720)', width: 1280, height: 720, fitMode: 'cover' },
-  { id: 'fb-cover', label: 'Facebook Cover (820×312)', width: 820, height: 312, fitMode: 'cover' },
+  {
+    id: 'portrait-300',
+    label: '300×300 Photo (<100KB)',
+    width: 300,
+    height: 300,
+    fitMode: 'cover',
+    targetSizeKB: 100,
+  },
+  {
+    id: 'signature-300x80',
+    label: '300×80 Signature (<60KB)',
+    width: 300,
+    height: 80,
+    fitMode: 'contain',
+    targetSizeKB: 60,
+  },
+  {
+    id: 'passport-600',
+    label: 'Passport 600×600 (<240KB)',
+    width: 600,
+    height: 600,
+    fitMode: 'cover',
+    targetSizeKB: 240,
+  },
+  {
+    id: 'youtube-thumb',
+    label: 'YouTube 1280×720',
+    width: 1280,
+    height: 720,
+    fitMode: 'cover',
+  },
+  {
+    id: 'insta-square',
+    label: 'Instagram 1080×1080',
+    width: 1080,
+    height: 1080,
+    fitMode: 'cover',
+  },
+  {
+    id: 'insta-portrait',
+    label: 'Instagram 1080×1350',
+    width: 1080,
+    height: 1350,
+    fitMode: 'cover',
+  },
 ];
 
-export const TARGET_KB_PRESETS = [20, 50, 100, 200, 500];
+export const TARGET_KB_PRESETS: number[] = [20, 50, 100, 200];
