@@ -1,0 +1,112 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PdfSuiteTool from '../components/PdfSuiteTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/split-pdf`;
+
+const title = 'Split PDF & Extract Pages Free Online | ImageLab';
+const description =
+  'Extract specific page ranges or split every page of a PDF into separate files inside your browser. Zero uploads, instant ZIP export, 100% free.';
+
+const faqs = [
+  {
+    q: 'How do I extract specific pages from a PDF?',
+    a: 'Type any combination of pages and ranges such as "1-3, 5, 8-10" (or click Odd, Even, or First Page) and download them as a single clean PDF.',
+  },
+  {
+    q: 'Can I split every page into its own separate PDF file?',
+    a: 'Yes. Select "Separate Pages (ZIP)" to generate individual 1-page PDFs bundled together in one ZIP archive.',
+  },
+  {
+    q: 'Does splitting lower document resolution?',
+    a: 'No. Pages are copied directly without rasterization, preserving original text sharpness and formatting.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free PDF Splitter',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Split PDF', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Split PDF</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Split & Extract PDF
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Extract custom page ranges or burst every page into individual PDFs — zero server uploads.
+      </p>
+    </header>
+
+    <PdfSuiteTool client:load mode="split" />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More PDF Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">More PDF tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/merge-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Merge PDF</a>
+          <a href="/compress-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Compress PDF</a>
+          <a href="/pdf-to-jpg" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to JPG</a>
+          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
