@@ -7,13 +7,51 @@ import { SEO_PAGES } from '../data/seoPages';
 const homeSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Online Image, PDF & QR Studio',
+  name: 'ImageLab Free Online Image, PDF & Graphics Studio',
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, QR & barcode generator, watermark studio, and full PDF suite.',
+    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, QR & barcode generator, SVG to PNG, favicon generator, color palette extractor, and full PDF suite.',
 };
+
+const graphicsTools = [
+  {
+    href: '/qr-code-generator',
+    title: 'QR Code Generator',
+    desc: 'Static SVG/PNG with logo, Wi-Fi & WhatsApp — never expires.',
+    tag: 'Vector SVG',
+    icon: 'lucide:qr-code',
+  },
+  {
+    href: '/barcode-generator',
+    title: 'Barcode Generator',
+    desc: 'Code 128, EAN-13, UPC-A & bulk 100-SKU ZIP export.',
+    tag: 'Bulk ZIP',
+    icon: 'lucide:barcode',
+  },
+  {
+    href: '/svg-to-png',
+    title: 'SVG to PNG',
+    desc: 'Render crisp vector logos up to 4096px PNG, WEBP or JPG.',
+    tag: 'HD Export',
+    icon: 'lucide:file-code-2',
+  },
+  {
+    href: '/favicon-generator',
+    title: 'Favicon & ICO Generator',
+    desc: 'Multi-size favicon.ico, Apple Touch & Android icon pack.',
+    tag: 'Web Pack',
+    icon: 'lucide:globe',
+  },
+  {
+    href: '/color-picker',
+    title: 'Color Palette Extractor',
+    desc: 'Extract brand palettes & pick exact HEX, RGB, HSL codes.',
+    tag: 'Eyedropper',
+    icon: 'lucide:palette',
+  },
+];
 
 const imageStudioTools = [
   {
@@ -71,23 +109,6 @@ const imageStudioTools = [
     tag: 'Coming Soon',
     icon: 'lucide:sliders-horizontal',
     soon: true,
-  },
-];
-
-const graphicsTools = [
-  {
-    href: '/qr-code-generator',
-    title: 'QR Code Generator',
-    desc: 'Static SVG/PNG with logo, Wi-Fi & WhatsApp — never expires.',
-    tag: 'Vector SVG',
-    icon: 'lucide:qr-code',
-  },
-  {
-    href: '/barcode-generator',
-    title: 'Barcode Generator',
-    desc: 'Code 128, EAN-13, UPC-A & bulk 100-SKU ZIP export.',
-    tag: 'Bulk ZIP',
-    icon: 'lucide:barcode',
   },
 ];
 
@@ -154,8 +175,8 @@ function getPresetIcon(slug: string, cat: string): string {
 ---
 
 <Layout
-  title="ImageLab — Free Online Image, PDF & QR Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), create QR codes & barcodes, and manage PDFs privately."
+  title="ImageLab — Free Online Image, PDF & Graphics Studio"
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, SVG to PNG, compress to target KB, crop visually, extract Bangla & English text (OCR), create QR codes, barcodes, favicons & palettes, and manage PDFs privately."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
@@ -165,7 +186,7 @@ function getPresetIcon(slug: string, cat: string): string {
         Image &amp; PDF Studio.
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Convert, compress, create QR &amp; edit PDFs — free, instant, and private.
+        Convert, compress, design graphics &amp; edit PDFs — free, instant, and private.
       </p>
     </div>
 
@@ -368,7 +389,7 @@ function getPresetIcon(slug: string, cat: string): string {
         <div>
           <h3 class="text-sm font-bold text-zinc-950">Private By Design</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Core image, QR &amp; PDF tools run locally on your device with zero file storage.
+            Core image, graphic &amp; PDF tools run locally on your device with zero file storage.
           </p>
         </div>
       </div>
