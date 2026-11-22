@@ -1,17 +1,43 @@
 ---
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/plus-jakarta-sans/800.css';
 import '../styles/global.css';
 
 interface Props {
   title: string;
   description: string;
   schemas?: Record<string, unknown>[];
+  noindex?: boolean;
 }
 
-const { title, description, schemas = [] } = Astro.props;
+const { title, description, schemas = [], noindex = false } = Astro.props;
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname.replace(/\/+$/, '') || '/', Astro.site).toString()
   : Astro.url.href;
+
+const baseSchemas = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'ImageLab',
+    url: siteBase,
+    logo: `${siteBase}/logo.png`,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'ImageLab',
+    url: siteBase,
+  },
+];
+
+const allSchemas = [...baseSchemas, ...schemas];
 
 const navMenus = [
   {
@@ -28,7 +54,7 @@ const navMenus = [
     label: 'Optimize',
     items: [
       { name: 'Image Compressor', desc: 'MozJPEG, LibWebP & UPNG', href: '/image-compressor' },
-      { name: 'Compress to 50KB', desc: 'Auto-fit form upload limits', href: '/compress-image-to-50kb' },
+      { name: 'Compress to 50KB', desc: 'Auto-fit portal upload limits', href: '/compress-image-to-50kb' },
       { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb' },
       { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp' },
       { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg' },
@@ -38,7 +64,7 @@ const navMenus = [
   {
     label: 'Presets',
     items: [
-      { name: '300×300 Job Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300' },
+      { name: '300×300 Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300' },
       { name: '300×80 Signature', desc: 'Clean padding under 60KB', href: '/resize-signature-300x80' },
       { name: 'Passport 600×600', desc: 'Digital 2×2 inch standard', href: '/passport-photo-resizer' },
       { name: 'YouTube 1280×720', desc: 'Crisp 16:9 HD thumbnails', href: '/youtube-thumbnail-resizer' },
@@ -54,20 +80,10 @@ const navMenus = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonicalUrl} />
+    {noindex ? <meta name="robots" content="noindex, follow" /> : <link rel="canonical" href={canonicalUrl} />}
 
-    <!-- Custom Website Favicon & Mobile Icon -->
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
-
-    <!-- Google Search Console Verification Tag এখানে বসাবে -->
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
-      rel="stylesheet"
-    />
 
     <script is:inline>
       (function () {
@@ -81,7 +97,6 @@ const navMenus = [
       })();
     </script>
 
-    <!-- Social Open Graph -->
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -90,7 +105,7 @@ const navMenus = [
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:image" content={`${siteBase}/logo.png`} />
 
-    {schemas.map((schema) => (
+    {allSchemas.map((schema) => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
   </head>
@@ -112,10 +127,12 @@ const navMenus = [
 
         <nav aria-label="Main navigation" class="hidden md:flex items-center gap-1">
           {navMenus.map((menu) => (
-            <div class="relative group">
+            <div class="relative group nav-dropdown">
               <button
                 type="button"
-                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
+                aria-haspopup="true"
+                aria-expanded="false"
+                class="nav-dropdown-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
               >
                 <span>{menu.label}</span>
                 <svg class="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -123,7 +140,7 @@ const navMenus = [
                 </svg>
               </button>
 
-              <div class="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-72 z-50">
+              <div class="nav-dropdown-panel invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-72 z-50">
                 <div class="studio-card rounded-2xl p-1.5 space-y-0.5">
                   {menu.items.map((item) => (
                     <a
@@ -208,7 +225,7 @@ const navMenus = [
       <slot />
     </main>
 
-    <!-- Minimalist Footer with Legal & About Links -->
+    <!-- Minimalist Footer -->
     <footer class="border-t border-zinc-200/80 bg-white/70 dark:bg-[#0c0c0f] backdrop-blur-sm mt-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
@@ -252,7 +269,7 @@ const navMenus = [
           <div>
             <p class="font-semibold text-zinc-900 text-xs mb-3">Presets</p>
             <ul class="space-y-2 text-xs text-zinc-500">
-              <li><a href="/resize-photo-300x300" class="hover:text-zinc-950 dark:hover:text-white transition">300×300 Job Photo</a></li>
+              <li><a href="/resize-photo-300x300" class="hover:text-zinc-950 dark:hover:text-white transition">300×300 Photo</a></li>
               <li><a href="/resize-signature-300x80" class="hover:text-zinc-950 dark:hover:text-white transition">300×80 Signature</a></li>
               <li><a href="/passport-photo-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">Passport 600×600</a></li>
               <li><a href="/youtube-thumbnail-resizer" class="hover:text-zinc-950 dark:hover:text-white transition">YouTube 1280×720</a></li>
@@ -293,6 +310,38 @@ const navMenus = [
             menuBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
           });
         }
+
+        // Keyboard accessibility: sync aria-expanded & close dropdowns/drawer on Escape
+        document.querySelectorAll('.nav-dropdown').forEach(function (wrap) {
+          const btn = wrap.querySelector('.nav-dropdown-btn');
+          if (!btn) return;
+          wrap.addEventListener('mouseenter', function () {
+            btn.setAttribute('aria-expanded', 'true');
+          });
+          wrap.addEventListener('mouseleave', function () {
+            btn.setAttribute('aria-expanded', 'false');
+          });
+          wrap.addEventListener('focusin', function () {
+            btn.setAttribute('aria-expanded', 'true');
+          });
+          wrap.addEventListener('focusout', function (e) {
+            if (!wrap.contains(e.relatedTarget)) {
+              btn.setAttribute('aria-expanded', 'false');
+            }
+          });
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            if (drawer && !drawer.classList.contains('hidden')) {
+              drawer.classList.add('hidden');
+              if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+            }
+            if (document.activeElement && document.activeElement.closest('.nav-dropdown')) {
+              document.activeElement.blur();
+            }
+          }
+        });
       })();
     </script>
   </body>
