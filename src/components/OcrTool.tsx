@@ -11,6 +11,10 @@ import {
   AlertCircle,
   RotateCcw,
   Sparkles,
+  Globe,
+  Languages,
+  Type,
+  PenTool,
 } from 'lucide-react';
 import {
   validateImageFile,
@@ -22,11 +26,11 @@ import { consumeHandoffFile } from '../engine/handoff';
 
 type OcrLang = 'auto' | 'ben' | 'eng' | 'handwriting';
 
-const LANG_OPTIONS: { id: OcrLang; label: string }[] = [
-  { id: 'auto', label: 'Auto (বাংলা + Eng)' },
-  { id: 'ben', label: 'বাংলা (Bengali)' },
-  { id: 'eng', label: 'English' },
-  { id: 'handwriting', label: 'Handwriting' },
+const LANG_OPTIONS: { id: OcrLang; label: string; icon: React.ReactNode }[] = [
+  { id: 'auto', label: 'Auto (বাংলা + Eng)', icon: <Globe className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'ben', label: 'বাংলা (Bengali)', icon: <Languages className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'eng', label: 'English', icon: <Type className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'handwriting', label: 'Handwriting', icon: <PenTool className="w-3.5 h-3.5" aria-hidden="true" /> },
 ];
 
 const MAX_UPLOAD_SIDE = 1600;
@@ -60,7 +64,6 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-/** Optimizes photo to max 1600px JPEG (~100-250KB) for fast 1-2 second Vision OCR */
 async function prepareCompactJpeg(blob: Blob): Promise<{ base64: string; mimeType: string }> {
   const img = await loadBitmap(blob);
   const { naturalWidth: w, naturalHeight: h } = img;
@@ -124,7 +127,7 @@ export default function OcrTool() {
     };
   }, []);
 
-  const runGeminiOcr = async (targetBlob: Blob, targetLang: OcrLang) => {
+  const runVisionOcr = async (targetBlob: Blob, targetLang: OcrLang) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -203,7 +206,7 @@ export default function OcrTool() {
       setNormalizedBlob(normalized);
       setPreviewUrl(url);
 
-      void runGeminiOcr(normalized, lang);
+      void runVisionOcr(normalized, lang);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Could not open image.');
     }
@@ -278,7 +281,7 @@ export default function OcrTool() {
   const handleLangChange = (nextLang: OcrLang) => {
     setLang(nextLang);
     if (normalizedBlob && !isRunning) {
-      void runGeminiOcr(normalizedBlob, nextLang);
+      void runVisionOcr(normalizedBlob, nextLang);
     }
   };
 
@@ -338,7 +341,7 @@ export default function OcrTool() {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Extract Text Instantly
@@ -348,32 +351,38 @@ export default function OcrTool() {
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Top Mode Bar */}
+        {/* Top Mode Bar with SVG Icons */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-zinc-500">Mode</span>
-            <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl flex-wrap">
-              {LANG_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  disabled={isRunning}
-                  onClick={() => handleLangChange(opt.id)}
-                  className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
-                    lang === opt.id
-                      ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl flex-wrap gap-0.5">
+              {LANG_OPTIONS.map((opt) => {
+                const active = lang === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => handleLangChange(opt.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                      {opt.icon}
+                    </span>
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px] font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            Gemini Vision AI · Instant
+            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+            Smart AI · Instant
           </span>
         </div>
 
@@ -393,7 +402,7 @@ export default function OcrTool() {
               className="group min-h-[320px] sm:min-h-[360px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all"
             >
               <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
-                <ScanText className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                <ScanText className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
               </div>
 
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
@@ -409,7 +418,7 @@ export default function OcrTool() {
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Zero Model Downloads · বাংলা &amp; English · Signs, Scans &amp; Handwriting
+                Instant Results · বাংলা &amp; English · Signs, Scans &amp; Handwriting
               </p>
             </div>
           </div>
@@ -436,7 +445,7 @@ export default function OcrTool() {
                     aria-label="Remove image"
                     className="p-2 rounded-xl bg-white/10 hover:bg-red-500/80 text-white cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -452,10 +461,10 @@ export default function OcrTool() {
               {normalizedBlob && !isRunning && (
                 <button
                   type="button"
-                  onClick={() => void runGeminiOcr(normalizedBlob, lang)}
+                  onClick={() => void runVisionOcr(normalizedBlob, lang)}
                   className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer transition"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Re-run OCR</span>
                 </button>
               )}
@@ -482,10 +491,8 @@ export default function OcrTool() {
 
               {isRunning ? (
                 <div className="flex-1 min-h-[280px] flex flex-col items-center justify-center gap-3 px-6 text-center rounded-2xl border border-zinc-200/80 bg-zinc-50/60">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                  <p className="text-xs font-semibold text-zinc-700">
-                    Reading text with Gemini Vision AI...
-                  </p>
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" aria-hidden="true" />
+                  <p className="text-xs font-semibold text-zinc-700">Extracting text...</p>
                   <p className="text-[11px] text-zinc-500">Usually finishes in 1–2 seconds</p>
                 </div>
               ) : (
@@ -506,7 +513,7 @@ export default function OcrTool() {
                   onClick={handleDownloadTxt}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-sm font-semibold text-zinc-700 transition cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4" aria-hidden="true" />
                   <span>Download .TXT</span>
                 </button>
 
@@ -518,12 +525,12 @@ export default function OcrTool() {
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4" />
+                      <Check className="w-4 h-4" aria-hidden="true" />
                       <span>Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-4 h-4" aria-hidden="true" />
                       <span>Copy Text</span>
                     </>
                   )}
@@ -535,15 +542,15 @@ export default function OcrTool() {
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500 text-center">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed transiently via encrypted Gemini Vision API · Images are never stored by ImageLab</span>
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Encrypted processing · Images are never stored</span>
       </p>
     </div>
   );
