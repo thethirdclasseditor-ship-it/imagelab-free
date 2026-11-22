@@ -18,6 +18,9 @@ import {
   Minimize2,
   Image as ImageIcon,
   ArrowRight,
+  Sparkles,
+  Zap,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { formatFileSize, type SupportedFormat } from '../engine/imageEngine';
 import {
@@ -50,6 +53,18 @@ interface PdfQueueEntry {
 const MAX_MERGE_FILES = 25;
 const MAX_COMPRESS_FILES = 10;
 
+const PDF_IMG_FORMATS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
+  { id: 'image/jpeg', label: 'JPG', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/webp', label: 'WEBP', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
+const PDF_IMG_QUALITIES: { scale: number; label: string; icon: React.ReactNode }[] = [
+  { scale: 1.5, label: 'Standard', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { scale: 2, label: 'High HD', icon: <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { scale: 3, label: 'Ultra HD', icon: <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
 function triggerDownload(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -69,17 +84,13 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
-  // Merge options
   const [mergedName, setMergedName] = useState('imagelab-merged');
 
-  // Split options
   const [splitRange, setSplitRange] = useState('');
   const [splitOutputMode, setSplitOutputMode] = useState<'combined' | 'individual'>('combined');
 
-  // Compress options
   const [compressLevel, setCompressLevel] = useState<PdfCompressLevel>('balanced');
 
-  // PDF to Image options
   const [imgFormat, setImgFormat] = useState<SupportedFormat>('image/jpeg');
   const [imgScale, setImgScale] = useState<number>(2);
   const [imgRange, setImgRange] = useState('');
@@ -156,7 +167,6 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
     setEntries((prev) => (isMultiFile ? [...prev, ...newEntries] : newEntries));
 
-    // Inspect page counts cleanly in background
     for (const entry of newEntries) {
       try {
         const count = await inspectPdfPageCount(entry.file);
@@ -245,7 +255,6 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
     setErrorMsg(null);
   };
 
-  // ================= MODE ACTIONS =================
   const runMerge = async () => {
     const validEntries = entries.filter((e) => !e.error);
     if (validEntries.length < 2) {
@@ -433,24 +442,24 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
   const emptyConfig = {
     merge: {
-      icon: <Layers className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />,
+      icon: <Layers className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDF Files to Merge',
-      hint: `Drop up to ${MAX_MERGE_FILES} PDFs anywhere · Reorder & merge losslessly`,
+      hint: `Drop up to ${MAX_MERGE_FILES} PDFs anywhere · Reorder & merge cleanly`,
     },
     split: {
-      icon: <Scissors className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />,
+      icon: <Scissors className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDF to Split',
       hint: 'Extract page ranges or split every page into individual PDFs',
     },
     compress: {
-      icon: <Minimize2 className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />,
+      icon: <Minimize2 className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDFs to Compress',
-      hint: `Drop up to ${MAX_COMPRESS_FILES} PDFs anywhere · Balanced, Strong, or Lossless`,
+      hint: `Drop up to ${MAX_COMPRESS_FILES} PDFs anywhere · Shrink heavy files privately`,
     },
     'pdf-to-jpg': {
-      icon: <ImageIcon className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />,
+      icon: <ImageIcon className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDF to Convert to Images',
-      hint: 'Render every page to crisp MozJPEG JPG, PNG, or WEBP locally',
+      hint: 'Export every page to crisp JPG, PNG, or WEBP images locally',
     },
   }[mode];
 
@@ -469,7 +478,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Load PDF
@@ -502,7 +511,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
               </span>
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">{emptyConfig.hint}</p>
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Max 50MB per PDF · 100% Browser-Native · Zero Uploads
+                Max 50MB per PDF · Private Local Processing · Zero Uploads
               </p>
             </div>
           </div>
@@ -512,51 +521,68 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
             {mode === 'compress' && (
               <div className="p-5 sm:px-7 bg-zinc-50/80 space-y-2.5">
                 <span className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Compression Mode
+                  Compression Level
                 </span>
-                <div className="grid sm:grid-cols-3 gap-2">
+                <div className="grid sm:grid-cols-3 gap-2.5">
                   {(
                     [
                       {
                         id: 'balanced',
-                        title: 'Balanced (144 DPI)',
+                        title: 'Recommended (Balanced)',
                         desc: 'Best for scanned & photo PDFs (60–85% smaller)',
+                        icon: <Sparkles className="w-4 h-4" aria-hidden="true" />,
                       },
                       {
                         id: 'strong',
-                        title: 'Strong (108 DPI)',
-                        desc: 'Smallest file size for strict portal caps',
+                        title: 'Maximum Compression',
+                        desc: 'Smallest size for strict email or portal limits',
+                        icon: <Minimize2 className="w-4 h-4" aria-hidden="true" />,
                       },
                       {
                         id: 'lossless',
-                        title: 'Lossless Streams',
-                        desc: 'Keeps selectable text 100% intact',
+                        title: 'Keep Selectable Text',
+                        desc: 'Optimizes file structure while keeping crisp text',
+                        icon: <FileText className="w-4 h-4" aria-hidden="true" />,
                       },
                     ] as const
-                  ).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() => setCompressLevel(opt.id)}
-                      className={`text-left p-3 rounded-2xl border transition cursor-pointer ${
-                        compressLevel === opt.id
-                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
-                          : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{opt.title}</div>
-                      <div
-                        className={`text-[11px] mt-0.5 ${
-                          compressLevel === opt.id
-                            ? 'text-zinc-300 dark:text-zinc-600'
-                            : 'text-zinc-500'
+                  ).map((opt) => {
+                    const active = compressLevel === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => setCompressLevel(opt.id)}
+                        className={`text-left p-3.5 rounded-2xl border transition flex items-start gap-3 cursor-pointer ${
+                          active
+                            ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                            : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
                         }`}
                       >
-                        {opt.desc}
-                      </div>
-                    </button>
-                  ))}
+                        <span
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            active
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-zinc-100 text-zinc-600'
+                          }`}
+                        >
+                          {opt.icon}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold">{opt.title}</div>
+                          <div
+                            className={`text-[11px] mt-0.5 leading-snug ${
+                              active
+                                ? 'text-zinc-300 dark:text-zinc-600'
+                                : 'text-zinc-500'
+                            }`}
+                          >
+                            {opt.desc}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -587,8 +613,9 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                         <button
                           type="button"
                           onClick={() => setSplitRange('1')}
-                          className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
                         >
+                          <FileText className="w-3 h-3 opacity-60" aria-hidden="true" />
                           First Page
                         </button>
                         <button
@@ -600,8 +627,9 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                                 .join(', ')
                             )
                           }
-                          className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
                         >
+                          <Scissors className="w-3 h-3 opacity-60" aria-hidden="true" />
                           Odd Pages
                         </button>
                         <button
@@ -613,15 +641,17 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                                 .join(', ')
                             )
                           }
-                          className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
                         >
+                          <Scissors className="w-3 h-3 opacity-60" aria-hidden="true" />
                           Even Pages
                         </button>
                         <button
                           type="button"
                           onClick={() => setSplitRange('')}
-                          className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
                         >
+                          <Layers className="w-3 h-3 opacity-60" aria-hidden="true" />
                           All Pages
                         </button>
                       </div>
@@ -636,24 +666,26 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                       <button
                         type="button"
                         onClick={() => setSplitOutputMode('combined')}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-semibold border cursor-pointer ${
+                        className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold border cursor-pointer ${
                           splitOutputMode === 'combined'
                             ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                             : 'bg-white text-zinc-700 border-zinc-200'
                         }`}
                       >
-                        Single Extracted PDF
+                        <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Single PDF</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setSplitOutputMode('individual')}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-semibold border cursor-pointer ${
+                        className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold border cursor-pointer ${
                           splitOutputMode === 'individual'
                             ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                             : 'bg-white text-zinc-700 border-zinc-200'
                         }`}
                       >
-                        Separate Pages (ZIP)
+                        <Archive className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Separate (ZIP)</span>
                       </button>
                     </div>
                   </div>
@@ -662,41 +694,65 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
             )}
 
             {mode === 'pdf-to-jpg' && primaryPdf && (
-              <div className="p-5 sm:px-7 bg-zinc-50/80 grid sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-5 sm:px-7 bg-zinc-50/80 grid sm:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <label htmlFor="p2i-fmt" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
+                  <span className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
                     Image Format
-                  </label>
-                  <select
-                    id="p2i-fmt"
-                    value={imgFormat}
-                    onChange={(e) => setImgFormat(e.target.value as SupportedFormat)}
-                    className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 font-semibold"
-                  >
-                    <option value="image/jpeg">JPG · MozJPEG</option>
-                    <option value="image/png">PNG · Lossless</option>
-                    <option value="image/webp">WEBP · LibWebP</option>
-                  </select>
+                  </span>
+                  <div className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5">
+                    {PDF_IMG_FORMATS.map((fmt) => {
+                      const active = imgFormat === fmt.id;
+                      return (
+                        <button
+                          key={fmt.id}
+                          type="button"
+                          onClick={() => setImgFormat(fmt.id)}
+                          className={`inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                            active
+                              ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                              : 'text-zinc-600 hover:text-zinc-900'
+                          }`}
+                        >
+                          <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                            {fmt.icon}
+                          </span>
+                          <span>{fmt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="p2i-dpi" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
-                    Resolution
-                  </label>
-                  <select
-                    id="p2i-dpi"
-                    value={imgScale}
-                    onChange={(e) => setImgScale(Number(e.target.value))}
-                    className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 font-semibold"
-                  >
-                    <option value={1.5}>Standard (108 DPI · Fast)</option>
-                    <option value={2}>High HD (144 DPI · Best)</option>
-                    <option value={3}>Print HD (216 DPI)</option>
-                  </select>
+                  <span className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
+                    Image Quality
+                  </span>
+                  <div className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5">
+                    {PDF_IMG_QUALITIES.map((q) => {
+                      const active = imgScale === q.scale;
+                      return (
+                        <button
+                          key={q.scale}
+                          type="button"
+                          onClick={() => setImgScale(q.scale)}
+                          className={`inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                            active
+                              ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                              : 'text-zinc-600 hover:text-zinc-900'
+                          }`}
+                        >
+                          <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                            {q.icon}
+                          </span>
+                          <span className="truncate">{q.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="p2i-range" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
+                  <label htmlFor="p2i-range" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
                     Page Range (Optional)
                   </label>
                   <input
@@ -723,7 +779,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5" />
+                      <FileText className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-zinc-900 truncate">
@@ -740,13 +796,13 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
                         {entry.compressResult && (
                           <>
-                            <ArrowRight className="w-3 h-3 text-zinc-400" />
+                            <ArrowRight className="w-3 h-3 text-zinc-400" aria-hidden="true" />
                             <span className="font-semibold text-zinc-900">
                               {formatFileSize(entry.compressResult.newSize)}
                             </span>
                             {entry.compressResult.savedPercent > 0 ? (
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 text-[10.5px] font-semibold">
-                                -{entry.compressResult.savedPercent}%
+                                -{entry.compressResult.savedPercent}% saved
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[10.5px] font-semibold">
@@ -759,7 +815,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
                       {entry.error && (
                         <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                           <span>{entry.error}</span>
                         </p>
                       )}
@@ -775,7 +831,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                         }
                         className="btn-studio-primary inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Save</span>
                       </button>
                     )}
@@ -789,7 +845,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                           aria-label="Move PDF up"
                           className="p-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-30 text-zinc-600 cursor-pointer"
                         >
-                          <ArrowUp className="w-3.5 h-3.5" />
+                          <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -798,7 +854,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                           aria-label="Move PDF down"
                           className="p-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-30 text-zinc-600 cursor-pointer"
                         >
-                          <ArrowDown className="w-3.5 h-3.5" />
+                          <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </>
                     )}
@@ -810,7 +866,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                       aria-label={`Remove ${entry.file.name}`}
                       className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -832,12 +888,12 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                   >
                     {renderedPages.length > 1 ? (
                       <>
-                        <Archive className="w-3.5 h-3.5" />
+                        <Archive className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Download All ZIP ({renderedPages.length})</span>
                       </>
                     ) : (
                       <>
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Download Image</span>
                       </>
                     )}
@@ -870,9 +926,9 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                           type="button"
                           onClick={() => triggerDownload(pg.blob, pg.fileName)}
                           aria-label={`Download page ${pg.pageNumber}`}
-                          className="p-2 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:opacity-85 cursor-pointer shrink-0"
+                          className="btn-studio-primary p-2 rounded-xl cursor-pointer shrink-0"
                         >
-                          <Download className="w-3.5 h-3.5" />
+                          <Download className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -901,7 +957,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
               {statusMsg && (
                 <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>{statusMsg}</span>
                 </p>
               )}
@@ -914,7 +970,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                     onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4" aria-hidden="true" />
                     <span>
                       {isMultiFile
                         ? `Add PDFs (${entries.length}/${maxFiles})`
@@ -928,7 +984,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                     aria-label="Clear files"
                     className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -941,12 +997,12 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                   >
                     {isBusy ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         <span>{progressText || 'Merging...'}</span>
                       </>
                     ) : (
                       <>
-                        <Download className="w-4 h-4" />
+                        <Download className="w-4 h-4" aria-hidden="true" />
                         <span>Merge {entries.length} PDFs ({totalPages} Pages)</span>
                       </>
                     )}
@@ -962,12 +1018,12 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                   >
                     {isBusy ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         <span>{progressText || 'Splitting...'}</span>
                       </>
                     ) : (
                       <>
-                        <Scissors className="w-4 h-4" />
+                        <Scissors className="w-4 h-4" aria-hidden="true" />
                         <span>
                           {splitOutputMode === 'individual' ? 'Split & Download ZIP' : 'Extract & Download PDF'}
                         </span>
@@ -985,12 +1041,12 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                   >
                     {isBusy ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         <span>{progressText || 'Compressing...'}</span>
                       </>
                     ) : (
                       <>
-                        <Minimize2 className="w-4 h-4" />
+                        <Minimize2 className="w-4 h-4" aria-hidden="true" />
                         <span>
                           Compress {entries.length > 1 ? `${entries.length} PDFs` : 'PDF'}
                         </span>
@@ -1008,12 +1064,12 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                   >
                     {isBusy ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         <span>{progressText || 'Rendering...'}</span>
                       </>
                     ) : (
                       <>
-                        <ImageIcon className="w-4 h-4" />
+                        <ImageIcon className="w-4 h-4" aria-hidden="true" />
                         <span>Convert Pages to Images</span>
                       </>
                     )}
@@ -1026,15 +1082,15 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>100% Private · PDF processing runs locally in your browser with zero server uploads</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
     </div>
   );
