@@ -1,0 +1,140 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import QrGeneratorTool from '../components/QrGeneratorTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/qr-code-generator`;
+
+const title = 'Free Static QR Code Generator (SVG & PNG) | ImageLab';
+const description =
+  'Create custom static QR codes that never expire—with center logo, brand colors, Wi-Fi, WhatsApp, vCard, and email templates. Download crisp SVG & HD PNG free.';
+
+const faqs = [
+  {
+    q: 'Do QR codes created on ImageLab ever expire or stop working?',
+    a: 'Never. Unlike freemium services that route scans through expiring trial links, ImageLab embeds your URL, Wi-Fi credentials, or contact card directly inside the static QR code pattern—so it works forever with zero scan limits.',
+  },
+  {
+    q: 'Should I download PNG or Vector SVG for printing?',
+    a: 'Use Vector SVG for flyers, posters, menus, product packaging, and business cards—it scales to any billboard size with razor-sharp edges. Use HD PNG (1024px or 2048px) for websites, slides, and social posts.',
+  },
+  {
+    q: 'Will adding a center logo break scannability?',
+    a: 'When you upload a logo, ImageLab automatically enables High (H) error correction (up to 30% damage tolerance) and clears dots behind the logo so smartphones still scan it reliably. Always test with your phone camera before printing.',
+  },
+  {
+    q: 'Is my Wi-Fi password or contact card uploaded to a server?',
+    a: 'No. Your QR code is rendered 100% locally inside your browser tab—nothing is transmitted or stored externally.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free Static QR Code Generator',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'QR Code Generator', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">QR Code Generator</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        QR Code Generator
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Create custom static QR codes that never expire — export crisp SVG or HD PNG with your logo.
+      </p>
+    </header>
+
+    <QrGeneratorTool client:load />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Static Codes That Never Expire</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            No trial walls, no middleman redirects, and unlimited scans forever for menus, flyers, and packaging.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Print-Ready SVG &amp; Custom Logos</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Style dots, corners, brand colors, and transparent backdrops—then download true Vector SVG or up to 2048px PNG.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Wi-Fi, WhatsApp &amp; vCard Ready</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Built-in templates let guests join Wi-Fi, open a WhatsApp chat, or save your contact card in a single scan.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Graphics Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/barcode-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Barcode Generator</a>
+          <a href="/watermark-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Batch Watermark</a>
+          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
+          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
