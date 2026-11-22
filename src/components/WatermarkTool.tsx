@@ -12,6 +12,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Zap,
+  Layers,
+  LayoutGrid,
+  Maximize2,
+  Eye,
+  RotateCw,
 } from 'lucide-react';
 import {
   encodeCanvasWithCodec,
@@ -38,6 +44,12 @@ const POSITIONS: { id: GridPosition; label: string }[] = [
   { id: 'bl', label: '↙' },
   { id: 'bc', label: '↓' },
   { id: 'br', label: '↘' },
+];
+
+const WATERMARK_FORMATS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
+  { id: 'image/jpeg', label: 'JPG', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/webp', label: 'WEBP', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
 ];
 
 function triggerBlobDownload(blob: Blob, fileName: string) {
@@ -127,7 +139,6 @@ function drawWatermarkOnCanvas(
       halfH = (targetW * ratio) / 2;
     }
 
-    // Account for rotation bounding box so angled corner watermarks never clip at image edges
     const rad = Math.abs((opts.rotation * Math.PI) / 180);
     const rotHalfW = halfW * Math.cos(rad) + halfH * Math.sin(rad);
     const rotHalfH = halfW * Math.sin(rad) + halfH * Math.cos(rad);
@@ -177,7 +188,6 @@ export default function WatermarkTool() {
   const dragDepthRef = useRef(0);
   const addFilesRef = useRef<(files: FileList | null) => void>(() => {});
 
-  // Load active image for live preview (with HEIC normalization)
   useEffect(() => {
     const activeFile = files[activeIndex];
     if (!activeFile) {
@@ -340,7 +350,6 @@ export default function WatermarkTool() {
     img.src = url;
   };
 
-  // Single-canvas direct encode pipeline (zero intermediate PNG bloat, 5-10x faster)
   const handleExportAll = async () => {
     if (files.length === 0) return;
     if (kind === 'logo' && !logoImg) {
@@ -463,7 +472,7 @@ export default function WatermarkTool() {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Add Photos
@@ -489,7 +498,7 @@ export default function WatermarkTool() {
               className="group min-h-[320px] sm:min-h-[360px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all"
             >
               <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
-                <Stamp className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                <Stamp className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
               </div>
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
                 Select Photos to Watermark
@@ -517,7 +526,7 @@ export default function WatermarkTool() {
                     onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add
+                    <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add
                   </button>
                   <button
                     type="button"
@@ -530,7 +539,7 @@ export default function WatermarkTool() {
                     aria-label="Clear all"
                     className="p-2 rounded-xl bg-white/10 hover:bg-red-500/80 text-white cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -573,7 +582,7 @@ export default function WatermarkTool() {
                       kind === 'text' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-500'
                     }`}
                   >
-                    <Type className="w-3.5 h-3.5" /> Text
+                    <Type className="w-3.5 h-3.5" aria-hidden="true" /> Text
                   </button>
                   <button
                     type="button"
@@ -582,7 +591,7 @@ export default function WatermarkTool() {
                       kind === 'logo' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-500'
                     }`}
                   >
-                    <ImageIcon className="w-3.5 h-3.5" /> Logo PNG
+                    <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> Logo PNG
                   </button>
                 </div>
 
@@ -609,7 +618,7 @@ export default function WatermarkTool() {
                     onClick={() => logoInputRef.current?.click()}
                     className="w-full py-2.5 px-3 rounded-xl border border-dashed border-zinc-300 hover:border-blue-500 text-xs font-semibold text-zinc-700 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Upload className="w-4 h-4 text-blue-600" />
+                    <Upload className="w-4 h-4 text-blue-600" aria-hidden="true" />
                     <span>{logoName ? `Logo: ${logoName} (Change)` : 'Upload Transparent PNG Logo'}</span>
                   </button>
                 )}
@@ -625,13 +634,14 @@ export default function WatermarkTool() {
                         setLayout('single');
                         setRotation(0);
                       }}
-                      className={`py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
+                      className={`inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
                         layout === 'single'
                           ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                           : 'bg-zinc-50 text-zinc-700 border-zinc-200'
                       }`}
                     >
-                      Single Stamp
+                      <Stamp className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Single Stamp</span>
                     </button>
                     <button
                       type="button"
@@ -639,13 +649,14 @@ export default function WatermarkTool() {
                         setLayout('tile');
                         setRotation(-28);
                       }}
-                      className={`py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
+                      className={`inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
                         layout === 'tile'
                           ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
                           : 'bg-zinc-50 text-zinc-700 border-zinc-200'
                       }`}
                     >
-                      Tiled Repeat
+                      <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Tiled Repeat</span>
                     </button>
                   </div>
                 </div>
@@ -677,7 +688,10 @@ export default function WatermarkTool() {
                 <div className="space-y-2.5">
                   <div>
                     <div className="flex justify-between text-xs text-zinc-600 mb-0.5 tabular-nums">
-                      <label htmlFor="wm-size">Size</label>
+                      <label htmlFor="wm-size" className="inline-flex items-center gap-1.5">
+                        <Maximize2 className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
+                        <span>Size</span>
+                      </label>
                       <span className="font-semibold text-zinc-900">{sizePct}%</span>
                     </div>
                     <input
@@ -693,7 +707,10 @@ export default function WatermarkTool() {
 
                   <div>
                     <div className="flex justify-between text-xs text-zinc-600 mb-0.5 tabular-nums">
-                      <label htmlFor="wm-op">Opacity</label>
+                      <label htmlFor="wm-op" className="inline-flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
+                        <span>Opacity</span>
+                      </label>
                       <span className="font-semibold text-zinc-900">{opacity}%</span>
                     </div>
                     <input
@@ -709,7 +726,10 @@ export default function WatermarkTool() {
 
                   <div>
                     <div className="flex justify-between text-xs text-zinc-600 mb-0.5 tabular-nums">
-                      <label htmlFor="wm-rot">Angle</label>
+                      <label htmlFor="wm-rot" className="inline-flex items-center gap-1.5">
+                        <RotateCw className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
+                        <span>Angle</span>
+                      </label>
                       <span className="font-semibold text-zinc-900">{rotation}°</span>
                     </div>
                     <input
@@ -725,31 +745,49 @@ export default function WatermarkTool() {
                 </div>
               </div>
 
-              <div className="space-y-2.5 border-t border-zinc-200/80 pt-3">
+              <div className="space-y-3 border-t border-zinc-200/80 pt-3">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-semibold text-zinc-500">Format</span>
-                  <select
+                  <div
+                    role="radiogroup"
                     aria-label="Watermark output format"
-                    value={format}
-                    onChange={(e) => setFormat(e.target.value as SupportedFormat)}
-                    className="bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-1.5 font-semibold"
+                    className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl"
                   >
-                    <option value="image/jpeg">JPG · MozJPEG</option>
-                    <option value="image/webp">WEBP · LibWebP</option>
-                    <option value="image/png">PNG · UPNG</option>
-                  </select>
+                    {WATERMARK_FORMATS.map((fmt) => {
+                      const active = format === fmt.id;
+                      return (
+                        <button
+                          key={fmt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setFormat(fmt.id)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                            active
+                              ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                              : 'text-zinc-600 hover:text-zinc-900'
+                          }`}
+                        >
+                          <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                            {fmt.icon}
+                          </span>
+                          <span>{fmt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {doneMsg && (
                   <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>{doneMsg}</span>
                   </p>
                 )}
 
                 {errorMsg && (
                   <p className="text-xs text-red-600 flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
                     <span>{errorMsg}</span>
                   </p>
                 )}
@@ -762,17 +800,17 @@ export default function WatermarkTool() {
                 >
                   {isExporting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                       <span>{progressText || 'Applying...'}</span>
                     </>
                   ) : files.length > 1 ? (
                     <>
-                      <Archive className="w-4 h-4" />
-                      <span>Watermark All ({files.length}) & ZIP</span>
+                      <Archive className="w-4 h-4" aria-hidden="true" />
+                      <span>Watermark All ({files.length}) &amp; ZIP</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4" aria-hidden="true" />
                       <span>Download Watermarked</span>
                     </>
                   )}
@@ -784,15 +822,15 @@ export default function WatermarkTool() {
 
         {errorMsg && files.length === 0 && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed locally in your browser · Zero uploads</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
     </div>
   );
