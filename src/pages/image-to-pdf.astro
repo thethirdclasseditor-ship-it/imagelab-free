@@ -6,11 +6,26 @@ import { SEO_PAGES } from '../data/seoPages';
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const pageUrl = `${siteBase}/image-to-pdf`;
 
-const title = 'Image to PDF Converter Free (No Upload, A4) | ImageLab';
+const title = 'Image to PDF Converter Free (A4) | ImageLab';
 const description =
-  'Convert JPG, PNG, WEBP, and HEIC images into a single multi-page A4 or custom PDF locally in your browser. Reorder pages, zero watermarks, 100% private.';
+  'Convert JPG, PNG, WEBP, and HEIC images into a single multi-page A4, US Letter, or print-safe PDF locally in your browser. Reorder pages, zero watermarks, 100% private.';
 
-const schema = {
+const faqs = [
+  {
+    q: 'How many images can I combine into one PDF?',
+    a: 'You can merge up to 30 photos per PDF in one go. Each page is streamed sequentially and capped at print-grade resolution (2000px) to keep files lightweight and mobile memory safe.',
+  },
+  {
+    q: 'Which page size should I pick: A4, US Letter, or Fit to Image?',
+    a: 'Pick A4 or US Letter for standard printable documents and scanned pages. Choose Fit to Image (Print-Safe) when you want each PDF page to match the exact aspect ratio of your photo without empty borders.',
+  },
+  {
+    q: 'Are my scanned documents or IDs uploaded to a server?',
+    a: 'Never. PDF generation happens completely offline inside your browser tab, so sensitive contracts, receipts, and personal IDs stay strictly on your device.',
+  },
+];
+
+const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'ImageLab Free Image to PDF Converter',
@@ -20,63 +35,104 @@ const schema = {
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description,
 };
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Image to PDF', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
 ---
 
-<Layout title={title} description={description} schemas={[schema]}>
-  <article class="max-w-4xl mx-auto px-4 pt-6 sm:pt-10 pb-10">
-    <nav aria-label="Breadcrumb" class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
-      <a href="/" class="hover:text-blue-600 font-medium">Home</a>
-      <span>/</span>
-      <span class="text-slate-700 font-medium">Image to PDF</span>
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Image to PDF</span>
     </nav>
 
-    <header class="text-center max-w-2xl mx-auto mb-7">
-      <span class="inline-block px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-semibold mb-3">
-        Free Document Tool
-      </span>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
         Image to PDF Converter
       </h1>
-      <p class="text-slate-600 mt-2.5 text-sm sm:text-base">
-        Merge up to 30 photos, certificates, or class notes into one clean A4 or Letter PDF right inside your browser.
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Merge up to 30 photos, receipts, or scanned pages into one clean A4 or Letter PDF locally.
       </p>
     </header>
 
     <ImageToPdfTool client:load />
 
-    <section class="mt-10 grid sm:grid-cols-3 gap-4">
-      <div class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold text-slate-900 text-sm">Safe for NID & Certificates</h2>
-        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-          Everything runs offline inside your browser tab—ideal for sensitive admission papers, passports, and mark sheets.
-        </p>
-      </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold text-slate-900 text-sm">Reorder & Control Size</h2>
-        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-          Arrange pages in exact order, choose A4 or Full-Bleed Fit, and tune MozJPEG quality to keep PDF files lightweight.
-        </p>
-      </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold text-slate-900 text-sm">Zero Watermarks</h2>
-        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-          Download clean, print-ready PDFs with no branding, no forced signup, and no daily page limits.
-        </p>
-      </div>
-    </section>
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Private Document Merging</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Everything builds locally inside your browser—ideal for contracts, invoices, ID copies, and personal scans.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Reorder & Size Control</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Arrange pages in exact order, pick A4, Letter, or Print-Safe Fit, and tune MozJPEG quality to keep PDFs compact.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Zero Watermarks</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Download clean, print-ready PDFs with custom file names, no branding, and no daily page limits.
+          </p>
+        </div>
+      </section>
 
-    <nav aria-label="More Tools" class="mt-10 border-t border-slate-200 pt-8">
-      <h2 class="text-lg font-bold text-slate-900 mb-4">More Free Tools</h2>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {SEO_PAGES.slice(0, 8).map((item) => (
-          <a
-            href={`/${item.slug}`}
-            class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition"
-          >
-            {item.shortName}
-          </a>
-        ))}
-      </div>
-    </nav>
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          {SEO_PAGES.slice(0, 8).map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
   </article>
 </Layout>
