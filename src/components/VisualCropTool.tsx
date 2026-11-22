@@ -24,12 +24,14 @@ import {
   type ProcessedImageResult,
 } from '../engine/imageEngine';
 import { downloadSingleImage } from '../engine/zipHelper';
+import { consumeHandoffFile } from '../engine/handoff';
+import ContinueToMenu from './ContinueToMenu';
 
 interface CropBox {
-  x: number; // 0-100%
-  y: number; // 0-100%
-  w: number; // 0-100%
-  h: number; // 0-100%
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 interface AspectOption {
@@ -74,7 +76,7 @@ export default function VisualCropTool() {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
   const trackedUrlsRef = useRef<Set<string>>(new Set());
-  const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+  const selectHandlerRef = useRef<(files: FileList | File[] | null) => void>(() => {});
   const dragStateRef = useRef<{
     action: DragAction;
     startX: number;
@@ -93,7 +95,6 @@ export default function VisualCropTool() {
     trackedUrlsRef.current.delete(url);
   };
 
-  // Unmount-only cleanup so saving an export NEVER revokes the live previewUrl
   useEffect(() => {
     return () => {
       trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
@@ -165,7 +166,7 @@ export default function VisualCropTool() {
     }
   };
 
-  const handleFileSelect = (incoming: FileList | null) => {
+  const handleFileSelect = (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     const picked = incoming[0];
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -173,6 +174,14 @@ export default function VisualCropTool() {
   };
 
   selectHandlerRef.current = handleFileSelect;
+
+  useEffect(() => {
+    void consumeHandoffFile().then((handoffFile) => {
+      if (handoffFile) {
+        selectHandlerRef.current([handoffFile]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
@@ -242,7 +251,6 @@ export default function VisualCropTool() {
     setCrop(computeCenteredAspectBox(opt.ratio, naturalDims.w, naturalDims.h));
   };
 
-  // Enforce 16MP canvas cap on Rotate/Flip so 48MP photos never blank out on iOS Safari
   const applyTransform = async (mode: 'rotL' | 'rotR' | 'flipH' | 'flipV') => {
     if (!previewUrl || !workingFile || isTransforming) return;
     setIsTransforming(true);
@@ -319,7 +327,6 @@ export default function VisualCropTool() {
     };
   };
 
-  // Supports both horizontal AND vertical drag smoothly when aspect ratio is locked
   const onPointerMove = (e: React.PointerEvent) => {
     const st = dragStateRef.current;
     const boxEl = containerRef.current;
@@ -403,25 +410,29 @@ export default function VisualCropTool() {
   const pixelW = Math.max(1, Math.round((crop.w / 100) * naturalDims.w));
   const pixelH = Math.max(1, Math.round((crop.h / 100) * naturalDims.h));
 
+  const runCroppedExport = async (): Promise<ProcessedImageResult | null> => {
+    if (!workingFile) return null;
+    return processImage(workingFile, {
+      format,
+      quality: quality / 100,
+      cropRect: {
+        x: Math.round((crop.x / 100) * naturalDims.w),
+        y: Math.round((crop.y / 100) * naturalDims.h),
+        width: pixelW,
+        height: pixelH,
+      },
+      width: selectedAspect.outW,
+      height: selectedAspect.outH,
+      targetSizeKB: selectedAspect.targetKB,
+    });
+  };
+
   const handleCropAndExport = async () => {
-    if (!workingFile) return;
     setIsExporting(true);
     setErrorMsg(null);
-
     try {
-      const res = await processImage(workingFile, {
-        format,
-        quality: quality / 100,
-        cropRect: {
-          x: Math.round((crop.x / 100) * naturalDims.w),
-          y: Math.round((crop.y / 100) * naturalDims.h),
-          width: pixelW,
-          height: pixelH,
-        },
-        width: selectedAspect.outW,
-        height: selectedAspect.outH,
-        targetSizeKB: selectedAspect.targetKB,
-      });
+      const res = await runCroppedExport();
+      if (!res) return;
 
       trackUrl(res.url);
       trackUrl(res.originalUrl);
@@ -516,7 +527,6 @@ export default function VisualCropTool() {
           </div>
         ) : (
           <div className="divide-y divide-zinc-200/80">
-            {/* Top Toolbar */}
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-1.5">
                 {ASPECT_OPTIONS.map((opt) => (
@@ -588,7 +598,6 @@ export default function VisualCropTool() {
               </div>
             </div>
 
-            {/* Visual Interactive Crop Stage */}
             <div className="bg-zinc-950 p-6 sm:p-8 flex items-center justify-center select-none overflow-hidden">
               <div ref={containerRef} className="relative inline-block max-w-full leading-none">
                 <img
@@ -613,7 +622,6 @@ export default function VisualCropTool() {
                   }}
                   className="absolute border-2 border-white cursor-move touch-none"
                 >
-                  {/* Rule of Thirds Grid */}
                   <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
                     <div className="border-r border-b border-white/30" />
                     <div className="border-r border-b border-white/30" />
@@ -626,14 +634,12 @@ export default function VisualCropTool() {
                     <div />
                   </div>
 
-                  {/* Live Dimension Pill */}
                   <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-md bg-zinc-950/90 text-white text-[11px] font-semibold whitespace-nowrap tabular-nums">
                     {selectedAspect.outW && selectedAspect.outH
                       ? `${selectedAspect.outW}×${selectedAspect.outH} px`
                       : `${pixelW}×${pixelH} px`}
                   </div>
 
-                  {/* 4 Touch-Friendly 44×44px Hit-Target Corner Handles */}
                   {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => {
                     const posClass =
                       corner === 'nw'
@@ -660,7 +666,6 @@ export default function VisualCropTool() {
               </div>
             </div>
 
-            {/* Export Controls Bar */}
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
                 <select
@@ -694,33 +699,42 @@ export default function VisualCropTool() {
                     <span>
                       Saved ({formatFileSize(exportResult.newSize)} · {exportResult.encoderUsed})
                     </span>
-                    {exportResult.warning && (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        · {exportResult.warning}
-                      </span>
-                    )}
                   </span>
                 )}
               </div>
 
-              <button
-                type="button"
-                disabled={isExporting || isTransforming}
-                onClick={() => void handleCropAndExport()}
-                className="btn-studio-accent w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Cropping...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span>Crop & Download</span>
-                  </>
-                )}
-              </button>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                <ContinueToMenu
+                  currentPath="/crop-image"
+                  disabled={isExporting || isTransforming}
+                  onPrepareFile={async () => {
+                    const res = await runCroppedExport();
+                    if (!res) return null;
+                    URL.revokeObjectURL(res.url);
+                    URL.revokeObjectURL(res.originalUrl);
+                    return { blob: res.blob, fileName: res.fileName };
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={isExporting || isTransforming}
+                  onClick={() => void handleCropAndExport()}
+                  className="btn-studio-accent inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Cropping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Crop & Download</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
