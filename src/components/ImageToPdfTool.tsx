@@ -12,6 +12,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Maximize,
+  Sparkles,
+  RectangleVertical,
+  RectangleHorizontal,
+  Square,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   processImage,
@@ -34,6 +40,24 @@ type MarginOption = 'none' | 'small' | 'normal';
 const MAX_PAGES = 30;
 const PDF_MAX_IMAGE_SIDE = 2000;
 const FIT_MODE_MAX_MM = 297;
+
+const PAGE_SIZE_OPTIONS: { id: PageSizeOption; label: string; icon: React.ReactNode }[] = [
+  { id: 'a4', label: 'A4', icon: <FileText className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'letter', label: 'Letter', icon: <FileText className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'fit', label: 'Fit Image', icon: <Maximize className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
+const ORIENTATION_OPTIONS: { id: OrientationOption; label: string; icon: React.ReactNode }[] = [
+  { id: 'auto', label: 'Auto', icon: <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'portrait', label: 'Portrait', icon: <RectangleVertical className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'landscape', label: 'Landscape', icon: <RectangleHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
+const MARGIN_OPTIONS: { id: MarginOption; label: string; icon: React.ReactNode }[] = [
+  { id: 'none', label: 'None', icon: <Maximize className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'small', label: 'Small', icon: <Square className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'normal', label: 'Wide', icon: <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
 
 export default function ImageToPdfTool() {
   const [items, setItems] = useState<PdfImageItem[]>([]);
@@ -217,7 +241,7 @@ export default function ImageToPdfTool() {
     setIsGenerating(true);
     setErrorMsg(null);
     setDoneMessage(null);
-    setProgressText('Loading PDF engine...');
+    setProgressText('Preparing PDF engine...');
 
     try {
       const { jsPDF } = await import('jspdf');
@@ -319,7 +343,7 @@ export default function ImageToPdfTool() {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Add PDF Pages
@@ -329,58 +353,116 @@ export default function ImageToPdfTool() {
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        <div className="p-4 sm:px-6 bg-zinc-50/80 border-b border-zinc-200/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+        {/* Icon Segmented Settings Strip */}
+        <div className="p-4 sm:px-6 bg-zinc-50/80 border-b border-zinc-200/80 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
           <div>
-            <label htmlFor="pdf-size" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
+            <span className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
               Page Size
-            </label>
-            <select
-              id="pdf-size"
-              value={pageSize}
-              onChange={(e) => setPageSize(e.target.value as PageSizeOption)}
-              className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-1.5 font-semibold text-xs"
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Page Size"
+              className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5"
             >
-              <option value="a4">A4 (Standard)</option>
-              <option value="letter">US Letter</option>
-              <option value="fit">Fit to Image (Print-Safe)</option>
-            </select>
+              {PAGE_SIZE_OPTIONS.map((opt) => {
+                const active = pageSize === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setPageSize(opt.id)}
+                    className={`inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-[10px] text-[11.5px] font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                      {opt.icon}
+                    </span>
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="pdf-orient" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
+          <div className={pageSize === 'fit' ? 'opacity-45 pointer-events-none' : ''}>
+            <span className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
               Orientation
-            </label>
-            <select
-              id="pdf-orient"
-              disabled={pageSize === 'fit'}
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value as OrientationOption)}
-              className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-1.5 font-semibold text-xs disabled:opacity-50"
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Orientation"
+              className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5"
             >
-              <option value="auto">Auto (Smart)</option>
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
-            </select>
+              {ORIENTATION_OPTIONS.map((opt) => {
+                const active = orientation === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={pageSize === 'fit'}
+                    onClick={() => setOrientation(opt.id)}
+                    className={`inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-[10px] text-[11.5px] font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                      {opt.icon}
+                    </span>
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
-            <label htmlFor="pdf-margin" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1">
+            <span className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5">
               Margin
-            </label>
-            <select
-              id="pdf-margin"
-              value={margin}
-              onChange={(e) => setMargin(e.target.value as MarginOption)}
-              className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-1.5 font-semibold text-xs"
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Margin"
+              className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5"
             >
-              <option value="none">No Margin</option>
-              <option value="small">Small (10mm)</option>
-              <option value="normal">Normal (20mm)</option>
-            </select>
+              {MARGIN_OPTIONS.map((opt) => {
+                const active = margin === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setMargin(opt.id)}
+                    className={`inline-flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-[10px] text-[11.5px] font-semibold transition cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                      {opt.icon}
+                    </span>
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
-            <label htmlFor="pdf-qual" className="block text-[11px] font-bold uppercase text-zinc-500 mb-1 tabular-nums">
+            <label
+              htmlFor="pdf-qual"
+              className="block text-[11px] font-bold uppercase text-zinc-500 mb-1.5 tabular-nums"
+            >
               Quality ({quality}%)
             </label>
             <input
@@ -390,7 +472,7 @@ export default function ImageToPdfTool() {
               max={96}
               value={quality}
               onChange={(e) => setQuality(Number(e.target.value))}
-              className="w-full mt-1.5"
+              className="w-full mt-2"
             />
           </div>
         </div>
@@ -411,7 +493,7 @@ export default function ImageToPdfTool() {
               className="group min-h-[300px] sm:min-h-[340px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all"
             >
               <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
-                <FileText className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                <FileText className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
               </div>
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
                 Select Images for PDF
@@ -455,7 +537,7 @@ export default function ImageToPdfTool() {
                       aria-label="Move page up"
                       className="p-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-30 text-zinc-600 cursor-pointer"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
+                      <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -464,7 +546,7 @@ export default function ImageToPdfTool() {
                       aria-label="Move page down"
                       className="p-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-30 text-zinc-600 cursor-pointer"
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
+                      <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -472,7 +554,7 @@ export default function ImageToPdfTool() {
                       aria-label="Remove page"
                       className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -497,7 +579,7 @@ export default function ImageToPdfTool() {
 
                 {doneMessage && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                     {doneMessage}
                   </span>
                 )}
@@ -511,7 +593,7 @@ export default function ImageToPdfTool() {
                     onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4" aria-hidden="true" />
                     <span>Add Pages ({items.length}/{MAX_PAGES})</span>
                   </button>
                   <button
@@ -520,7 +602,7 @@ export default function ImageToPdfTool() {
                     aria-label="Clear all pages"
                     className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -532,12 +614,12 @@ export default function ImageToPdfTool() {
                 >
                   {isGenerating ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                       <span>{progressText || 'Generating PDF...'}</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4" aria-hidden="true" />
                       <span>
                         Create PDF ({items.length} {items.length === 1 ? 'Page' : 'Pages'})
                       </span>
@@ -551,15 +633,15 @@ export default function ImageToPdfTool() {
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed locally in your browser · Zero uploads</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
     </div>
   );
