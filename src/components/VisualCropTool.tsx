@@ -12,6 +12,16 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Maximize,
+  Square,
+  User,
+  PenTool,
+  Monitor,
+  Smartphone,
+  RectangleHorizontal,
+  Image as ImageIcon,
+  Zap,
+  Layers,
 } from 'lucide-react';
 import {
   processImage,
@@ -38,19 +48,26 @@ interface AspectOption {
   id: string;
   label: string;
   ratio: number | null;
+  icon: React.ReactNode;
   outW?: number;
   outH?: number;
   targetKB?: number;
 }
 
 const ASPECT_OPTIONS: AspectOption[] = [
-  { id: 'free', label: 'Freeform', ratio: null },
-  { id: '1:1', label: '1:1 Square', ratio: 1 },
-  { id: 'square300', label: '300×300 (<100KB)', ratio: 1, outW: 300, outH: 300, targetKB: 100 },
-  { id: 'sig', label: '300×80 Sign (<60KB)', ratio: 300 / 80, outW: 300, outH: 80, targetKB: 60 },
-  { id: '16:9', label: '16:9 YouTube', ratio: 16 / 9 },
-  { id: '4:5', label: '4:5 Instagram', ratio: 4 / 5 },
-  { id: '4:3', label: '4:3 Classic', ratio: 4 / 3 },
+  { id: 'free', label: 'Freeform', ratio: null, icon: <Maximize className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: '1:1', label: '1:1 Square', ratio: 1, icon: <Square className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'square300', label: '300×300 (<100KB)', ratio: 1, icon: <User className="w-3.5 h-3.5" aria-hidden="true" />, outW: 300, outH: 300, targetKB: 100 },
+  { id: 'sig', label: '300×80 Sign (<60KB)', ratio: 300 / 80, icon: <PenTool className="w-3.5 h-3.5" aria-hidden="true" />, outW: 300, outH: 80, targetKB: 60 },
+  { id: '16:9', label: '16:9 YouTube', ratio: 16 / 9, icon: <Monitor className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: '4:5', label: '4:5 Instagram', ratio: 4 / 5, icon: <Smartphone className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: '4:3', label: '4:3 Classic', ratio: 4 / 3, icon: <RectangleHorizontal className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
+
+const CROP_FORMATS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
+  { id: 'image/jpeg', label: 'JPG', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/webp', label: 'WEBP', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
 ];
 
 type DragAction = 'move' | 'nw' | 'ne' | 'sw' | 'se';
@@ -116,7 +133,7 @@ export default function VisualCropTool() {
     }
     if (wPct > 90) {
       wPct = 90;
-      hPct = (wPct / ratio) * imgRatio;
+      hPct = (wPct / ratio) / imgRatio;
     }
 
     return {
@@ -477,7 +494,7 @@ export default function VisualCropTool() {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Open in Cropper
@@ -504,13 +521,13 @@ export default function VisualCropTool() {
             >
               {isLoadingFile ? (
                 <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" aria-hidden="true" />
                   <p className="text-sm font-semibold text-zinc-700">Decoding image...</p>
                 </div>
               ) : (
                 <>
                   <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
-                    <Crop className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                    <Crop className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
                   </div>
                   <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
                     Select Photo to Crop
@@ -529,20 +546,24 @@ export default function VisualCropTool() {
           <div className="divide-y divide-zinc-200/80">
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-1.5">
-                {ASPECT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleAspectSelect(opt)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      selectedAspect.id === opt.id
-                        ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
-                        : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {ASPECT_OPTIONS.map((opt) => {
+                  const active = selectedAspect.id === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleAspectSelect(opt)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        active
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                          : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                      }`}
+                    >
+                      <span className={active ? 'opacity-90' : 'text-zinc-400'}>{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -554,7 +575,7 @@ export default function VisualCropTool() {
                   aria-label="Rotate Left 90 degrees"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -564,7 +585,7 @@ export default function VisualCropTool() {
                   aria-label="Rotate Right 90 degrees"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
                 >
-                  <RotateCw className="w-4 h-4" />
+                  <RotateCw className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -574,7 +595,7 @@ export default function VisualCropTool() {
                   aria-label="Flip Horizontal"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
                 >
-                  <FlipHorizontal2 className="w-4 h-4" />
+                  <FlipHorizontal2 className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -584,7 +605,7 @@ export default function VisualCropTool() {
                   aria-label="Flip Vertical"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
                 >
-                  <FlipVertical2 className="w-4 h-4" />
+                  <FlipVertical2 className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -593,7 +614,7 @@ export default function VisualCropTool() {
                   aria-label="Remove Image"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -668,22 +689,41 @@ export default function VisualCropTool() {
 
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-                <select
+                <div
+                  role="radiogroup"
                   aria-label="Export format"
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value as SupportedFormat)}
-                  className="bg-white border border-zinc-300 rounded-xl px-3 py-2 font-semibold text-xs"
+                  className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl"
                 >
-                  <option value="image/jpeg">JPG · MozJPEG</option>
-                  <option value="image/webp">WEBP · LibWebP</option>
-                  <option value="image/png">PNG · UPNG</option>
-                </select>
+                  {CROP_FORMATS.map((fmt) => {
+                    const active = format === fmt.id;
+                    return (
+                      <button
+                        key={fmt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setFormat(fmt.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                          active
+                            ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                            : 'text-zinc-600 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                          {fmt.icon}
+                        </span>
+                        <span>{fmt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
                 {!selectedAspect.targetKB && (
                   <div className="flex items-center gap-2 tabular-nums">
-                    <span className="text-xs font-semibold text-zinc-600">Q{quality}</span>
+                    <span className="text-xs font-semibold text-zinc-600">Quality {quality}%</span>
                     <input
                       type="range"
+                      aria-label="Export quality"
                       min={20}
                       max={100}
                       value={quality}
@@ -695,10 +735,8 @@ export default function VisualCropTool() {
 
                 {exportResult && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>
-                      Saved ({formatFileSize(exportResult.newSize)} · {exportResult.encoderUsed})
-                    </span>
+                    <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span>Saved ({formatFileSize(exportResult.newSize)})</span>
                   </span>
                 )}
               </div>
@@ -724,13 +762,13 @@ export default function VisualCropTool() {
                 >
                   {isExporting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                       <span>Cropping...</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
-                      <span>Crop & Download</span>
+                      <Download className="w-4 h-4" aria-hidden="true" />
+                      <span>Crop &amp; Download</span>
                     </>
                   )}
                 </button>
@@ -741,15 +779,15 @@ export default function VisualCropTool() {
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Processed locally in your browser · Zero uploads</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
     </div>
   );
