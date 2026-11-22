@@ -7,12 +7,12 @@ import { SEO_PAGES } from '../data/seoPages';
 const homeSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Online Image & PDF Studio',
+  name: 'ImageLab Free Online Image, PDF & QR Studio',
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, watermark studio, and full PDF suite.',
+    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, QR & barcode generator, watermark studio, and full PDF suite.',
 };
 
 const imageStudioTools = [
@@ -71,6 +71,23 @@ const imageStudioTools = [
     tag: 'Coming Soon',
     icon: 'lucide:sliders-horizontal',
     soon: true,
+  },
+];
+
+const graphicsTools = [
+  {
+    href: '/qr-code-generator',
+    title: 'QR Code Generator',
+    desc: 'Static SVG/PNG with logo, Wi-Fi & WhatsApp — never expires.',
+    tag: 'Vector SVG',
+    icon: 'lucide:qr-code',
+  },
+  {
+    href: '/barcode-generator',
+    title: 'Barcode Generator',
+    desc: 'Code 128, EAN-13, UPC-A & bulk 100-SKU ZIP export.',
+    tag: 'Bulk ZIP',
+    icon: 'lucide:barcode',
   },
 ];
 
@@ -137,8 +154,8 @@ function getPresetIcon(slug: string, cat: string): string {
 ---
 
 <Layout
-  title="ImageLab — Free Online Image & PDF Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), blur faces, remove EXIF, watermark, and manage PDFs privately."
+  title="ImageLab — Free Online Image, PDF & QR Studio"
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), create QR codes & barcodes, and manage PDFs privately."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
@@ -148,15 +165,55 @@ function getPresetIcon(slug: string, cat: string): string {
         Image &amp; PDF Studio.
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Convert, compress, edit images &amp; PDFs — free, instant, and private.
+        Convert, compress, create QR &amp; edit PDFs — free, instant, and private.
       </p>
     </div>
 
     <ToolWorkspace client:load initialMode="converter" showModeTabs={true} />
   </section>
 
+  <!-- Graphics & Generators Grid -->
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-6">
+      <h2 class="text-xl sm:text-2xl font-bold text-zinc-950">Graphics &amp; Generators</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {graphicsTools.map((tool) => (
+        <a
+          href={tool.href}
+          class="group studio-card rounded-2xl p-5 hover:-translate-y-0.5 hover:border-blue-500/40 transition-all duration-200 flex flex-col justify-between gap-5"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200/80 text-zinc-800 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 flex items-center justify-center transition-colors">
+              <Icon name={tool.icon} class="w-5 h-5" aria-hidden="true" />
+            </div>
+
+            <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px] font-semibold">
+              {tool.tag}
+            </span>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="font-bold text-zinc-950 text-[15.5px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
+                {tool.title}
+              </h3>
+              <Icon
+                name="lucide:arrow-right"
+                class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all"
+                aria-hidden="true"
+              />
+            </div>
+            <p class="text-xs sm:text-[13px] text-zinc-500 mt-1">{tool.desc}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+
   <!-- Image Studio Grid -->
-  <section class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <div class="mb-6">
       <h2 class="text-xl sm:text-2xl font-bold text-zinc-950">Image Studio</h2>
     </div>
@@ -299,7 +356,7 @@ function getPresetIcon(slug: string, cat: string): string {
         <div>
           <h3 class="text-sm font-bold text-zinc-950">Studio-Grade Quality</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Smart compression and crisp image &amp; PDF exports without visible quality loss.
+            Smart compression and crisp image, vector &amp; PDF exports without visible quality loss.
           </p>
         </div>
       </div>
@@ -311,7 +368,7 @@ function getPresetIcon(slug: string, cat: string): string {
         <div>
           <h3 class="text-sm font-bold text-zinc-950">Private By Design</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Core image &amp; PDF tools run locally on your device with zero file storage.
+            Core image, QR &amp; PDF tools run locally on your device with zero file storage.
           </p>
         </div>
       </div>
@@ -323,7 +380,7 @@ function getPresetIcon(slug: string, cat: string): string {
         <div>
           <h3 class="text-sm font-bold text-zinc-950">Instant Batch &amp; ZIP</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Process up to 25 PDFs or 20 images at once with zero daily limits.
+            Process up to 100 barcodes, 25 PDFs, or 20 images at once with zero daily limits.
           </p>
         </div>
       </div>
