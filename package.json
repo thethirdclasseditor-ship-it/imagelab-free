@@ -1,7 +1,7 @@
 {
   "name": "imagelab-free",
   "type": "module",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -15,8 +15,8 @@
     "@jsquash/webp": "^1.4.0",
     "@tailwindcss/vite": "^4.1.0",
     "astro": "^5.7.0",
-    "heic2any": "^0.0.4",
-    "jspdf": "^2.5.2",
+    "heic-to": "^1.1.0",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.487.0",
     "react": "^18.3.1",
