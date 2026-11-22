@@ -4,7 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout
   title="About ImageLab & Open-Source Credits | ImageLab"
-  description="Learn how ImageLab delivers studio-grade MozJPEG, LibWebP, PDF, and on-device AI tools completely free inside your browser with verifiable zero uploads."
+  description="Learn how ImageLab delivers studio-grade MozJPEG, LibWebP, PDF, OCR, and MIT-licensed on-device AI tools completely free inside your browser."
 >
   <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
     <header>
@@ -14,7 +14,7 @@ import Layout from '../layouts/Layout.astro';
       </h1>
       <p class="text-sm text-zinc-500 mt-2.5 leading-relaxed">
         ImageLab is a browser-native image and PDF studio designed so anyone can convert,
-        compress, crop, redact, watermark, enhance, and manage PDFs without uploading private files to remote servers.
+        compress, crop, redact, watermark, enhance, extract text, and manage PDFs without uploading private files to remote servers.
       </p>
     </header>
 
@@ -46,15 +46,15 @@ import Layout from '../layouts/Layout.astro';
           <a href="/guides" class="text-blue-600 font-semibold hover:underline">Guides hub</a> is
           tested across desktop and mobile browsers against real camera captures (JPG, PNG, WEBP,
           AVIF, and iOS HEIC) and multi-page PDF documents. We enforce magic-byte validation,
-          memory-safe canvas limits, and transparent open-source licensing across the entire stack.
+          memory-safe canvas limits, and permissive open-source licensing across the entire stack.
         </p>
       </section>
 
       <section class="space-y-3">
         <h2 class="text-base font-bold text-zinc-950">Open-Source Credits & Licenses</h2>
         <p class="text-xs text-zinc-500">
-          ImageLab is built on trusted open-source software. Our public frontend source code is
-          available on{' '}
+          ImageLab runs entirely on permissive open-source components (MIT, Apache-2.0, and BSD).
+          Our frontend repository is public on{' '}
           <a
             href="https://github.com/thethirdclasseditor-ship-it/imagelab-free"
             target="_blank"
@@ -68,11 +68,8 @@ import Layout from '../layouts/Layout.astro';
         <ul class="space-y-2 text-xs text-zinc-600 list-disc pl-5">
           <li><strong>@jsquash/jpeg (MozJPEG) & @jsquash/webp (LibWebP)</strong> — Apache-2.0 / BSD licenses</li>
           <li><strong>UPNG.js, JSZip, jsPDF, pdf-lib, exifr & heic-to</strong> — MIT licenses</li>
-          <li><strong>PDF.js (pdfjs-dist) & @huggingface/transformers (Swin2SR)</strong> — Apache-2.0 license</li>
-          <li>
-            <strong>@imgly/background-removal</strong> — AGPL-3.0 license (complete client-side
-            source code publicly available via our GitHub repository above)
-          </li>
+          <li><strong>BiRefNet_lite (ZhengPeng7 / Studio Ludens 512px ONNX)</strong> — MIT license</li>
+          <li><strong>MODNet, Swin2SR, @huggingface/transformers, PDF.js & Tesseract.js</strong> — Apache-2.0 licenses</li>
         </ul>
       </section>
     </div>
