@@ -18,7 +18,7 @@ const studioTools = [
   {
     href: '/remove-background',
     title: 'AI Background Remover',
-    desc: 'HD cutouts & 300×300 job exports.',
+    desc: 'HD cutouts & 300×300 portrait exports.',
     tag: 'On-Device AI',
     icon: 'sparkles',
   },
@@ -31,9 +31,9 @@ const studioTools = [
   },
   {
     href: '/photo-enhancer',
-    title: 'Studio Photo Enhancer',
-    desc: 'Live light, sharpness & color balance.',
-    tag: 'Live',
+    title: 'AI Photo Enhancer',
+    desc: 'Neural super-resolution & clarity.',
+    tag: 'WebGPU AI',
     icon: 'sliders',
   },
   {
@@ -74,7 +74,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
     <ToolWorkspace client:load initialMode="converter" showModeTabs={true} />
   </section>
 
-  <!-- Studio Tools Bento Grid (Zero Emojis, Crisp SVG Icons) -->
+  <!-- Studio Tools Bento Grid -->
   <section class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
     <div class="mb-6">
       <h2 class="text-xl sm:text-2xl font-bold text-zinc-950">Dedicated Tools</h2>
@@ -180,7 +180,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
     </div>
   </section>
 
-  <!-- Architectural Spec Strip (Zero Emojis, Zero Fluff) -->
+  <!-- Architectural Spec Strip -->
   <section class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4">
     <div class="grid sm:grid-cols-3 gap-6 border-t border-zinc-200/80 pt-10">
       <div class="flex items-start gap-3.5">
