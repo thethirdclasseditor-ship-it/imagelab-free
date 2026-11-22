@@ -4,17 +4,18 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout
   title="About ImageLab & Open-Source Credits | ImageLab"
-  description="Learn how ImageLab delivers studio-grade MozJPEG, LibWebP, PDF, OCR, and MIT-licensed on-device AI tools completely free inside your browser."
+  description="Learn how ImageLab delivers fast, private image conversion, compression, PDF tools, and AI OCR right inside your browser."
 >
-  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 pb-14 space-y-8 animate-fade-up">
     <header>
       <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">About</p>
       <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">
-        Built for Speed & Verifiable Privacy
+        Built for Speed &amp; Verifiable Privacy
       </h1>
       <p class="text-sm text-zinc-500 mt-2.5 leading-relaxed">
-        ImageLab is a browser-native image and PDF studio designed so anyone can convert,
-        compress, crop, redact, watermark, enhance, extract text, and manage PDFs without uploading private files to remote servers.
+        ImageLab is a browser-first image and PDF studio built so anyone can convert, compress,
+        crop, redact, watermark, extract text, and manage PDFs quickly without signups, daily
+        paywalls, or intrusive clutter.
       </p>
     </header>
 
@@ -22,10 +23,12 @@ import Layout from '../layouts/Layout.astro';
       <section class="space-y-2">
         <h2 class="text-base font-bold text-zinc-950">Why Browser-First Architecture?</h2>
         <p>
-          Traditional online converters upload your personal IDs, digital signatures, invoices, and
-          client photos to third-party servers. By running real C++/WebAssembly encoders, local PDF
-          libraries, and on-device neural models inside isolated Web Workers, ImageLab keeps
-          processing instant, free, and strictly private.
+          Traditional online converters upload your personal portraits, signatures, invoices, and
+          PDFs to remote servers and cap free users to a few tasks per day. By running
+          high-efficiency WebAssembly image codecs and local PDF engines inside background Web
+          Workers, ImageLab keeps core tools instant, unlimited, and strictly private on your device.
+          For tasks that need modern multimodal vision—such as bilingual English &amp; Bengali OCR—we
+          use encrypted, zero-storage serverless processing.
         </p>
       </section>
 
@@ -33,27 +36,26 @@ import Layout from '../layouts/Layout.astro';
         <h2 class="text-base font-bold text-zinc-950">Verify Zero Uploads Yourself</h2>
         <p>
           Open your browser’s <strong>DevTools → Network</strong> tab (press <code>F12</code>),
-          clear the log, and process any image or PDF on ImageLab. You will see zero file upload
-          requests leaving your device—our core image and PDF tools continue working even if you
-          switch your browser to Offline mode after loading.
+          clear the log, and run any image conversion, compression, crop, blur, EXIF cleanup, or
+          PDF tool on ImageLab. You will see zero file upload requests leaving your device.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-bold text-zinc-950">Testing & Editorial Standards</h2>
+        <h2 class="text-base font-bold text-zinc-950">Testing &amp; Editorial Standards</h2>
         <p>
           Every tool and technical guide published in our{' '}
           <a href="/guides" class="text-blue-600 font-semibold hover:underline">Guides hub</a> is
           tested across desktop and mobile browsers against real camera captures (JPG, PNG, WEBP,
           AVIF, and iOS HEIC) and multi-page PDF documents. We enforce magic-byte validation,
-          memory-safe canvas limits, and permissive open-source licensing across the entire stack.
+          memory-safe canvas caps, and permissive open-source licensing across the stack.
         </p>
       </section>
 
       <section class="space-y-3">
-        <h2 class="text-base font-bold text-zinc-950">Open-Source Credits & Licenses</h2>
+        <h2 class="text-base font-bold text-zinc-950">Open-Source Credits &amp; Licenses</h2>
         <p class="text-xs text-zinc-500">
-          ImageLab runs entirely on permissive open-source components (MIT, Apache-2.0, and BSD).
+          ImageLab is powered by trusted permissive open-source libraries (MIT, Apache-2.0, and BSD).
           Our frontend repository is public on{' '}
           <a
             href="https://github.com/thethirdclasseditor-ship-it/imagelab-free"
@@ -66,10 +68,10 @@ import Layout from '../layouts/Layout.astro';
           .
         </p>
         <ul class="space-y-2 text-xs text-zinc-600 list-disc pl-5">
-          <li><strong>@jsquash/jpeg (MozJPEG) & @jsquash/webp (LibWebP)</strong> — Apache-2.0 / BSD licenses</li>
-          <li><strong>UPNG.js, JSZip, jsPDF, pdf-lib, exifr & heic-to</strong> — MIT licenses</li>
-          <li><strong>BiRefNet_lite (ZhengPeng7 / Studio Ludens 512px ONNX)</strong> — MIT license</li>
-          <li><strong>MODNet, Swin2SR, @huggingface/transformers, PDF.js & Tesseract.js</strong> — Apache-2.0 licenses</li>
+          <li><strong>Astro, React, Tailwind CSS &amp; Lucide Icons</strong> — MIT / ISC licenses</li>
+          <li><strong>@jsquash/jpeg (MozJPEG) &amp; @jsquash/webp (LibWebP)</strong> — Apache-2.0 / BSD licenses</li>
+          <li><strong>UPNG.js, JSZip, jsPDF, pdf-lib, exifr &amp; heic-to</strong> — MIT licenses</li>
+          <li><strong>PDF.js (pdfjs-dist)</strong> — Apache-2.0 license</li>
         </ul>
       </section>
     </div>
