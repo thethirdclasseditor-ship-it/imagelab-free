@@ -17,11 +17,14 @@ import {
   CheckCircle2,
   Zap,
   RotateCcw,
+  Square,
 } from 'lucide-react';
 import {
   processImage,
   formatFileSize,
   validateImageFile,
+  validateMagicBytes,
+  normalizeImageBlob,
   type SupportedFormat,
 } from '../engine/imageEngine';
 import type {
@@ -41,6 +44,7 @@ interface AiResultData {
   height: number;
   backend: 'WebGPU' | 'WASM';
   processingMs: number;
+  warning?: string;
 }
 
 interface QueueItem {
@@ -70,15 +74,11 @@ function getAiWorker(): Worker {
   return aiWorkerSingleton;
 }
 
-async function normalizeHeic(file: File): Promise<Blob> {
-  const isHeic =
-    /\.(heic|heif)$/i.test(file.name) ||
-    file.type === 'image/heic' ||
-    file.type === 'image/heif';
-  if (!isHeic) return file;
-  const { default: heic2any } = await import('heic2any');
-  const res = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.96 });
-  return Array.isArray(res) ? res[0] : res;
+function terminateAiWorker() {
+  if (aiWorkerSingleton) {
+    aiWorkerSingleton.terminate();
+    aiWorkerSingleton = null;
+  }
 }
 
 function loadImg(blob: Blob): Promise<HTMLImageElement> {
@@ -126,7 +126,6 @@ export default function LiveEnhancerTool() {
   const draggingSplitRef = useRef(false);
   const dragDepthRef = useRef(0);
 
-  // Race-condition-free queue refs
   const queueRef = useRef<QueueItem[]>([]);
   const sessionIdRef = useRef(0);
   const activeRunnerRef = useRef<number | null>(null);
@@ -150,6 +149,7 @@ export default function LiveEnhancerTool() {
   useEffect(() => {
     return () => {
       sessionIdRef.current++;
+      terminateAiWorker();
       trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
       trackedUrlsRef.current.clear();
     };
@@ -177,12 +177,14 @@ export default function LiveEnhancerTool() {
     );
 
     try {
-      const normalized = await normalizeHeic(item.file);
+      const sigErr = await validateMagicBytes(item.file);
+      if (sigErr) throw new Error(sigErr);
+
+      const normalized = await normalizeImageBlob(item.file);
       const img = await loadImg(normalized);
       const origW = img.naturalWidth;
       const origH = img.naturalHeight;
 
-      // Optimized input caps: fast2x = 448px (max 4 small tiles -> up to 896px), deep4x = 384px (up to 1536px)
       const maxInputSide = item.mode === 'fast2x' ? 448 : 384;
       let inW = origW;
       let inH = origH;
@@ -330,6 +332,7 @@ export default function LiveEnhancerTool() {
             height: aiOutput.height,
             backend: aiOutput.backend,
             processingMs: Math.round(performance.now() - t0),
+            warning: encoded.warning,
           },
         },
         session
@@ -374,6 +377,26 @@ export default function LiveEnhancerTool() {
     }
   };
 
+  const handleCancelProcessing = () => {
+    sessionIdRef.current++;
+    activeRunnerRef.current = null;
+    terminateAiWorker();
+
+    const updated = queueRef.current.map((q) =>
+      q.status === 'processing' || q.status === 'queued'
+        ? {
+            ...q,
+            status: 'error' as const,
+            progressPct: 0,
+            progressStatus: '',
+            error: 'Cancelled by user.',
+          }
+        : q
+    );
+    queueRef.current = updated;
+    setQueue(updated);
+  };
+
   const handleAddFiles = (incoming: FileList | null) => {
     if (!incoming || incoming.length === 0) return;
     setErrorMsg(null);
@@ -416,7 +439,6 @@ export default function LiveEnhancerTool() {
       progressStatus: 'Waiting in queue...',
     }));
 
-    // Prepend newest uploads right to the TOP of the queue and focus the newest photo
     const nextQueue = [...newItems, ...queueRef.current];
     queueRef.current = nextQueue;
     setQueue(nextQueue);
@@ -433,7 +455,6 @@ export default function LiveEnhancerTool() {
 
   addFilesRef.current = handleAddFiles;
 
-  // Global Drop Anywhere + Ctrl+V Paste
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
       Boolean(e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files'));
@@ -505,6 +526,11 @@ export default function LiveEnhancerTool() {
 
   const removeItem = (id: string) => {
     const target = queueRef.current.find((q) => q.id === id);
+    if (target?.status === 'processing') {
+      sessionIdRef.current++;
+      activeRunnerRef.current = null;
+      terminateAiWorker();
+    }
     if (target) {
       releaseUrl(target.previewUrl);
       if (target.result) {
@@ -518,11 +544,15 @@ export default function LiveEnhancerTool() {
     if (selectedId === id) {
       setSelectedId(next[0]?.id ?? null);
     }
+    if (next.some((q) => q.status === 'queued')) {
+      void pumpQueue();
+    }
   };
 
   const clearAll = () => {
     sessionIdRef.current++;
     activeRunnerRef.current = null;
+    terminateAiWorker();
     queueRef.current.forEach((q) => {
       releaseUrl(q.previewUrl);
       if (q.result) {
@@ -537,10 +567,8 @@ export default function LiveEnhancerTool() {
   };
 
   const completedItems = queue.filter((q) => q.status === 'done' && q.result);
-  const activeItem =
-    queue.find((q) => q.id === selectedId) ??
-    queue[0] ??
-    null;
+  const isBusy = queue.some((q) => q.status === 'processing' || q.status === 'queued');
+  const activeItem = queue.find((q) => q.id === selectedId) ?? queue[0] ?? null;
 
   const handleDownloadAllZip = async () => {
     if (completedItems.length === 0) return;
@@ -620,7 +648,6 @@ export default function LiveEnhancerTool() {
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Clean Mode & Format Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
@@ -662,14 +689,25 @@ export default function LiveEnhancerTool() {
             </select>
           </div>
 
-          {queue.length > 0 && (
-            <span className="text-xs font-semibold text-zinc-600 tabular-nums">
-              {completedItems.length}/{queue.length} Enhanced
-            </span>
-          )}
+          <div className="flex items-center gap-2.5">
+            {isBusy && (
+              <button
+                type="button"
+                onClick={handleCancelProcessing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold transition cursor-pointer"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                <span>Stop</span>
+              </button>
+            )}
+            {queue.length > 0 && (
+              <span className="text-xs font-semibold text-zinc-600 tabular-nums">
+                {completedItems.length}/{queue.length} Enhanced
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* EMPTY DROPZONE */}
         {queue.length === 0 ? (
           <div className="p-6 sm:p-10">
             <div
@@ -698,14 +736,12 @@ export default function LiveEnhancerTool() {
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Fast 2× AI · Live Background Queue · Split Compare
+                WebGPU Q4 & WASM · Background Queue · Split Compare
               </p>
             </div>
           </div>
         ) : (
-          /* ACTIVE WORKSPACE */
           <div>
-            {/* Top Split-Screen Inspector */}
             {activeItem && (
               <div className="bg-zinc-950 p-4 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs text-zinc-400">
@@ -757,6 +793,11 @@ export default function LiveEnhancerTool() {
 
                 <div
                   ref={stageRef}
+                  role={activeItem.result && activeItem.status === 'done' ? 'slider' : undefined}
+                  aria-label="Before and after comparison slider"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(splitPos)}
                   onPointerDown={activeItem.result && activeItem.status === 'done' ? handleSplitDown : undefined}
                   onPointerMove={activeItem.result && activeItem.status === 'done' ? handleSplitMove : undefined}
                   onPointerUp={activeItem.result && activeItem.status === 'done' ? handleSplitUp : undefined}
@@ -835,7 +876,6 @@ export default function LiveEnhancerTool() {
               </div>
             )}
 
-            {/* Live Multi-Photo Queue List (Newest ALWAYS on TOP) */}
             <div ref={queueScrollRef} className="divide-y divide-zinc-100 max-h-[320px] overflow-y-auto">
               {queue.map((item) => {
                 const isSelected = activeItem?.id === item.id;
@@ -855,6 +895,9 @@ export default function LiveEnhancerTool() {
                         src={item.result ? item.result.url : item.previewUrl}
                         alt={item.file.name}
                         className="w-11 h-11 rounded-xl object-cover border border-zinc-200 shrink-0"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs sm:text-sm font-semibold text-zinc-900 truncate">
@@ -883,7 +926,7 @@ export default function LiveEnhancerTool() {
                         )}
 
                         {item.status === 'done' && item.result && (
-                          <p className="text-[11px] text-zinc-500 mt-0.5 flex items-center gap-1.5 tabular-nums">
+                          <div className="text-[11px] text-zinc-500 mt-0.5 flex flex-wrap items-center gap-1.5 tabular-nums">
                             <span>
                               {item.result.originalWidth}×{item.result.originalHeight}
                             </span>
@@ -892,7 +935,12 @@ export default function LiveEnhancerTool() {
                               {item.result.width}×{item.result.height}
                             </span>
                             <span>· {formatFileSize(item.result.blob.size)}</span>
-                          </p>
+                            {item.result.warning && (
+                              <span className="text-amber-600 dark:text-amber-400">
+                                ({item.result.warning})
+                              </span>
+                            )}
+                          </div>
                         )}
 
                         {item.status === 'error' && (
@@ -949,7 +997,6 @@ export default function LiveEnhancerTool() {
               })}
             </div>
 
-            {/* Bottom Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
@@ -1008,9 +1055,11 @@ export default function LiveEnhancerTool() {
         )}
       </div>
 
-      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500 text-center">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>On-device AI · Photos never leave your browser (model caches once locally)</span>
+        <span>
+          On-device AI · Neural upscaling estimates fine detail and is not intended for legal or identity documents
+        </span>
       </p>
     </div>
   );
