@@ -1,0 +1,149 @@
+---
+import Layout from '../layouts/Layout.astro';
+import OcrTool from '../components/OcrTool';
+import { SEO_PAGES } from '../data/seoPages';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/image-to-text`;
+
+const title = 'Image to Text (OCR) — Bangla & English | ImageLab';
+const description =
+  'Extract editable English and Bengali (বাংলা) text from photos, screenshots, and scanned pages directly in your browser using Tesseract OCR. Copy or export .txt with zero uploads.';
+
+const faqs = [
+  {
+    q: 'Does this OCR tool support Bengali (বাংলা) and mixed Bangla-English text?',
+    a: 'Yes. Switch the language selector at the top to English, বাংলা (Bengali), or বাংলা + English to recognize printed documents, screenshots, and bilingual notices accurately.',
+  },
+  {
+    q: 'How can I get the cleanest accuracy on phone photos of documents?',
+    a: 'Crop tightly around the text area first (you can use our Crop tool and click Continue to Image to Text), keep Clarity Boost enabled, and shoot straight-on in even lighting.',
+  },
+  {
+    q: 'Are my scanned documents or screenshots uploaded to a server?',
+    a: 'No. Tesseract.js runs completely locally inside your browser Web Worker. Only the open-source language model downloads once and caches on your device.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free Image to Text OCR (English & Bengali)',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Image to Text (OCR)', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Image to Text (OCR)</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Image to Text (OCR)
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Extract editable English &amp; বাংলা text from screenshots and scans locally — zero uploads.
+      </p>
+    </header>
+
+    <OcrTool client:only="react">
+      <div
+        slot="fallback"
+        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+        <p class="text-xs font-semibold text-zinc-500">Loading Local OCR Engine...</p>
+      </div>
+    </OcrTool>
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">English &amp; বাংলা Support</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Dedicated fast traineddata packs for English, Bengali script, and bilingual documents right inside your browser.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Paste Screenshots Instantly</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Press Ctrl+V to paste any screenshot, review or edit recognized lines, and copy or export as a .txt file.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Clarity Boost &amp; Privacy</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            High-contrast grayscale preprocessing sharpens faint text while keeping receipts, notes, and IDs strictly offline.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+          <a href="/pdf-to-jpg" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to JPG</a>
+          <a href="/blur-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Privacy Blur</a>
+          {SEO_PAGES.slice(0, 5).map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
