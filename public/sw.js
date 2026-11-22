@@ -1,5 +1,5 @@
-const CACHE_NAME = 'imagelab-shell-v1';
-const CORE_PRECACHE = ['/', '/logo.png', '/manifest.webmanifest'];
+const CACHE_NAME = 'imagelab-shell-v2';
+const CORE_PRECACHE = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,11 +26,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  // Let third-party AI model CDNs use their own HTTP/Cache API storage untouched
   if (url.origin !== self.location.origin) return;
 
-  // Immutable hashed Astro assets & logo: Cache-First
-  if (url.pathname.startsWith('/_astro/') || url.pathname === '/logo.png') {
+  // Immutable hashed Astro assets only: Cache-First
+  if (url.pathname.startsWith('/_astro/')) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
@@ -46,8 +45,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML page navigations: Network-First with Offline Cache Fallback
-  if (request.mode === 'navigate') {
+  // Logo & HTML navigations: Network-First so updates appear immediately
+  if (request.mode === 'navigate' || url.pathname === '/logo.png') {
     event.respondWith(
       fetch(request)
         .then((response) => {
