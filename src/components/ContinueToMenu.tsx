@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRight, ChevronDown, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowRight, ChevronDown, Loader2, CornerDownRight } from 'lucide-react';
 import { sendFileToTool } from '../engine/handoff';
 
 interface HandoffTarget {
@@ -20,7 +21,10 @@ const HANDOFF_TARGETS: HandoffTarget[] = [
 ];
 
 interface ContinueToMenuProps {
-  onPrepareFile: () => Promise<{ blob: Blob; fileName: string } | null> | { blob: Blob; fileName: string } | null;
+  onPrepareFile: () =>
+    | Promise<{ blob: Blob; fileName: string } | null>
+    | { blob: Blob; fileName: string }
+    | null;
   currentPath?: string;
   label?: string;
   disabled?: boolean;
@@ -30,7 +34,7 @@ interface ContinueToMenuProps {
 export default function ContinueToMenu({
   onPrepareFile,
   currentPath,
-  label = 'Continue to',
+  label = 'Send to',
   disabled = false,
   compact = false,
 }: ContinueToMenuProps) {
@@ -45,17 +49,21 @@ export default function ContinueToMenu({
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const displayLabel = label === 'Next' ? 'Send to' : label;
+
   const activePath =
-    currentPath ?? (typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '');
+    currentPath ??
+    (typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '');
 
   const targets = HANDOFF_TARGETS.filter((t) => t.path !== activePath);
 
-  const toggleMenu = () => {
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (disabled || isSending) return;
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      const menuWidth = 244;
-      const estHeight = Math.min(window.innerHeight * 0.65, targets.length * 50 + 28);
+      const menuWidth = 248;
+      const estHeight = Math.min(window.innerHeight * 0.65, targets.length * 52 + 32);
       const openUp = window.innerHeight - rect.bottom < estHeight + 16 && rect.top > estHeight;
       const left = Math.max(
         12,
@@ -110,6 +118,47 @@ export default function ContinueToMenu({
     }
   };
 
+  const portalMenu =
+    open && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{
+              position: 'fixed',
+              left: `${coords.left}px`,
+              top: `${coords.top}px`,
+              width: '248px',
+              zIndex: 9999,
+              transform: coords.openUp ? 'translateY(-100%)' : 'none',
+            }}
+            className="studio-card rounded-2xl p-1.5 shadow-2xl max-h-[65vh] overflow-y-auto animate-scale-in"
+          >
+            <p className="px-3 pt-1.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-zinc-400">
+              Send directly to another tool
+            </p>
+            {targets.map((t) => (
+              <button
+                key={t.path}
+                type="button"
+                role="menuitem"
+                onClick={() => void handleSelectTarget(t.path)}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-100 transition flex items-center justify-between gap-2 group cursor-pointer"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-zinc-900 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
+                    {t.label}
+                  </div>
+                  <div className="text-[11px] text-zinc-500 truncate">{t.desc}</div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <>
       <button
@@ -118,6 +167,7 @@ export default function ContinueToMenu({
         disabled={disabled || isSending}
         aria-haspopup="menu"
         aria-expanded={open}
+        title="Send this file directly to Crop, Remove BG, Compress, or PDF without downloading"
         onClick={toggleMenu}
         className={`inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer ${
           compact ? 'px-3 py-2 text-xs' : 'px-4 py-2.5 text-xs sm:text-sm'
@@ -130,47 +180,16 @@ export default function ContinueToMenu({
           </>
         ) : (
           <>
-            <span>{label}</span>
-            <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
+            <CornerDownRight className="w-3.5 h-3.5 text-blue-600" />
+            <span>{displayLabel}</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`}
+            />
           </>
         )}
       </button>
 
-      {open && (
-        <div
-          ref={menuRef}
-          role="menu"
-          style={{
-            position: 'fixed',
-            left: `${coords.left}px`,
-            top: `${coords.top}px`,
-            width: '244px',
-            transform: coords.openUp ? 'translateY(-100%)' : 'none',
-          }}
-          className="z-50 studio-card rounded-2xl p-1.5 shadow-2xl max-h-[65vh] overflow-y-auto animate-scale-in"
-        >
-          <p className="px-3 pt-1.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-zinc-400">
-            Send directly to tool
-          </p>
-          {targets.map((t) => (
-            <button
-              key={t.path}
-              type="button"
-              role="menuitem"
-              onClick={() => void handleSelectTarget(t.path)}
-              className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-100 transition flex items-center justify-between gap-2 group cursor-pointer"
-            >
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-zinc-900 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
-                  {t.label}
-                </div>
-                <div className="text-[11px] text-zinc-500 truncate">{t.desc}</div>
-              </div>
-              <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
-            </button>
-          ))}
-        </div>
-      )}
+      {portalMenu}
     </>
   );
 }
