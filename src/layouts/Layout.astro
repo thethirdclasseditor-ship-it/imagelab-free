@@ -1,5 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
+import { SITE_BANNER, getToolStatus } from '../config/tools';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -21,6 +22,13 @@ const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname.replace(/\/+$/, '') || '/', Astro.site).toString()
   : Astro.url.href;
+
+// Optional privacy-first cookieless analytics (only injected when configured in Cloudflare env vars)
+const cfAnalyticsToken = (import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN || '').trim();
+const umamiWebsiteId = (import.meta.env.PUBLIC_UMAMI_WEBSITE_ID || '').trim();
+const umamiScriptUrl = (
+  import.meta.env.PUBLIC_UMAMI_SCRIPT_URL || 'https://cloud.umami.is/script.js'
+).trim();
 
 const baseSchemas = [
   {
@@ -48,7 +56,7 @@ interface NavItem {
   soon?: boolean;
 }
 
-const navMenus: { label: string; items: NavItem[] }[] = [
+const rawNavMenus: { label: string; items: Omit<NavItem, 'soon'>[] }[] = [
   {
     label: 'Studio',
     items: [
@@ -57,8 +65,8 @@ const navMenus: { label: string; items: NavItem[] }[] = [
       { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image', icon: 'lucide:eye-off' },
       { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover', icon: 'lucide:shield-check' },
       { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image', icon: 'lucide:stamp' },
-      { name: 'AI Background Remover', desc: 'Upgrading to instant HD cutouts', href: '/remove-background', icon: 'lucide:sparkles', soon: true },
-      { name: 'AI Photo Enhancer', desc: 'Upgrading to HD restoration', href: '/photo-enhancer', icon: 'lucide:sliders-horizontal', soon: true },
+      { name: 'AI Background Remover', desc: 'Upgrading to instant HD cutouts', href: '/remove-background', icon: 'lucide:sparkles' },
+      { name: 'AI Photo Enhancer', desc: 'Upgrading to HD restoration', href: '/photo-enhancer', icon: 'lucide:sliders-horizontal' },
     ],
   },
   {
@@ -105,6 +113,17 @@ const navMenus: { label: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+// Dynamically reflect Git-backed tool statuses from src/config/tools.ts
+const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) => ({
+  label: menu.label,
+  items: menu.items
+    .filter((item) => getToolStatus(item.href) !== 'hidden')
+    .map((item) => ({
+      ...item,
+      soon: getToolStatus(item.href) === 'soon',
+    })),
+}));
 ---
 
 <!doctype html>
@@ -148,9 +167,42 @@ const navMenus: { label: string; items: NavItem[] }[] = [
     {allSchemas.map((schema) => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
+
+    {cfAnalyticsToken && (
+      <script
+        defer
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: cfAnalyticsToken })}
+      ></script>
+    )}
+
+    {umamiWebsiteId && (
+      <script
+        defer
+        src={umamiScriptUrl}
+        data-website-id={umamiWebsiteId}
+        data-do-not-track="true"
+      ></script>
+    )}
   </head>
 
   <body class="studio-canvas min-h-screen flex flex-col text-zinc-950 transition-colors duration-200">
+    {SITE_BANNER.enabled && (
+      <div class="bg-blue-600 text-white text-xs py-2 px-4 text-center">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-2">
+          <span class="font-medium">{SITE_BANNER.text}</span>
+          {SITE_BANNER.href && (
+            <a
+              href={SITE_BANNER.href}
+              class="underline underline-offset-2 font-bold hover:opacity-90 transition"
+            >
+              {SITE_BANNER.ctaLabel || 'Explore'} →
+            </a>
+          )}
+        </div>
+      </div>
+    )}
+
     <!-- Minimalist Frosted Navbar -->
     <header class="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-zinc-200/80">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
@@ -427,6 +479,22 @@ const navMenus: { label: string; items: NavItem[] }[] = [
               document.activeElement.blur();
             }
           }
+        });
+
+        // Zero-overhead anonymous tool download tracking (fires ONLY if Umami is enabled; never logs filenames)
+        document.addEventListener('click', function (e) {
+          try {
+            if (!window.umami || typeof window.umami.track !== 'function') return;
+            const target = e.target;
+            if (!target || typeof target.closest !== 'function') return;
+            const dl = target.closest('a[download]');
+            if (!dl) return;
+            const dlName = String(dl.getAttribute('download') || '');
+            const extMatch = /\.([a-z0-9]{2,5})$/i.exec(dlName);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'file';
+            const toolPath = window.location.pathname.replace(/\/+$/, '') || '/';
+            window.umami.track('tool-download', { tool: toolPath, format: ext });
+          } catch (err) {}
         });
 
         if ('serviceWorker' in navigator) {
