@@ -11,6 +11,7 @@ interface HandoffTarget {
 const HANDOFF_TARGETS: HandoffTarget[] = [
   { path: '/crop-image', label: 'Crop & Rotate', desc: 'Frame or lock aspect ratio' },
   { path: '/remove-background', label: 'AI Background Remover', desc: 'Cutout & swap backdrop' },
+  { path: '/image-to-text', label: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text' },
   { path: '/blur-image', label: 'Privacy Blur & Redact', desc: 'Pixelate or blackout sensitive areas' },
   { path: '/image-compressor', label: 'Compress / Convert', desc: 'Optimize JPG, WEBP or PNG' },
   { path: '/compress-image-to-50kb', label: 'Compress to 50KB', desc: 'Fit strict portal limits' },
