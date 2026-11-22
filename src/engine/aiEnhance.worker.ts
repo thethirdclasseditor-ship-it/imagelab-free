@@ -37,12 +37,17 @@ interface RawImageLike {
   channels: number;
 }
 
+interface UpscalerFn {
+  (input: RawImageLike): Promise<RawImageLike | RawImageLike[]>;
+  dispose?: () => Promise<void> | void;
+}
+
 interface TransformersModule {
   pipeline: (
     task: string,
     model: string,
     options: Record<string, unknown>
-  ) => Promise<(input: RawImageLike) => Promise<RawImageLike | RawImageLike[]>>;
+  ) => Promise<UpscalerFn>;
   RawImage: new (
     data: Uint8ClampedArray,
     width: number,
@@ -54,8 +59,6 @@ interface TransformersModule {
     useBrowserCache: boolean;
   };
 }
-
-type UpscalerFn = (input: RawImageLike) => Promise<RawImageLike | RawImageLike[]>;
 
 const MODEL_CONFIG: Record<
   AiEnhanceMode,
@@ -83,7 +86,7 @@ const workerScope = self as unknown as {
 };
 
 let cachedLib: TransformersModule | null = null;
-const cachedPipelines = new Map<string, { fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }>();
+let activePipeline: { modelId: string; fn: UpscalerFn; backend: 'WebGPU' | 'WASM' } | null = null;
 
 async function loadTransformersBrowserLib(jobId: number): Promise<TransformersModule> {
   if (cachedLib) return cachedLib;
@@ -96,7 +99,10 @@ async function loadTransformersBrowserLib(jobId: number): Promise<TransformersMo
     status: 'Loading AI runtime...',
   });
 
+  // Prefer Transformers.js v4 (faster WebGPU q4 Swin2SR) with safe fallback to v3
   const cdnUrls = [
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0',
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm',
     'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.0',
     'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.0/+esm',
   ];
@@ -142,8 +148,19 @@ async function getUpscaler(
   mode: AiEnhanceMode
 ): Promise<{ fn: UpscalerFn; backend: 'WebGPU' | 'WASM' }> {
   const cfg = MODEL_CONFIG[mode];
-  const existing = cachedPipelines.get(cfg.modelId);
-  if (existing) return existing;
+  if (activePipeline && activePipeline.modelId === cfg.modelId) {
+    return { fn: activePipeline.fn, backend: activePipeline.backend };
+  }
+
+  // Dispose previously loaded model before allocating a new one (prevents mobile OOM)
+  if (activePipeline) {
+    try {
+      await activePipeline.fn.dispose?.();
+    } catch {
+      // Ignore disposal errors
+    }
+    activePipeline = null;
+  }
 
   const progressCb = (info: { status?: string; progress?: number }) => {
     if (info.status === 'progress' && typeof info.progress === 'number') {
@@ -168,11 +185,12 @@ async function getUpscaler(
 
   const candidates: Array<{ backend: 'WebGPU' | 'WASM'; opts: Record<string, unknown> }> = [];
 
+  // Never try fp16 on WebGPU (causes ~17.8s onnx-shape-mismatch failure on Swin2SR)
   if (await hasUsableWebGPU()) {
     candidates.push(
       {
         backend: 'WebGPU',
-        opts: { device: 'webgpu', dtype: 'fp16', progress_callback: progressCb },
+        opts: { device: 'webgpu', dtype: 'q4', progress_callback: progressCb },
       },
       {
         backend: 'WebGPU',
@@ -196,9 +214,8 @@ async function getUpscaler(
   for (const cand of candidates) {
     try {
       const pipe = await lib.pipeline('image-to-image', cfg.modelId, cand.opts);
-      const entry = { fn: pipe, backend: cand.backend };
-      cachedPipelines.set(cfg.modelId, entry);
-      return entry;
+      activePipeline = { modelId: cfg.modelId, fn: pipe, backend: cand.backend };
+      return { fn: pipe, backend: cand.backend };
     } catch (err) {
       lastError = err;
     }
@@ -229,7 +246,6 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
     const rows = Math.ceil(srcH / cfg.tileSize);
     const totalTiles = cols * rows;
 
-    // Fast direct path when entire image fits in a single tile (zero blending overhead)
     if (totalTiles === 1) {
       workerScope.postMessage({
         type: 'progress',
@@ -291,7 +307,6 @@ workerScope.onmessage = async (event: MessageEvent<AiEnhanceRequest>) => {
       return;
     }
 
-    // Multi-tile feather-blended path
     const accR = new Float32Array(totalOutPixels);
     const accG = new Float32Array(totalOutPixels);
     const accB = new Float32Array(totalOutPixels);
