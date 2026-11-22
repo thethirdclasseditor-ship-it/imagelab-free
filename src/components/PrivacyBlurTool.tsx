@@ -25,6 +25,8 @@ import {
   MAX_SAFE_CANVAS_PIXELS,
   type SupportedFormat,
 } from '../engine/imageEngine';
+import { consumeHandoffFile } from '../engine/handoff';
+import ContinueToMenu from './ContinueToMenu';
 
 type DrawTool = 'box' | 'brush';
 type RedactEffect = 'pixelate' | 'blur' | 'blackout';
@@ -69,7 +71,6 @@ function getExt(mime: string): string {
   return 'jpg';
 }
 
-/** Browser-universal Pixelate / Smooth Blur / Solid Blackout renderer (zero iOS Safari ctx.filter bugs) */
 function renderEffectSlice(
   source: HTMLCanvasElement,
   sx: number,
@@ -92,8 +93,7 @@ function renderEffectSlice(
     return out;
   }
 
-  // Scale block/blur factor proportionally to image resolution so preview & 4K export match visually
-  const blockPx = Math.max(4, Math.round((baseDim * (strength / 100) * 0.045) + 4));
+  const blockPx = Math.max(4, Math.round(baseDim * (strength / 100) * 0.045 + 4));
   const tinyW = Math.max(1, Math.round(sw / blockPx));
   const tinyH = Math.max(1, Math.round(sh / blockPx));
 
@@ -111,7 +111,6 @@ function renderEffectSlice(
     oCtx.imageSmoothingEnabled = false;
     oCtx.drawImage(tiny, 0, 0, tinyW, tinyH, 0, 0, sw, sh);
   } else {
-    // 2-pass smooth downscale/upscale blur (works identically across Chrome, Firefox & Safari)
     oCtx.imageSmoothingEnabled = true;
     oCtx.imageSmoothingQuality = 'high';
     oCtx.drawImage(tiny, 0, 0, tinyW, tinyH, 0, 0, sw, sh);
@@ -167,7 +166,6 @@ function applyRedactAction(
     return;
   }
 
-  // Brush stroke action
   if (action.points.length === 0) return;
   const brushPx = Math.max(8, Math.round((baseDim * action.brushPct) / 100));
 
@@ -194,7 +192,6 @@ function applyRedactAction(
     return;
   }
 
-  // Compute tight bounding box for fast pixelate/blur masked brush strokes
   let minX = 1;
   let minY = 1;
   let maxX = 0;
@@ -283,7 +280,7 @@ export default function PrivacyBlurTool() {
   const sourcePreviewRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const dragDepthRef = useRef(0);
-  const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+  const selectHandlerRef = useRef<(files: FileList | File[] | null) => void>(() => {});
 
   const loadSelectedFile = async (picked: File) => {
     const valErr = validateImageFile(picked);
@@ -319,7 +316,6 @@ export default function PrivacyBlurTool() {
         el.src = url;
       });
 
-      // Build clean offscreen preview source (max 1100px for 60fps interaction)
       const scale = Math.min(1, 1100 / Math.max(img.naturalWidth, img.naturalHeight));
       const pw = Math.max(1, Math.round(img.naturalWidth * scale));
       const ph = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -339,7 +335,7 @@ export default function PrivacyBlurTool() {
     }
   };
 
-  const handleFileSelect = (incoming: FileList | null) => {
+  const handleFileSelect = (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     const picked = incoming[0];
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -347,6 +343,14 @@ export default function PrivacyBlurTool() {
   };
 
   selectHandlerRef.current = handleFileSelect;
+
+  useEffect(() => {
+    void consumeHandoffFile().then((handoffFile) => {
+      if (handoffFile) {
+        selectHandlerRef.current([handoffFile]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
@@ -397,7 +401,6 @@ export default function PrivacyBlurTool() {
     };
   }, []);
 
-  // Re-render preview canvas whenever actions or live drag changes
   const redrawPreview = useCallback(() => {
     const canvas = canvasRef.current;
     const src = sourcePreviewRef.current;
@@ -501,61 +504,75 @@ export default function PrivacyBlurTool() {
     });
   };
 
-  // Full-resolution clean export (strips EXIF too!)
+  const buildRedactedExport = async (): Promise<{
+    blob: Blob;
+    fileName: string;
+    encoderUsed: string;
+  } | null> => {
+    if (!file || !loadedImg) return null;
+
+    let w = loadedImg.naturalWidth;
+    let h = loadedImg.naturalHeight;
+    if (w * h > MAX_SAFE_CANVAS_PIXELS) {
+      const s = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (w * h));
+      w = Math.max(1, Math.floor(w * s));
+      h = Math.max(1, Math.floor(h * s));
+    }
+
+    const fullSource = document.createElement('canvas');
+    fullSource.width = w;
+    fullSource.height = h;
+    const fsCtx = fullSource.getContext('2d');
+    if (!fsCtx) throw new Error('Canvas unavailable.');
+    if (format === 'image/jpeg') {
+      fsCtx.fillStyle = '#FFFFFF';
+      fsCtx.fillRect(0, 0, w, h);
+    }
+    fsCtx.imageSmoothingEnabled = true;
+    fsCtx.imageSmoothingQuality = 'high';
+    fsCtx.drawImage(loadedImg, 0, 0, w, h);
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = w;
+    outCanvas.height = h;
+    const outCtx = outCanvas.getContext('2d', { willReadFrequently: true });
+    if (!outCtx) throw new Error('Canvas unavailable.');
+    outCtx.drawImage(fullSource, 0, 0);
+
+    for (const act of actions) {
+      applyRedactAction(outCtx, fullSource, w, h, act);
+    }
+
+    const encoded = await encodeCanvasWithCodec(
+      outCanvas,
+      format,
+      format === 'image/png' ? 1 : 0.9
+    );
+
+    fullSource.width = 0;
+    fullSource.height = 0;
+    outCanvas.width = 0;
+    outCanvas.height = 0;
+
+    const baseName = file.name.replace(/\.[^/.]+$/, '');
+    const ext = getExt(encoded.blob.type || format);
+    return {
+      blob: encoded.blob,
+      fileName: `${baseName}_redacted.${ext}`,
+      encoderUsed: encoded.encoderUsed,
+    };
+  };
+
   const handleExport = async () => {
-    if (!file || !loadedImg) return;
     setIsExporting(true);
     setErrorMsg(null);
     setStatusMsg(null);
 
     try {
-      let w = loadedImg.naturalWidth;
-      let h = loadedImg.naturalHeight;
-      if (w * h > MAX_SAFE_CANVAS_PIXELS) {
-        const s = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (w * h));
-        w = Math.max(1, Math.floor(w * s));
-        h = Math.max(1, Math.floor(h * s));
-      }
-
-      const fullSource = document.createElement('canvas');
-      fullSource.width = w;
-      fullSource.height = h;
-      const fsCtx = fullSource.getContext('2d');
-      if (!fsCtx) throw new Error('Canvas unavailable.');
-      if (format === 'image/jpeg') {
-        fsCtx.fillStyle = '#FFFFFF';
-        fsCtx.fillRect(0, 0, w, h);
-      }
-      fsCtx.imageSmoothingEnabled = true;
-      fsCtx.imageSmoothingQuality = 'high';
-      fsCtx.drawImage(loadedImg, 0, 0, w, h);
-
-      const outCanvas = document.createElement('canvas');
-      outCanvas.width = w;
-      outCanvas.height = h;
-      const outCtx = outCanvas.getContext('2d', { willReadFrequently: true });
-      if (!outCtx) throw new Error('Canvas unavailable.');
-      outCtx.drawImage(fullSource, 0, 0);
-
-      for (const act of actions) {
-        applyRedactAction(outCtx, fullSource, w, h, act);
-      }
-
-      const encoded = await encodeCanvasWithCodec(
-        outCanvas,
-        format,
-        format === 'image/png' ? 1 : 0.9
-      );
-
-      fullSource.width = 0;
-      fullSource.height = 0;
-      outCanvas.width = 0;
-      outCanvas.height = 0;
-
-      const baseName = file.name.replace(/\.[^/.]+$/, '');
-      const ext = getExt(encoded.blob.type || format);
-      triggerBlobDownload(encoded.blob, `${baseName}_redacted.${ext}`);
-      setStatusMsg(`Saved (${formatFileSize(encoded.blob.size)} · ${encoded.encoderUsed})`);
+      const out = await buildRedactedExport();
+      if (!out) return;
+      triggerBlobDownload(out.blob, out.fileName);
+      setStatusMsg(`Saved (${formatFileSize(out.blob.size)} · ${out.encoderUsed})`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Export failed.');
     } finally {
@@ -644,10 +661,8 @@ export default function PrivacyBlurTool() {
           </div>
         ) : (
           <div className="divide-y divide-zinc-200/80">
-            {/* Top Toolbar */}
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                {/* Draw Mode */}
                 <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
                   <button
                     type="button"
@@ -673,7 +688,6 @@ export default function PrivacyBlurTool() {
                   </button>
                 </div>
 
-                {/* Effect Mode */}
                 <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
                   {(
                     [
@@ -727,7 +741,6 @@ export default function PrivacyBlurTool() {
               </div>
             </div>
 
-            {/* Strength / Brush Controls */}
             {(effect !== 'blackout' || drawTool === 'brush') && (
               <div className="px-5 sm:px-6 py-3 bg-zinc-50/50 flex flex-wrap items-center gap-6 text-xs">
                 {effect !== 'blackout' && (
@@ -765,7 +778,6 @@ export default function PrivacyBlurTool() {
               </div>
             )}
 
-            {/* Interactive Canvas Stage */}
             <div className="bg-zinc-950 p-4 sm:p-6 flex flex-col items-center justify-center gap-3 select-none">
               <p className="text-[11px] text-zinc-400">
                 {drawTool === 'box'
@@ -782,7 +794,6 @@ export default function PrivacyBlurTool() {
               />
             </div>
 
-            {/* Bottom Export Bar */}
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <select
@@ -808,24 +819,35 @@ export default function PrivacyBlurTool() {
                 )}
               </div>
 
-              <button
-                type="button"
-                disabled={isExporting}
-                onClick={() => void handleExport()}
-                className="btn-studio-accent w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span>Download Redacted Photo</span>
-                  </>
-                )}
-              </button>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                <ContinueToMenu
+                  currentPath="/blur-image"
+                  disabled={isExporting}
+                  onPrepareFile={async () => {
+                    const out = await buildRedactedExport();
+                    return out ? { blob: out.blob, fileName: out.fileName } : null;
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={() => void handleExport()}
+                  className="btn-studio-accent inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Download Redacted</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
