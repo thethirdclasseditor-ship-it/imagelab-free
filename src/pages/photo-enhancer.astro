@@ -6,14 +6,33 @@ import { SEO_PAGES } from '../data/seoPages';
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const pageUrl = `${siteBase}/photo-enhancer`;
 
-const title = 'AI Photo Enhancer & 4× Upscaler Free Online | ImageLab';
+const title = 'AI Photo Enhancer & 4× Upscaler Free | ImageLab';
 const description =
-  'Restore blurry, compressed, and low-resolution photos using real Swin2SR BSRGAN neural super-resolution directly in your browser. Zero uploads, free HD download.';
+  'Restore blurry, compressed, and low-resolution photos using real Swin2SR neural super-resolution directly in your browser. Zero uploads, batch queue, free HD download.';
 
-const schema = {
+const faqs = [
+  {
+    q: 'How is this different from regular photo sharpening tools?',
+    a: 'Regular tools only boost contrast along edges, which creates gritty artifacts. ImageLab runs Swin2SR neural super-resolution on WebGPU/WASM to remove blur and compression blocks while reconstructing cleaner textures.',
+  },
+  {
+    q: 'When should I pick Fast AI 2× vs Deep 4×?',
+    a: 'Use Fast AI 2× for quick everyday clarity on social media or compressed phone photos. Switch to Deep 4× (BSRGAN) for very small or heavily compressed images where you want maximum restoration.',
+  },
+  {
+    q: 'Can I upload multiple photos while one is still restoring?',
+    a: 'Yes. You can drop up to 10 photos anywhere on the page; newest uploads appear at the top of the queue and process automatically in the background.',
+  },
+  {
+    q: 'Are my photos sent to an external server?',
+    a: 'No. Only the open-source AI model weights are fetched and cached once from CDN; your photos are processed 100% locally inside your browser.',
+  },
+];
+
+const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab AI Photo Enhancer & 4x Super-Resolution',
+  name: 'ImageLab AI Photo Enhancer & 4x Upscaler',
   url: pageUrl,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
@@ -21,23 +40,31 @@ const schema = {
   description,
 };
 
-const faqs = [
-  {
-    q: 'How is this different from regular photo sharpening tools?',
-    a: 'Regular tools only boost contrast along edges, which creates gritty artifacts. ImageLab runs a real Swin2SR Real-World (BSRGAN) neural network directly on your GPU/WASM to remove blur and JPEG blocks while reconstructing smooth, crisp 4× HD textures.',
-  },
-  {
-    q: 'Why does the very first image take longer?',
-    a: 'On your first visit, your browser downloads and caches the neural network weights once from CDN. Every image after that restores directly from local cache.',
-  },
-  {
-    q: 'Are my photos sent to an external server?',
-    a: 'No. Only the open-source AI model file is fetched from CDN; your actual photos are processed 100% locally inside your browser.',
-  },
-];
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'AI Photo Enhancer', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
 ---
 
-<Layout title={title} description={description} schemas={[schema]}>
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
   <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
     <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
       <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
@@ -47,14 +74,22 @@ const faqs = [
 
     <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        AI Photo Enhancer & 4× Upscaler
+        AI Photo Enhancer & Upscaler
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        True Swin2SR neural restoration — removes blur and compression blocks without harsh sharpening.
+        On-device Swin2SR neural restoration — clear up soft photos and compression blocks locally.
       </p>
     </header>
 
-    <LiveEnhancerTool client:only="react" />
+    <LiveEnhancerTool client:only="react">
+      <div
+        slot="fallback"
+        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+        <p class="text-xs font-semibold text-zinc-500">Loading AI Photo Enhancer...</p>
+      </div>
+    </LiveEnhancerTool>
 
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section>
