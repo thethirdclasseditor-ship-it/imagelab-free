@@ -6,11 +6,26 @@ import { SEO_PAGES } from '../data/seoPages';
 const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
 const pageUrl = `${siteBase}/watermark-image`;
 
-const title = 'Add Watermark to Photos Online Free (Batch) | ImageLab';
+const title = 'Add Watermark to Photos Online Free | ImageLab';
 const description =
-  'Stamp custom text or transparent PNG logos onto up to 20 photos at once with live preview and tiled patterns. Free, zero server uploads, batch ZIP export.';
+  'Stamp custom text or transparent PNG logos onto up to 20 photos at once with live preview and tiled patterns. Free, zero uploads, batch ZIP export.';
 
-const schema = {
+const faqs = [
+  {
+    q: 'Can I watermark multiple product photos with the exact same logo placement?',
+    a: 'Yes. Drop up to 20 images at once, configure your text or transparent PNG logo on the live preview, and export all watermarked photos together in a single ZIP archive.',
+  },
+  {
+    q: 'What is the difference between Single Stamp and Tiled Repeat?',
+    a: 'Single Stamp places your brand mark cleanly in one of 9 anchor positions (such as bottom-right). Tiled Repeat creates a full diagonal pattern across the entire image—ideal for portfolios, proofs, and ID copy protection.',
+  },
+  {
+    q: 'Will ImageLab add its own branding to my watermarked images?',
+    a: 'Never. Only your custom text or uploaded logo is applied, and all rendering runs locally inside your browser.',
+  },
+];
+
+const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'ImageLab Batch Photo Watermark Studio',
@@ -20,42 +35,104 @@ const schema = {
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description,
 };
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Batch Watermark', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
 ---
 
-<Layout title={title} description={description} schemas={[schema]}>
-  <article class="max-w-5xl mx-auto px-4 pt-6 sm:pt-10 pb-10">
-    <nav aria-label="Breadcrumb" class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
-      <a href="/" class="hover:text-blue-600 font-medium">Home</a>
-      <span>/</span>
-      <span class="text-slate-700 font-medium">Watermark Studio</span>
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Batch Watermark</span>
     </nav>
 
-    <header class="text-center max-w-2xl mx-auto mb-7">
-      <span class="inline-block px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-3">
-        Batch Text & Logo Watermark
-      </span>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-        Free Online Photo Watermark Tool
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Batch Photo Watermark
       </h1>
-      <p class="text-slate-600 mt-2.5 text-sm sm:text-base">
-        Protect e-commerce product shots, portfolios, or NID photocopies with custom text, PNG logos, and tiled patterns—100% locally.
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Stamp custom text, transparent PNG logos, or diagonal tiles across 20 photos at once.
       </p>
     </header>
 
     <WatermarkTool client:load />
 
-    <nav aria-label="More Tools" class="mt-12 border-t border-slate-200 pt-8">
-      <h2 class="text-lg font-bold text-slate-900 mb-4">More Free Tools</h2>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {SEO_PAGES.slice(0, 8).map((item) => (
-          <a
-            href={`/${item.slug}`}
-            class="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition"
-          >
-            {item.shortName}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Text & PNG Logo Stamps</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Control color, size, opacity, angle, and 9-point placement with instant live canvas preview.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Full Diagonal Tiling</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Protect e-commerce catalogs, client proofs, or sensitive document scans against unauthorized reuse.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Fast Single-Pass Batch ZIP</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Every photo renders in one pass and exports directly via MozJPEG, LibWebP, or UPNG into a ZIP.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          {SEO_PAGES.slice(0, 8).map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
   </article>
 </Layout>
