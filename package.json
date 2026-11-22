@@ -1,7 +1,7 @@
 {
   "name": "imagelab-free",
   "type": "module",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -10,6 +10,8 @@
   "dependencies": {
     "@astrojs/react": "^4.2.1",
     "@astrojs/sitemap": "^3.3.0",
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/plus-jakarta-sans": "^5.2.5",
     "@imgly/background-removal": "^1.5.5",
     "@jsquash/jpeg": "^1.5.0",
     "@jsquash/webp": "^1.4.0",
