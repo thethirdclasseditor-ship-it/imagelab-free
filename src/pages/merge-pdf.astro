@@ -1,0 +1,112 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PdfSuiteTool from '../components/PdfSuiteTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/merge-pdf`;
+
+const title = 'Merge PDF Files Online Free (No Upload) | ImageLab';
+const description =
+  'Combine up to 25 PDF documents into a single file locally inside your browser. Reorder PDFs, preserve crisp vector text, zero watermarks, zero server uploads.';
+
+const faqs = [
+  {
+    q: 'Does merging PDFs keep text selectable and links intact?',
+    a: 'Yes. ImageLab merges PDF pages natively at the document level using pdf-lib, preserving crisp vector fonts, bookmarks, and original page layouts.',
+  },
+  {
+    q: 'Are my contracts or personal PDFs uploaded to any server?',
+    a: 'Never. Merging happens completely inside your browser memory, making it safe for sensitive legal, banking, and business files.',
+  },
+  {
+    q: 'Is there any daily task limit?',
+    a: 'No. Unlike cloud PDF tools that cap free users to 2 tasks per day, you can merge unlimited batches of up to 25 PDFs per session.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free PDF Merger',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Merge PDF', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Merge PDF</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Merge PDF Files
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Combine up to 25 PDF documents in your preferred order — 100% lossless and private.
+      </p>
+    </header>
+
+    <PdfSuiteTool client:load mode="merge" />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More PDF Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">More PDF tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/split-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Split PDF</a>
+          <a href="/compress-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Compress PDF</a>
+          <a href="/pdf-to-jpg" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to JPG</a>
+          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
