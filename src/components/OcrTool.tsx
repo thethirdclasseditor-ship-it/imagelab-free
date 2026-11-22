@@ -6,13 +6,11 @@ import {
   Check,
   Download,
   Trash2,
-  Lock,
+  ShieldCheck,
   Loader2,
   AlertCircle,
-  Square,
-  Sparkles,
   RotateCcw,
-  Contrast,
+  Sparkles,
 } from 'lucide-react';
 import {
   validateImageFile,
@@ -22,22 +20,16 @@ import {
 } from '../engine/imageEngine';
 import { consumeHandoffFile } from '../engine/handoff';
 
-type OcrLang = 'eng' | 'ben' | 'ben+eng';
-
-interface TesseractWorkerLike {
-  recognize: (
-    image: Blob | HTMLCanvasElement | string
-  ) => Promise<{ data: { text: string; confidence: number } }>;
-  terminate: () => Promise<unknown>;
-}
+type OcrLang = 'auto' | 'ben' | 'eng' | 'handwriting';
 
 const LANG_OPTIONS: { id: OcrLang; label: string }[] = [
-  { id: 'eng', label: 'English' },
+  { id: 'auto', label: 'Auto (বাংলা + Eng)' },
   { id: 'ben', label: 'বাংলা (Bengali)' },
-  { id: 'ben+eng', label: 'বাংলা + English' },
+  { id: 'eng', label: 'English' },
+  { id: 'handwriting', label: 'Handwriting' },
 ];
 
-const MAX_OCR_SIDE = 2400;
+const MAX_UPLOAD_SIDE = 1600;
 
 function loadBitmap(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -55,32 +47,32 @@ function loadBitmap(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
-/** Smart OCR preprocessor: upscales small screenshots 2x, auto-inverts dark backgrounds (white text on dark bg) */
-async function prepareOcrBitmap(
-  blob: Blob,
-  enhanceText: boolean,
-  forceInvert: boolean
-): Promise<{ blob: Blob; autoInverted: boolean }> {
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const str = typeof reader.result === 'string' ? reader.result : '';
+      const idx = str.indexOf(',');
+      resolve(idx >= 0 ? str.slice(idx + 1) : str);
+    };
+    reader.onerror = () => reject(new Error('Failed to read image bytes.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Optimizes photo to max 1600px JPEG (~100-250KB) for fast 1-2 second Vision OCR */
+async function prepareCompactJpeg(blob: Blob): Promise<{ base64: string; mimeType: string }> {
   const img = await loadBitmap(blob);
   const { naturalWidth: w, naturalHeight: h } = img;
-  const longest = Math.max(w, h);
-
-  // Upscale small screenshots (<1000px) by 2x for sharper glyphs; cap huge phone photos at 2400px
-  let scale = 1;
-  if (longest < 1000) {
-    scale = Math.min(2, 1600 / longest);
-  } else if (longest > MAX_OCR_SIDE) {
-    scale = MAX_OCR_SIDE / longest;
-  }
-
+  const scale = Math.min(1, MAX_UPLOAD_SIDE / Math.max(w, h));
   const outW = Math.max(1, Math.round(w * scale));
   const outH = Math.max(1, Math.round(h * scale));
 
   const canvas = document.createElement('canvas');
   canvas.width = outW;
   canvas.height = outH;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return { blob, autoInverted: false };
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable.');
 
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, outW, outH);
@@ -88,43 +80,18 @@ async function prepareOcrBitmap(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, outW, outH);
 
-  const imgData = ctx.getImageData(0, 0, outW, outH);
-  const d = imgData.data;
-
-  // Measure average brightness to detect dark-background photos/screenshots (e.g. white text on dark wall)
-  let lumSum = 0;
-  const pixelCount = outW * outH;
-  for (let i = 0; i < d.length; i += 4) {
-    lumSum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-  }
-  const avgLum = lumSum / Math.max(1, pixelCount);
-  const shouldInvert = forceInvert || (enhanceText && avgLum < 115);
-
-  if (enhanceText || forceInvert) {
-    const contrast = enhanceText ? 1.32 : 1.0;
-    for (let i = 0; i < d.length; i += 4) {
-      let gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      if (shouldInvert) {
-        gray = 255 - gray;
-      }
-      let val = (gray - 128) * contrast + 128;
-      val = val < 0 ? 0 : val > 255 ? 255 : val;
-      d[i] = val;
-      d[i + 1] = val;
-      d[i + 2] = val;
-    }
-    ctx.putImageData(imgData, 0, 0);
-  }
-
-  const outBlob = await new Promise<Blob>((resolve, reject) => {
+  const jpegBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('Failed to prepare image for OCR.'))),
-      'image/png'
+      (b) => (b ? resolve(b) : reject(new Error('Could not prepare image for OCR.'))),
+      'image/jpeg',
+      0.88
     );
   });
   canvas.width = 0;
   canvas.height = 0;
-  return { blob: outBlob, autoInverted: shouldInvert };
+
+  const base64 = await blobToBase64(jpegBlob);
+  return { base64, mimeType: 'image/jpeg' };
 }
 
 export default function OcrTool() {
@@ -132,44 +99,24 @@ export default function OcrTool() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [normalizedBlob, setNormalizedBlob] = useState<Blob | null>(null);
 
-  const [lang, setLang] = useState<OcrLang>('eng');
-  const [enhanceText, setEnhanceText] = useState<boolean>(true);
-  const [forceInvert, setForceInvert] = useState<boolean>(false);
-  const [didInvert, setDidInvert] = useState<boolean>(false);
+  const [lang, setLang] = useState<OcrLang>('auto');
   const [extractedText, setExtractedText] = useState<string>('');
-  const [confidence, setConfidence] = useState<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState<number | null>(null);
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [progressPct, setProgressPct] = useState<number>(0);
-  const [progressStatus, setProgressStatus] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isGlobalDragging, setIsGlobalDragging] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
-  const runIdRef = useRef(0);
-  const workerRef = useRef<{ lang: OcrLang; instance: TesseractWorkerLike } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const trackedUrlRef = useRef<string | null>(null);
   const selectHandlerRef = useRef<(files: FileList | File[] | null) => void>(() => {});
 
-  const terminateWorker = async () => {
-    const active = workerRef.current;
-    workerRef.current = null;
-    if (active) {
-      try {
-        await active.instance.terminate();
-      } catch {
-        // Ignore
-      }
-    }
-  };
-
   useEffect(() => {
     return () => {
-      runIdRef.current++;
-      void terminateWorker();
+      abortRef.current?.abort();
       if (trackedUrlRef.current) {
         URL.revokeObjectURL(trackedUrlRef.current);
         trackedUrlRef.current = null;
@@ -177,100 +124,53 @@ export default function OcrTool() {
     };
   }, []);
 
-  const runOcr = async (
-    targetBlob: Blob,
-    targetLang: OcrLang,
-    useEnhance: boolean,
-    useInvert: boolean
-  ) => {
-    const runId = ++runIdRef.current;
-    const t0 = performance.now();
+  const runGeminiOcr = async (targetBlob: Blob, targetLang: OcrLang) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
+    const t0 = performance.now();
     setIsRunning(true);
     setErrorMsg(null);
     setCopied(false);
-    setConfidence(null);
     setElapsedSec(null);
-    setProgressPct(4);
-    setProgressStatus('Optimizing image for OCR...');
 
     try {
-      const prepared = await prepareOcrBitmap(targetBlob, useEnhance, useInvert);
-      if (runIdRef.current !== runId) return;
-      setDidInvert(prepared.autoInverted);
+      const { base64, mimeType } = await prepareCompactJpeg(targetBlob);
+      if (controller.signal.aborted) return;
 
-      let worker: TesseractWorkerLike;
-      if (workerRef.current && workerRef.current.lang === targetLang) {
-        worker = workerRef.current.instance;
-      } else {
-        await terminateWorker();
-        if (runIdRef.current !== runId) return;
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType,
+          language: targetLang,
+        }),
+        signal: controller.signal,
+      });
 
-        setProgressPct(10);
-        setProgressStatus('Loading OCR engine...');
+      const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+      if (controller.signal.aborted) return;
 
-        const tesseractMod = (await import('tesseract.js')) as unknown as {
-          createWorker: (
-            langs: string,
-            oem?: number,
-            options?: Record<string, unknown>
-          ) => Promise<TesseractWorkerLike>;
-        };
-
-        worker = await tesseractMod.createWorker(targetLang, 1, {
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-          logger: (info: { status?: string; progress?: number }) => {
-            if (runIdRef.current !== runId) return;
-            const rawPct = typeof info.progress === 'number' ? Math.round(info.progress * 100) : 0;
-            if (info.status === 'loading language traineddata') {
-              setProgressPct(Math.max(15, Math.min(60, 15 + Math.round(rawPct * 0.45))));
-              setProgressStatus(`Downloading accurate language pack (${rawPct}%)...`);
-            } else if (info.status === 'recognizing text') {
-              setProgressPct(Math.max(60, Math.min(98, 60 + Math.round(rawPct * 0.38))));
-              setProgressStatus(`Extracting text (${rawPct}%)...`);
-            } else if (info.status) {
-              setProgressStatus(
-                info.status.charAt(0).toUpperCase() + info.status.slice(1) + '...'
-              );
-            }
-          },
-        });
-
-        if (runIdRef.current !== runId) {
-          await worker.terminate();
-          return;
-        }
-        workerRef.current = { lang: targetLang, instance: worker };
+      if (!res.ok) {
+        throw new Error(data.error || `OCR request failed (${res.status}).`);
       }
 
-      setProgressPct(60);
-      setProgressStatus('Extracting text...');
-
-      const result = await worker.recognize(prepared.blob);
-      if (runIdRef.current !== runId) return;
-
-      const cleanText = (result.data.text || '').trim();
+      const cleanText = (data.text || '').trim();
       setExtractedText(cleanText);
-      setConfidence(Math.round(result.data.confidence || 0));
       setElapsedSec(Number(((performance.now() - t0) / 1000).toFixed(1)));
-      setProgressPct(100);
-      setProgressStatus('');
 
       if (!cleanText) {
-        setErrorMsg(
-          'No clear text detected. For best accuracy, crop around the text or try toggling Invert / Clarity Boost.'
-        );
+        setErrorMsg('No readable text found in this image.');
       }
     } catch (err) {
-      if (runIdRef.current !== runId) return;
-      await terminateWorker();
+      if (controller.signal.aborted) return;
       setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'OCR failed. Check your connection on first language download and try again.'
+        err instanceof Error ? err.message : 'Failed to extract text. Please try again.'
       );
     } finally {
-      if (runIdRef.current === runId) {
+      if (!controller.signal.aborted) {
         setIsRunning(false);
       }
     }
@@ -290,7 +190,6 @@ export default function OcrTool() {
 
     setErrorMsg(null);
     setExtractedText('');
-    setConfidence(null);
 
     try {
       const normalized = await normalizeImageBlob(picked);
@@ -304,7 +203,7 @@ export default function OcrTool() {
       setNormalizedBlob(normalized);
       setPreviewUrl(url);
 
-      void runOcr(normalized, lang, enhanceText, forceInvert);
+      void runGeminiOcr(normalized, lang);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Could not open image.');
     }
@@ -379,32 +278,8 @@ export default function OcrTool() {
   const handleLangChange = (nextLang: OcrLang) => {
     setLang(nextLang);
     if (normalizedBlob && !isRunning) {
-      void runOcr(normalizedBlob, nextLang, enhanceText, forceInvert);
+      void runGeminiOcr(normalizedBlob, nextLang);
     }
-  };
-
-  const handleToggleEnhance = () => {
-    const next = !enhanceText;
-    setEnhanceText(next);
-    if (normalizedBlob && !isRunning) {
-      void runOcr(normalizedBlob, lang, next, forceInvert);
-    }
-  };
-
-  const handleToggleInvert = () => {
-    const next = !forceInvert;
-    setForceInvert(next);
-    if (normalizedBlob && !isRunning) {
-      void runOcr(normalizedBlob, lang, enhanceText, next);
-    }
-  };
-
-  const handleStop = () => {
-    runIdRef.current++;
-    void terminateWorker();
-    setIsRunning(false);
-    setProgressPct(0);
-    setProgressStatus('');
   };
 
   const handleCopyText = async () => {
@@ -433,7 +308,7 @@ export default function OcrTool() {
   };
 
   const resetAll = () => {
-    runIdRef.current++;
+    abortRef.current?.abort();
     setIsRunning(false);
     setFile(null);
     setNormalizedBlob(null);
@@ -443,11 +318,8 @@ export default function OcrTool() {
     }
     setPreviewUrl(null);
     setExtractedText('');
-    setConfidence(null);
     setElapsedSec(null);
     setErrorMsg(null);
-    setProgressPct(0);
-    setProgressStatus('');
   };
 
   const wordCount = extractedText.trim() ? extractedText.trim().split(/\s+/).length : 0;
@@ -469,16 +341,17 @@ export default function OcrTool() {
               <Upload className="w-7 h-7" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
-              Release to Extract Text
+              Release to Extract Text Instantly
             </p>
           </div>
         </div>
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
+        {/* Top Mode Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500">Language</span>
+            <span className="text-xs font-semibold text-zinc-500">Mode</span>
             <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl flex-wrap">
               {LANG_OPTIONS.map((opt) => (
                 <button
@@ -498,48 +371,10 @@ export default function OcrTool() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={isRunning}
-              onClick={handleToggleInvert}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                forceInvert
-                  ? 'bg-blue-600 text-white border-transparent'
-                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-              }`}
-              title="Force invert colors for white text on dark backgrounds"
-            >
-              <Contrast className="w-3.5 h-3.5" />
-              <span>Dark BG</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isRunning}
-              onClick={handleToggleEnhance}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                enhanceText
-                  ? 'bg-blue-600 text-white border-transparent'
-                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-              }`}
-              title="Auto-invert dark backgrounds and boost text contrast"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart Boost</span>
-            </button>
-
-            {isRunning && (
-              <button
-                type="button"
-                onClick={handleStop}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold cursor-pointer"
-              >
-                <Square className="w-3 h-3 fill-current" />
-                <span>Stop</span>
-              </button>
-            )}
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[11px] font-semibold">
+            <Sparkles className="w-3.5 h-3.5" />
+            Gemini Vision AI · Instant
+          </span>
         </div>
 
         {!file || !previewUrl ? (
@@ -570,16 +405,17 @@ export default function OcrTool() {
                 <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
                   Ctrl+V
                 </kbd>{' '}
-                to paste a screenshot directly
+                to paste directly
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                English · বাংলা (Bengali) · Auto Dark-BG Detection · Zero Uploads
+                Zero Model Downloads · বাংলা &amp; English · Signs, Scans &amp; Handwriting
               </p>
             </div>
           </div>
         ) : (
           <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200/80">
+            {/* Left: Source Preview */}
             <div className="lg:col-span-5 bg-zinc-950 p-4 sm:p-6 flex flex-col justify-between gap-4">
               <div className="flex items-center justify-between gap-2 text-xs text-zinc-400">
                 <span className="truncate font-medium">
@@ -616,31 +452,24 @@ export default function OcrTool() {
               {normalizedBlob && !isRunning && (
                 <button
                   type="button"
-                  onClick={() => void runOcr(normalizedBlob, lang, enhanceText, forceInvert)}
+                  onClick={() => void runGeminiOcr(normalizedBlob, lang)}
                   className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer transition"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Re-run Recognition</span>
+                  <span>Re-run OCR</span>
                 </button>
               )}
             </div>
 
+            {/* Right: Editable Extracted Text */}
             <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-4 bg-white">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="font-bold text-zinc-900">Extracted Text</span>
-                  {confidence !== null && !isRunning && (
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">
-                      {confidence}% confidence
-                    </span>
-                  )}
-                  {didInvert && !isRunning && (
-                    <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold">
-                      Dark-BG Inverted
-                    </span>
-                  )}
                   {elapsedSec !== null && !isRunning && (
-                    <span className="text-zinc-400 tabular-nums">{elapsedSec}s</span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">
+                      Done in {elapsedSec}s
+                    </span>
                   )}
                 </div>
 
@@ -652,23 +481,12 @@ export default function OcrTool() {
               </div>
 
               {isRunning ? (
-                <div className="flex-1 min-h-[280px] flex flex-col items-center justify-center gap-4 px-6 text-center rounded-2xl border border-zinc-200/80 bg-zinc-50/60">
+                <div className="flex-1 min-h-[280px] flex flex-col items-center justify-center gap-3 px-6 text-center rounded-2xl border border-zinc-200/80 bg-zinc-50/60">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                  <div className="w-full max-w-xs space-y-2">
-                    <div className="flex justify-between text-xs font-semibold text-zinc-700 tabular-nums">
-                      <span className="truncate">{progressStatus || 'Scanning...'}</span>
-                      <span>{progressPct}%</span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 transition-all duration-200"
-                        style={{ width: `${Math.max(5, progressPct)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-zinc-500">
-                    Language packs download once and cache locally in your browser
+                  <p className="text-xs font-semibold text-zinc-700">
+                    Reading text with Gemini Vision AI...
                   </p>
+                  <p className="text-[11px] text-zinc-500">Usually finishes in 1–2 seconds</p>
                 </div>
               ) : (
                 <textarea
@@ -723,9 +541,9 @@ export default function OcrTool() {
         )}
       </div>
 
-      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>On-device OCR · Screenshots and scanned documents never leave your browser</span>
+      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500 text-center">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Processed transiently via encrypted Gemini Vision API · Images are never stored by ImageLab</span>
       </p>
     </div>
   );
