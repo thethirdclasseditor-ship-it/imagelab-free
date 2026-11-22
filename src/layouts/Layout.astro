@@ -43,22 +43,25 @@ const navMenus = [
   {
     label: 'Studio',
     items: [
+      { name: 'AI Background Remover', desc: 'On-device HD cutouts', href: '/remove-background' },
+      { name: 'AI Photo Enhancer', desc: 'Neural super-resolution & clarity', href: '/photo-enhancer' },
       { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image' },
-      { name: 'Photo Enhancer', desc: 'AI super-resolution & clarity', href: '/photo-enhancer' },
+      { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image' },
+      { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover' },
       { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image' },
       { name: 'Image to PDF', desc: 'Merge photos into clean A4 PDFs', href: '/image-to-pdf' },
-      { name: 'AI Background Remover', desc: 'On-device HD cutouts', href: '/remove-background' },
     ],
   },
   {
     label: 'Optimize',
     items: [
+      { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg' },
+      { name: 'AVIF to JPG', desc: 'Web AVIF to universal JPG', href: '/avif-to-jpg' },
+      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp' },
+      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg' },
       { name: 'Image Compressor', desc: 'MozJPEG, LibWebP & UPNG', href: '/image-compressor' },
       { name: 'Compress to 50KB', desc: 'Auto-fit portal upload limits', href: '/compress-image-to-50kb' },
       { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb' },
-      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp' },
-      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg' },
-      { name: 'PNG to WEBP', desc: 'Smaller transparent graphics', href: '/png-to-webp' },
     ],
   },
   {
@@ -248,17 +251,21 @@ const navMenus = [
           <div>
             <p class="font-semibold text-zinc-900 text-xs mb-3">Studio</p>
             <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/remove-background" class="hover:text-zinc-950 dark:hover:text-white transition">AI Background Remover</a></li>
+              <li><a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">AI Photo Enhancer</a></li>
               <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop & Rotate</a></li>
-              <li><a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">Photo Enhancer</a></li>
+              <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur & Redact</a></li>
+              <li><a href="/exif-remover" class="hover:text-zinc-950 dark:hover:text-white transition">EXIF Metadata Remover</a></li>
               <li><a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Batch Watermark</a></li>
               <li><a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a></li>
-              <li><a href="/remove-background" class="hover:text-zinc-950 dark:hover:text-white transition">AI Background Remover</a></li>
             </ul>
           </div>
 
           <div>
             <p class="font-semibold text-zinc-900 text-xs mb-3">Optimize</p>
             <ul class="space-y-2 text-xs text-zinc-500">
+              <li><a href="/heic-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">HEIC to JPG</a></li>
+              <li><a href="/avif-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">AVIF to JPG</a></li>
               <li><a href="/jpg-to-webp" class="hover:text-zinc-950 dark:hover:text-white transition">JPG to WEBP</a></li>
               <li><a href="/webp-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">WEBP to JPG</a></li>
               <li><a href="/compress-image-to-50kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 50KB</a></li>
@@ -311,7 +318,6 @@ const navMenus = [
           });
         }
 
-        // Keyboard accessibility: sync aria-expanded & close dropdowns/drawer on Escape
         document.querySelectorAll('.nav-dropdown').forEach(function (wrap) {
           const btn = wrap.querySelector('.nav-dropdown-btn');
           if (!btn) return;
