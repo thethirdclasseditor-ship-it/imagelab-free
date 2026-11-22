@@ -1,4 +1,5 @@
 ---
+import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import OcrTool from '../components/OcrTool';
 import { SEO_PAGES } from '../data/seoPages';
@@ -13,7 +14,7 @@ const description =
 const faqs = [
   {
     q: 'Can this read Bengali (বাংলা), angled signboards, and dark backgrounds?',
-    a: 'Yes. Powered by Gemini Vision AI, ImageLab accurately reads complex Bengali conjuncts (যুক্তবর্ণ), mixed Bangla-English documents, white text on dark backgrounds, and angled real-world photos in 1–2 seconds.',
+    a: 'Yes. Powered by advanced vision AI, ImageLab accurately reads complex Bengali conjuncts (যুক্তবর্ণ), mixed Bangla-English documents, white text on dark backgrounds, and angled real-world photos in 1–2 seconds.',
   },
   {
     q: 'Does it work on handwritten notes?',
@@ -73,7 +74,7 @@ const faqSchema = {
         Image to Text (OCR)
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Extract accurate English, বাংলা &amp; handwritten text in 1–2 seconds — zero model downloads.
+        Extract accurate English, বাংলা &amp; handwritten text in 1–2 seconds — zero downloads.
       </p>
     </header>
 
@@ -82,7 +83,7 @@ const faqSchema = {
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section class="grid sm:grid-cols-3 gap-4">
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">99% Accurate বাংলা &amp; English</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Accurate বাংলা &amp; English</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
             Reads complex Bengali conjuncts, mixed bilingual pages, angled street signs, and dark-background screenshots cleanly.
           </p>
@@ -90,7 +91,7 @@ const faqSchema = {
         <div class="studio-card rounded-2xl p-5">
           <h2 class="font-bold text-zinc-950 text-sm">Instant 1–2 Second Results</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Zero heavy language downloads—press Ctrl+V to paste any screenshot, edit the text, and copy or export .txt right away.
+            Zero heavy downloads—press Ctrl+V to paste any screenshot, edit the text, and copy or export .txt right away.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
@@ -108,9 +109,11 @@ const faqSchema = {
             <details class="group px-6 py-4">
               <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
                 <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
               </summary>
               <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
                 {faq.a}
