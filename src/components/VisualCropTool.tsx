@@ -8,7 +8,7 @@ import {
   FlipVertical2,
   Crop,
   Trash2,
-  ShieldCheck,
+  Lock,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -17,6 +17,9 @@ import {
   processImage,
   formatFileSize,
   validateImageFile,
+  validateMagicBytes,
+  normalizeImageBlob,
+  MAX_SAFE_CANVAS_PIXELS,
   type SupportedFormat,
   type ProcessedImageResult,
 } from '../engine/imageEngine';
@@ -32,7 +35,7 @@ interface CropBox {
 interface AspectOption {
   id: string;
   label: string;
-  ratio: number | null; // width / height, null = freeform
+  ratio: number | null;
   outW?: number;
   outH?: number;
   targetKB?: number;
@@ -41,7 +44,7 @@ interface AspectOption {
 const ASPECT_OPTIONS: AspectOption[] = [
   { id: 'free', label: 'Freeform', ratio: null },
   { id: '1:1', label: '1:1 Square', ratio: 1 },
-  { id: 'job', label: '300×300 Job (<100KB)', ratio: 1, outW: 300, outH: 300, targetKB: 100 },
+  { id: 'square300', label: '300×300 (<100KB)', ratio: 1, outW: 300, outH: 300, targetKB: 100 },
   { id: 'sig', label: '300×80 Sign (<60KB)', ratio: 300 / 80, outW: 300, outH: 80, targetKB: 60 },
   { id: '16:9', label: '16:9 YouTube', ratio: 16 / 9 },
   { id: '4:5', label: '4:5 Instagram', ratio: 4 / 5 },
@@ -60,14 +63,18 @@ export default function VisualCropTool() {
   const [format, setFormat] = useState<SupportedFormat>('image/jpeg');
   const [quality, setQuality] = useState<number>(88);
 
+  const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportResult, setExportResult] = useState<ProcessedImageResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragDepthRef = useRef(0);
+  const trackedUrlsRef = useRef<Set<string>>(new Set());
+  const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
   const dragStateRef = useRef<{
     action: DragAction;
     startX: number;
@@ -75,15 +82,24 @@ export default function VisualCropTool() {
     startCrop: CropBox;
   } | null>(null);
 
+  const trackUrl = (url: string) => {
+    trackedUrlsRef.current.add(url);
+    return url;
+  };
+
+  const releaseUrl = (url?: string | null) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    trackedUrlsRef.current.delete(url);
+  };
+
+  // Unmount-only cleanup so saving an export NEVER revokes the live previewUrl
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      if (exportResult) {
-        URL.revokeObjectURL(exportResult.url);
-        URL.revokeObjectURL(exportResult.originalUrl);
-      }
+      trackedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      trackedUrlsRef.current.clear();
     };
-  }, [previewUrl, exportResult]);
+  }, []);
 
   const computeCenteredAspectBox = (ratio: number | null, natW: number, natH: number): CropBox => {
     if (!ratio || natW <= 0 || natH <= 0) {
@@ -110,21 +126,102 @@ export default function VisualCropTool() {
     };
   };
 
-  const handleFileSelect = (incoming: FileList | null) => {
-    if (!incoming || incoming.length === 0) return;
-    const picked = incoming[0];
+  const loadSelectedFile = async (picked: File) => {
     const err = validateImageFile(picked);
     if (err) {
       setErrorMsg(err);
       return;
     }
+    const sigErr = await validateMagicBytes(picked);
+    if (sigErr) {
+      setErrorMsg(sigErr);
+      return;
+    }
 
     setErrorMsg(null);
-    setExportResult(null);
-    setWorkingFile(picked);
-    setPreviewUrl(URL.createObjectURL(picked));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsLoadingFile(true);
+    if (exportResult) {
+      releaseUrl(exportResult.url);
+      releaseUrl(exportResult.originalUrl);
+      setExportResult(null);
+    }
+
+    try {
+      const normalized = await normalizeImageBlob(picked);
+      const safeFile =
+        normalized === picked
+          ? picked
+          : new File([normalized], picked.name.replace(/\.[^/.]+$/, '.jpg'), {
+              type: normalized.type || 'image/jpeg',
+            });
+
+      releaseUrl(previewUrl);
+      setWorkingFile(safeFile);
+      setPreviewUrl(trackUrl(URL.createObjectURL(normalized)));
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Could not open this image.');
+    } finally {
+      setIsLoadingFile(false);
+    }
   };
+
+  const handleFileSelect = (incoming: FileList | null) => {
+    if (!incoming || incoming.length === 0) return;
+    const picked = incoming[0];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    void loadSelectedFile(picked);
+  };
+
+  selectHandlerRef.current = handleFileSelect;
+
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) =>
+      Boolean(e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files'));
+
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setIsGlobalDragging(true);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setIsGlobalDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsGlobalDragging(false);
+      if (e.dataTransfer?.files?.length) selectHandlerRef.current(e.dataTransfer.files);
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      const files = e.clipboardData?.files;
+      if (files?.length && Array.from(files).some((f) => f.type.startsWith('image/'))) {
+        e.preventDefault();
+        selectHandlerRef.current(files);
+      }
+    };
+
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, []);
 
   const handleImageLoaded = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -136,16 +233,25 @@ export default function VisualCropTool() {
 
   const handleAspectSelect = (opt: AspectOption) => {
     setSelectedAspect(opt);
-    setExportResult(null);
+    if (exportResult) {
+      releaseUrl(exportResult.url);
+      releaseUrl(exportResult.originalUrl);
+      setExportResult(null);
+    }
     if (opt.targetKB) setFormat('image/jpeg');
     setCrop(computeCenteredAspectBox(opt.ratio, naturalDims.w, naturalDims.h));
   };
 
-  // Bake rotate/flip directly into working image so crop coordinates stay 100% WYSIWYG
+  // Enforce 16MP canvas cap on Rotate/Flip so 48MP photos never blank out on iOS Safari
   const applyTransform = async (mode: 'rotL' | 'rotR' | 'flipH' | 'flipV') => {
     if (!previewUrl || !workingFile || isTransforming) return;
     setIsTransforming(true);
-    setExportResult(null);
+    setErrorMsg(null);
+    if (exportResult) {
+      releaseUrl(exportResult.url);
+      releaseUrl(exportResult.originalUrl);
+      setExportResult(null);
+    }
 
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -156,28 +262,44 @@ export default function VisualCropTool() {
       });
 
       const isRot = mode === 'rotL' || mode === 'rotR';
+      let drawW = img.naturalWidth;
+      let drawH = img.naturalHeight;
+
+      if (drawW * drawH > MAX_SAFE_CANVAS_PIXELS) {
+        const s = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (drawW * drawH));
+        drawW = Math.max(1, Math.floor(drawW * s));
+        drawH = Math.max(1, Math.floor(drawH * s));
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = isRot ? img.naturalHeight : img.naturalWidth;
-      canvas.height = isRot ? img.naturalWidth : img.naturalHeight;
+      canvas.width = isRot ? drawH : drawW;
+      canvas.height = isRot ? drawW : drawH;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas unavailable.');
 
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.translate(canvas.width / 2, canvas.height / 2);
       if (mode === 'rotR') ctx.rotate(Math.PI / 2);
       if (mode === 'rotL') ctx.rotate(-Math.PI / 2);
       if (mode === 'flipH') ctx.scale(-1, 1);
       if (mode === 'flipV') ctx.scale(1, -1);
-      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
 
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Transform encode failed.'))), 'image/png');
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Transform encode failed.'))),
+          'image/png'
+        );
       });
       canvas.width = 0;
       canvas.height = 0;
 
       const updatedFile = new File([blob], workingFile.name, { type: 'image/png' });
+      const nextUrl = trackUrl(URL.createObjectURL(blob));
+      releaseUrl(previewUrl);
       setWorkingFile(updatedFile);
-      setPreviewUrl(URL.createObjectURL(blob));
+      setPreviewUrl(nextUrl);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Transform failed.');
     } finally {
@@ -185,7 +307,6 @@ export default function VisualCropTool() {
     }
   };
 
-  // Pointer drag/resize math
   const startDrag = (action: DragAction, e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -198,6 +319,7 @@ export default function VisualCropTool() {
     };
   };
 
+  // Supports both horizontal AND vertical drag smoothly when aspect ratio is locked
   const onPointerMove = (e: React.PointerEvent) => {
     const st = dragStateRef.current;
     const boxEl = containerRef.current;
@@ -218,59 +340,56 @@ export default function VisualCropTool() {
       return;
     }
 
-    let nx = s.x;
-    let ny = s.y;
-    let nw = s.w;
-    let nh = s.h;
+    const isWest = st.action.includes('w');
+    const isNorth = st.action.includes('n');
+    const anchorX = isWest ? s.x + s.w : s.x;
+    const anchorY = isNorth ? s.y + s.h : s.y;
+    const maxW = isWest ? anchorX : 100 - anchorX;
+    const maxH = isNorth ? anchorY : 100 - anchorY;
 
-    if (st.action.includes('e')) {
-      nw = Math.max(minSize, Math.min(100 - s.x, s.w + dxPct));
-    }
-    if (st.action.includes('w')) {
-      const clampedDx = Math.max(-s.x, Math.min(s.w - minSize, dxPct));
-      nx = s.x + clampedDx;
-      nw = s.w - clampedDx;
-    }
-    if (st.action.includes('s')) {
-      nh = Math.max(minSize, Math.min(100 - s.y, s.h + dyPct));
-    }
-    if (st.action.includes('n')) {
-      const clampedDy = Math.max(-s.y, Math.min(s.h - minSize, dyPct));
-      ny = s.y + clampedDy;
-      nh = s.h - clampedDy;
-    }
+    const rawW = isWest ? s.w - dxPct : s.w + dxPct;
+    const rawH = isNorth ? s.h - dyPct : s.h + dyPct;
 
-    // Enforce locked aspect ratio cleanly
+    let nw = Math.max(minSize, Math.min(maxW, rawW));
+    let nh = Math.max(minSize, Math.min(maxH, rawH));
+
     if (selectedAspect.ratio) {
       const imgRatio = naturalDims.w / naturalDims.h;
-      const targetH = (nw / selectedAspect.ratio) * imgRatio;
-      if (st.action.includes('n')) {
-        const bottom = s.y + s.h;
-        if (bottom - targetH >= 0 && targetH >= minSize) {
-          nh = targetH;
-          ny = bottom - nh;
-        } else {
-          nh = Math.min(bottom, Math.max(minSize, targetH));
-          nw = (nh * selectedAspect.ratio) / imgRatio;
-          ny = bottom - nh;
-          if (st.action.includes('w')) nx = s.x + s.w - nw;
+      const ratio = selectedAspect.ratio;
+
+      if (Math.abs(dyPct) > Math.abs(dxPct)) {
+        nh = Math.max(minSize, Math.min(maxH, rawH));
+        nw = (nh * ratio) / imgRatio;
+        if (nw > maxW) {
+          nw = maxW;
+          nh = (nw * imgRatio) / ratio;
+        }
+        if (nw < minSize) {
+          nw = Math.min(maxW, minSize);
+          nh = (nw * imgRatio) / ratio;
         }
       } else {
-        if (ny + targetH <= 100 && targetH >= minSize) {
-          nh = targetH;
-        } else {
-          nh = Math.max(minSize, 100 - ny);
-          nw = (nh * selectedAspect.ratio) / imgRatio;
-          if (st.action.includes('w')) nx = s.x + s.w - nw;
+        nw = Math.max(minSize, Math.min(maxW, rawW));
+        nh = (nw * imgRatio) / ratio;
+        if (nh > maxH) {
+          nh = maxH;
+          nw = (nh * ratio) / imgRatio;
+        }
+        if (nh < minSize) {
+          nh = Math.min(maxH, minSize);
+          nw = (nh * ratio) / imgRatio;
         }
       }
     }
 
+    const nx = isWest ? anchorX - nw : anchorX;
+    const ny = isNorth ? anchorY - nh : anchorY;
+
     setCrop({
       x: Math.max(0, Math.min(100 - minSize, nx)),
       y: Math.max(0, Math.min(100 - minSize, ny)),
-      w: Math.max(minSize, Math.min(100 - nx, nw)),
-      h: Math.max(minSize, Math.min(100 - ny, nh)),
+      w: Math.max(minSize, Math.min(100 - Math.max(0, nx), nw)),
+      h: Math.max(minSize, Math.min(100 - Math.max(0, ny), nh)),
     });
   };
 
@@ -304,6 +423,14 @@ export default function VisualCropTool() {
         targetSizeKB: selectedAspect.targetKB,
       });
 
+      trackUrl(res.url);
+      trackUrl(res.originalUrl);
+
+      if (exportResult) {
+        releaseUrl(exportResult.url);
+        releaseUrl(exportResult.originalUrl);
+      }
+
       setExportResult(res);
       downloadSingleImage(res);
     } catch (err) {
@@ -314,6 +441,11 @@ export default function VisualCropTool() {
   };
 
   const resetAll = () => {
+    releaseUrl(previewUrl);
+    if (exportResult) {
+      releaseUrl(exportResult.url);
+      releaseUrl(exportResult.originalUrl);
+    }
     setWorkingFile(null);
     setPreviewUrl(null);
     setExportResult(null);
@@ -321,7 +453,7 @@ export default function VisualCropTool() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="space-y-4 animate-fade-up">
       <input
         ref={fileInputRef}
         type="file"
@@ -330,255 +462,281 @@ export default function VisualCropTool() {
         onChange={(e) => handleFileSelect(e.target.files)}
       />
 
-      {!previewUrl ? (
-        <div className="p-6 sm:p-10">
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Upload image to crop"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDraggingFile(true);
-            }}
-            onDragLeave={() => setIsDraggingFile(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDraggingFile(false);
-              handleFileSelect(e.dataTransfer.files);
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl py-12 px-4 text-center cursor-pointer transition-all ${
-              isDraggingFile
-                ? 'border-blue-500 bg-blue-50/60'
-                : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50'
-            }`}
-          >
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Crop className="w-7 h-7" />
+      {isGlobalDragging && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
+          <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
+              <Upload className="w-7 h-7" />
             </div>
-            <p className="font-bold text-slate-900 text-lg">Select Photo to Crop & Rotate</p>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Drag corners visually · Exact Job/Signature & Social ratios · 100% Local
+            <p className="text-xl font-bold text-zinc-950 dark:text-white">
+              Release to Open in Cropper
             </p>
           </div>
         </div>
-      ) : (
-        <div className="divide-y divide-slate-200">
-          {/* Top Toolbar: Aspect Ratios + Rotate/Flip */}
-          <div className="p-3 sm:p-4 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              {ASPECT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => handleAspectSelect(opt)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                    selectedAspect.id === opt.id
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+      )}
 
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={isTransforming}
-                onClick={() => applyTransform('rotL')}
-                title="Rotate Left 90°"
-                className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={isTransforming}
-                onClick={() => applyTransform('rotR')}
-                title="Rotate Right 90°"
-                className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
-              >
-                <RotateCw className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={isTransforming}
-                onClick={() => applyTransform('flipH')}
-                title="Flip Horizontal"
-                className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
-              >
-                <FlipHorizontal2 className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={isTransforming}
-                onClick={() => applyTransform('flipV')}
-                title="Flip Vertical"
-                className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
-              >
-                <FlipVertical2 className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={resetAll}
-                title="Remove Image"
-                className="p-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-600 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Visual Interactive Crop Canvas */}
-          <div className="bg-slate-900 p-4 sm:p-6 flex items-center justify-center select-none overflow-hidden">
-            <div ref={containerRef} className="relative inline-block max-w-full leading-none">
-              <img
-                src={previewUrl}
-                alt="Crop target"
-                draggable={false}
-                onLoad={handleImageLoaded}
-                className="block max-h-[54vh] max-w-full w-auto h-auto object-contain pointer-events-none"
-              />
-
-              {/* Darkened Outside Mask + Draggable Crop Box */}
-              <div
-                onPointerDown={(e) => startDrag('move', e)}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-                style={{
-                  left: `${crop.x}%`,
-                  top: `${crop.y}%`,
-                  width: `${crop.w}%`,
-                  height: `${crop.h}%`,
-                  boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.62)',
-                }}
-                className="absolute border-2 border-white cursor-move touch-none"
-              >
-                {/* Rule-of-thirds visual guides */}
-                <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
-                  <div className="border-r border-b border-white/30" />
-                  <div className="border-r border-b border-white/30" />
-                  <div className="border-b border-white/30" />
-                  <div className="border-r border-b border-white/30" />
-                  <div className="border-r border-b border-white/30" />
-                  <div className="border-b border-white/30" />
-                  <div className="border-r border-white/30" />
-                  <div className="border-r border-white/30" />
-                  <div />
-                </div>
-
-                {/* Live Pixel Dimension Pill */}
-                <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-950/90 text-white text-[11px] font-bold whitespace-nowrap">
-                  {selectedAspect.outW && selectedAspect.outH
-                    ? `${selectedAspect.outW}×${selectedAspect.outH} px`
-                    : `${pixelW}×${pixelH} px`}
-                </div>
-
-                {/* 4 Touch-Friendly Corner Resize Handles */}
-                {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => {
-                  const posClass =
-                    corner === 'nw'
-                      ? '-top-2.5 -left-2.5 cursor-nwse-resize'
-                      : corner === 'ne'
-                        ? '-top-2.5 -right-2.5 cursor-nesw-resize'
-                        : corner === 'sw'
-                          ? '-bottom-2.5 -left-2.5 cursor-nesw-resize'
-                          : '-bottom-2.5 -right-2.5 cursor-nwse-resize';
-                  return (
-                    <div
-                      key={corner}
-                      onPointerDown={(e) => startDrag(corner, e)}
-                      onPointerMove={onPointerMove}
-                      onPointerUp={endDrag}
-                      onPointerCancel={endDrag}
-                      className={`absolute w-5 h-5 rounded-full bg-blue-600 border-2 border-white shadow-md touch-none ${posClass}`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Export Controls Bar */}
-          <div className="p-4 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-              <select
-                aria-label="Export format"
-                value={format}
-                onChange={(e) => setFormat(e.target.value as SupportedFormat)}
-                className="bg-white border border-slate-300 rounded-lg px-2.5 py-2 font-semibold text-xs sm:text-sm"
-              >
-                <option value="image/jpeg">JPG (MozJPEG)</option>
-                <option value="image/webp">WEBP (Smallest)</option>
-                <option value="image/png">PNG (UPNG)</option>
-              </select>
-
-              {!selectedAspect.targetKB && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-600">Quality {quality}%</span>
-                  <input
-                    type="range"
-                    min={20}
-                    max={100}
-                    value={quality}
-                    onChange={(e) => setQuality(Number(e.target.value))}
-                    className="w-24 accent-blue-600"
-                  />
-                </div>
-              )}
-
-              {exportResult && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Saved ({formatFileSize(exportResult.newSize)})
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              disabled={isExporting || isTransforming}
-              onClick={handleCropAndExport}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white text-sm font-semibold shadow-sm cursor-pointer"
+      <div className="studio-card rounded-3xl overflow-hidden">
+        {!previewUrl ? (
+          <div className="p-6 sm:p-10">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload image to crop"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className="group min-h-[320px] sm:min-h-[360px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 hover:border-blue-500/70 bg-zinc-50/60 hover:bg-blue-50/20 dark:hover:bg-blue-950/15 p-8 text-center cursor-pointer transition-all"
             >
-              {isExporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Cropping...</span>
-                </>
+              {isLoadingFile ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <p className="text-sm font-semibold text-zinc-700">Decoding image...</p>
+                </div>
               ) : (
                 <>
-                  <Download className="w-4 h-4" />
-                  <span>Crop & Download</span>
+                  <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
+                    <Crop className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                  </div>
+                  <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
+                    Select Photo to Crop
+                  </span>
+                  <p className="text-xs sm:text-sm text-zinc-500 mt-4">
+                    Drop anywhere or press{' '}
+                    <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
+                      Ctrl+V
+                    </kbd>
+                  </p>
                 </>
               )}
-            </button>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="divide-y divide-zinc-200/80">
+            {/* Top Toolbar */}
+            <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-1.5">
+                {ASPECT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleAspectSelect(opt)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      selectedAspect.id === opt.id
+                        ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                        : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
-      {errorMsg && (
-        <div className="m-4 flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={isTransforming}
+                  onClick={() => void applyTransform('rotL')}
+                  title="Rotate Left 90°"
+                  aria-label="Rotate Left 90 degrees"
+                  className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isTransforming}
+                  onClick={() => void applyTransform('rotR')}
+                  title="Rotate Right 90°"
+                  aria-label="Rotate Right 90 degrees"
+                  className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isTransforming}
+                  onClick={() => void applyTransform('flipH')}
+                  title="Flip Horizontal"
+                  aria-label="Flip Horizontal"
+                  className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
+                >
+                  <FlipHorizontal2 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isTransforming}
+                  onClick={() => void applyTransform('flipV')}
+                  title="Flip Vertical"
+                  aria-label="Flip Vertical"
+                  className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 cursor-pointer"
+                >
+                  <FlipVertical2 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  title="Remove Image"
+                  aria-label="Remove Image"
+                  className="p-2 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-      <div className="px-4 py-3 border-t border-slate-200 text-center">
-        <p className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>100% Private Visual Cropper · Exported with MozJPEG & LibWebP locally.</span>
-        </p>
+            {/* Visual Interactive Crop Stage */}
+            <div className="bg-zinc-950 p-6 sm:p-8 flex items-center justify-center select-none overflow-hidden">
+              <div ref={containerRef} className="relative inline-block max-w-full leading-none">
+                <img
+                  src={previewUrl}
+                  alt="Crop target"
+                  draggable={false}
+                  onLoad={handleImageLoaded}
+                  className="block max-h-[54vh] max-w-full w-auto h-auto object-contain pointer-events-none"
+                />
+
+                <div
+                  onPointerDown={(e) => startDrag('move', e)}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  style={{
+                    left: `${crop.x}%`,
+                    top: `${crop.y}%`,
+                    width: `${crop.w}%`,
+                    height: `${crop.h}%`,
+                    boxShadow: '0 0 0 9999px rgba(9, 9, 11, 0.65)',
+                  }}
+                  className="absolute border-2 border-white cursor-move touch-none"
+                >
+                  {/* Rule of Thirds Grid */}
+                  <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
+                    <div className="border-r border-b border-white/30" />
+                    <div className="border-r border-b border-white/30" />
+                    <div className="border-b border-white/30" />
+                    <div className="border-r border-b border-white/30" />
+                    <div className="border-r border-b border-white/30" />
+                    <div className="border-b border-white/30" />
+                    <div className="border-r border-white/30" />
+                    <div className="border-r border-white/30" />
+                    <div />
+                  </div>
+
+                  {/* Live Dimension Pill */}
+                  <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-md bg-zinc-950/90 text-white text-[11px] font-semibold whitespace-nowrap tabular-nums">
+                    {selectedAspect.outW && selectedAspect.outH
+                      ? `${selectedAspect.outW}×${selectedAspect.outH} px`
+                      : `${pixelW}×${pixelH} px`}
+                  </div>
+
+                  {/* 4 Touch-Friendly 44×44px Hit-Target Corner Handles */}
+                  {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => {
+                    const posClass =
+                      corner === 'nw'
+                        ? '-top-5 -left-5 cursor-nwse-resize'
+                        : corner === 'ne'
+                          ? '-top-5 -right-5 cursor-nesw-resize'
+                          : corner === 'sw'
+                            ? '-bottom-5 -left-5 cursor-nesw-resize'
+                            : '-bottom-5 -right-5 cursor-nwse-resize';
+                    return (
+                      <div
+                        key={corner}
+                        onPointerDown={(e) => startDrag(corner, e)}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={endDrag}
+                        onPointerCancel={endDrag}
+                        className={`absolute w-11 h-11 flex items-center justify-center touch-none ${posClass}`}
+                      >
+                        <span className="w-5 h-5 rounded-full bg-blue-600 border-2 border-white shadow-md pointer-events-none" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Export Controls Bar */}
+            <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+                <select
+                  aria-label="Export format"
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as SupportedFormat)}
+                  className="bg-white border border-zinc-300 rounded-xl px-3 py-2 font-semibold text-xs"
+                >
+                  <option value="image/jpeg">JPG · MozJPEG</option>
+                  <option value="image/webp">WEBP · LibWebP</option>
+                  <option value="image/png">PNG · UPNG</option>
+                </select>
+
+                {!selectedAspect.targetKB && (
+                  <div className="flex items-center gap-2 tabular-nums">
+                    <span className="text-xs font-semibold text-zinc-600">Q{quality}</span>
+                    <input
+                      type="range"
+                      min={20}
+                      max={100}
+                      value={quality}
+                      onChange={(e) => setQuality(Number(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                )}
+
+                {exportResult && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      Saved ({formatFileSize(exportResult.newSize)} · {exportResult.encoderUsed})
+                    </span>
+                    {exportResult.warning && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        · {exportResult.warning}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={isExporting || isTransforming}
+                onClick={() => void handleCropAndExport()}
+                className="btn-studio-accent w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl disabled:opacity-40 text-xs sm:text-sm font-semibold cursor-pointer"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Cropping...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Crop & Download</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
       </div>
+
+      <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Processed locally in your browser · Zero uploads</span>
+      </p>
     </div>
   );
 }
