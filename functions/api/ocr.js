@@ -1,5 +1,4 @@
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const MAX_BASE64_LENGTH = 8_000_000; // ~6MB binary safety cap
 const FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 let cachedWorkingModel = null;
@@ -12,6 +11,20 @@ function jsonResponse(payload, status = 200) {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+function isAllowedOrigin(request) {
+  const originHeader = request.headers.get('Origin');
+  if (!originHeader) return true;
+  try {
+    const reqHost = new URL(request.url).host;
+    const originHost = new URL(originHeader).host;
+    if (originHost === reqHost) return true;
+    if (originHost.startsWith('localhost:') || originHost.startsWith('127.0.0.1:')) return true;
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function buildPrompt(language) {
@@ -56,7 +69,6 @@ async function discoverFlashModels(apiKey) {
           : [];
         if (!methods.includes('generateContent')) return false;
         if (!name.includes('gemini') || !name.includes('flash')) return false;
-        // Skip retired (1.x/2.0) and specialized non-OCR models
         if (/tts|audio|live|image|embed|aqa|robotics|computer-use|1\.0|1\.5|2\.0/.test(name)) {
           return false;
         }
@@ -83,6 +95,19 @@ async function discoverFlashModels(apiKey) {
 }
 
 export async function onRequestPost(context) {
+  // Instant remote kill-switch via Cloudflare Pages Settings -> Variables and secrets (OCR_DISABLED=true)
+  if (String(context.env?.OCR_DISABLED || '').toLowerCase() === 'true') {
+    return jsonResponse(
+      { error: 'Image to Text (OCR) is temporarily paused for maintenance. Please check back shortly.' },
+      503
+    );
+  }
+
+  // Prevent external websites from hotlinking/leeching your OCR endpoint
+  if (!isAllowedOrigin(context.request)) {
+    return jsonResponse({ error: 'Cross-origin OCR requests are not allowed.' }, 403);
+  }
+
   const apiKey = context.env?.GEMINI_API_KEY;
   if (!apiKey) {
     return jsonResponse(
@@ -101,6 +126,9 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Invalid request body.' }, 400);
   }
 
+  const maxMb = Math.max(1, Math.min(12, Number(context.env?.OCR_MAX_MB) || 6));
+  const maxBase64Length = Math.round(maxMb * 1_350_000);
+
   const rawBase64 = typeof body?.imageBase64 === 'string' ? body.imageBase64.trim() : '';
   const mimeType = typeof body?.mimeType === 'string' ? body.mimeType.trim() : 'image/jpeg';
   const language = typeof body?.language === 'string' ? body.language.trim() : 'auto';
@@ -109,8 +137,11 @@ export async function onRequestPost(context) {
   if (!cleanBase64) {
     return jsonResponse({ error: 'No image data received.' }, 400);
   }
-  if (cleanBase64.length > MAX_BASE64_LENGTH) {
-    return jsonResponse({ error: 'Image is too large for OCR. Please try a smaller photo.' }, 413);
+  if (cleanBase64.length > maxBase64Length) {
+    return jsonResponse(
+      { error: `Image is too large for OCR (max ${maxMb}MB). Please try a smaller photo.` },
+      413
+    );
   }
   if (!ALLOWED_MIMES.has(mimeType)) {
     return jsonResponse({ error: 'Unsupported image format for OCR.' }, 400);
@@ -162,16 +193,14 @@ export async function onRequestPost(context) {
       if (upstream.ok) {
         cachedWorkingModel = model;
         const parts = data?.candidates?.[0]?.content?.parts || [];
-        // Ignore internal thinking parts if returned by newer Gemini Flash models
         const rawText = parts
           .filter((p) => !p?.thought && typeof p?.text === 'string')
           .map((p) => p.text)
           .join('');
         const text = cleanModelOutput(rawText);
-        return jsonResponse({ text, model }, 200);
+        return jsonResponse({ text }, 200);
       }
 
-      // Clear cached model if it stopped working
       if (cachedWorkingModel === model) {
         cachedWorkingModel = null;
       }
@@ -179,14 +208,14 @@ export async function onRequestPost(context) {
       const apiMsg = data?.error?.message || '';
       if (upstream.status === 401 || upstream.status === 403 || /api key/i.test(apiMsg)) {
         return jsonResponse(
-          { error: apiMsg || 'Gemini API key was rejected. Verify GEMINI_API_KEY in Cloudflare.' },
-          upstream.status
+          { error: 'OCR service authentication failed. Please contact the site administrator.' },
+          503
         );
       }
 
       if (upstream.status === 429) {
         lastStatus = 429;
-        lastErrorMsg = 'Free AI quota is busy right now. Wait 10–15 seconds and click Re-run OCR.';
+        lastErrorMsg = 'OCR service is busy right now. Please wait 10–15 seconds and click Re-run OCR.';
         continue;
       }
 
