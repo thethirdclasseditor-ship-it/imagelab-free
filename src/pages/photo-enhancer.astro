@@ -1,129 +1,83 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import LiveEnhancerTool from '../components/LiveEnhancerTool';
-import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
-const pageUrl = `${siteBase}/photo-enhancer`;
-
-const title = 'AI Photo Enhancer & 4× Upscaler Free | ImageLab';
+const title = 'AI Photo Enhancer & Upscaler (Coming Soon) | ImageLab';
 const description =
-  'Restore blurry, compressed, and low-resolution photos using real Swin2SR neural super-resolution directly in your browser. Zero uploads, batch queue, free HD download.';
-
-const faqs = [
-  {
-    q: 'How is this different from regular photo sharpening tools?',
-    a: 'Regular tools only boost contrast along edges, which creates gritty artifacts. ImageLab runs Swin2SR neural super-resolution on WebGPU/WASM to remove blur and compression blocks while reconstructing cleaner textures.',
-  },
-  {
-    q: 'When should I pick Fast AI 2× vs Deep 4×?',
-    a: 'Use Fast AI 2× for quick everyday clarity on social media or compressed phone photos. Switch to Deep 4× (BSRGAN) for very small or heavily compressed images where you want maximum restoration.',
-  },
-  {
-    q: 'Can I upload multiple photos while one is still restoring?',
-    a: 'Yes. You can drop up to 10 photos anywhere on the page; newest uploads appear at the top of the queue and process automatically in the background.',
-  },
-  {
-    q: 'Are my photos sent to an external server?',
-    a: 'No. Only the open-source AI model weights are fetched and cached once from CDN; your photos are processed 100% locally inside your browser.',
-  },
-];
-
-const softwareSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: 'ImageLab AI Photo Enhancer & 4x Upscaler',
-  url: pageUrl,
-  applicationCategory: 'MultimediaApplication',
-  operatingSystem: 'All',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  description,
-};
-
-const breadcrumbSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
-    { '@type': 'ListItem', position: 2, name: 'AI Photo Enhancer', item: pageUrl },
-  ],
-};
-
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqs.map((item) => ({
-    '@type': 'Question',
-    name: item.q,
-    acceptedAnswer: { '@type': 'Answer', text: item.a },
-  })),
-};
+  'ImageLab AI Photo Enhancer is upgrading to fast, high-definition neural restoration with zero browser model downloads. Coming soon.';
 ---
 
-<Layout
-  title={title}
-  description={description}
-  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
->
-  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
-    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
-      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
-      <span class="opacity-40">/</span>
-      <span class="text-zinc-700 font-medium">AI Photo Enhancer</span>
-    </nav>
-
-    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
-      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        AI Photo Enhancer & Upscaler
-      </h1>
-      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        On-device Swin2SR neural restoration — clear up soft photos and compression blocks locally.
-      </p>
-    </header>
-
-    <LiveEnhancerTool client:only="react">
-      <div
-        slot="fallback"
-        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
-      >
-        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
-        <p class="text-xs font-semibold text-zinc-500">Loading AI Photo Enhancer...</p>
+<Layout title={title} description={description} noindex={true}>
+  <article class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-16 animate-fade-up">
+    <div class="studio-card rounded-3xl p-8 sm:p-14 text-center space-y-6">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/12 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-bold tracking-wide uppercase">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        Coming Soon
       </div>
-    </LiveEnhancerTool>
 
-    <div class="max-w-4xl mx-auto mt-16 space-y-10">
-      <section>
-        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
-        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
-          {faqs.map((faq) => (
-            <details class="group px-6 py-4">
-              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
-                <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </summary>
-              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
-                {faq.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </section>
+      <div class="w-16 h-16 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="21" x2="14" y1="4" y2="4" />
+          <line x1="10" x2="3" y1="4" y2="4" />
+          <line x1="21" x2="12" y1="12" y2="12" />
+          <line x1="8" x2="3" y1="12" y2="12" />
+          <line x1="21" x2="16" y1="20" y2="20" />
+          <line x1="12" x2="3" y1="20" y2="20" />
+          <circle cx="12" cy="4" r="2" />
+          <circle cx="10" cy="12" r="2" />
+          <circle cx="14" cy="20" r="2" />
+        </svg>
+      </div>
 
-      <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
-        <div class="flex flex-wrap gap-2">
-          {SEO_PAGES.slice(0, 8).map((item) => (
-            <a
-              href={`/${item.slug}`}
-              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
-            >
-              {item.shortName}
-            </a>
-          ))}
+      <div class="max-w-xl mx-auto space-y-3">
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-950 leading-[1.12]">
+          AI Photo Enhancer &amp; Upscaler
+        </h1>
+        <p class="text-sm sm:text-base text-zinc-500 leading-relaxed">
+          This tool is currently unavailable while we upgrade it to true high-definition AI face &amp; detail restoration—fast, crisp, and without slow browser downloads.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-3 max-w-2xl mx-auto pt-2 text-left">
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">True HD Clarity</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Restores soft, blurry photos naturally without harsh sharpening artifacts.</p>
         </div>
-      </nav>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">Seconds, Not Minutes</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Accelerated restoration with zero large files downloaded to your phone.</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">Live Split Compare</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Inspect before and after at 2× zoom before saving your HD copy.</p>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-zinc-200/80 space-y-3">
+        <p class="text-xs font-semibold text-zinc-500">Need quick lighting or clarity adjustments right now?</p>
+        <div class="flex flex-wrap items-center justify-center gap-2.5">
+          <a href="/auto-enhance-photo" class="btn-studio-accent px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold">
+            Batch Color &amp; Light Enhancer
+          </a>
+          <a
+            href="/brighten-dark-photo"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            Brighten Dark Photo
+          </a>
+          <a
+            href="/image-to-text"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            Image to Text (OCR)
+          </a>
+          <a
+            href="/"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            Back to Studio
+          </a>
+        </div>
+      </div>
     </div>
   </article>
 </Layout>
