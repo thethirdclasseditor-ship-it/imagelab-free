@@ -1,150 +1,75 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import BgRemoverTool from '../components/BgRemoverTool';
-import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
-const pageUrl = `${siteBase}/remove-background`;
-
-const title = 'AI Background Remover Free Online (HD) | ImageLab';
+const title = 'AI Background Remover (Coming Soon) | ImageLab';
 const description =
-  'Remove image backgrounds automatically in HD inside your browser using BiRefNet AI. Refine edges with Edge Softness and Erase/Restore brushes, swap colors, and export 300×300 portraits.';
-
-const faqs = [
-  {
-    q: 'What makes Studio HD different from Fast Lite mode?',
-    a: 'Studio HD runs MIT-licensed BiRefNet_lite (512px) for high-precision cutouts across portraits, products, animals, and objects. Fast Lite runs Apache-2.0 MODNet—ultra-lightweight and fast on older phones for quick portrait matting.',
-  },
-  {
-    q: 'Can I fix edges if the AI misses fine hair or glass?',
-    a: 'Yes. Switch to the Erase or Restore brush right above the preview to paint out leftover background or bring back missed details, and dial Edge Softness (0–4) for natural anti-aliased transitions.',
-  },
-  {
-    q: 'Does ImageLab upload my photo to remove the background?',
-    a: 'No. Segmentation runs 100% locally inside your browser on WebGPU or WebAssembly. Only the open-source AI weights are cached once from CDN.',
-  },
-  {
-    q: 'Can I replace the background with white or export a 300×300 portrait?',
-    a: 'Yes. Pick Transparent PNG, White, Light Blue, Sky Blue, Gray, or any custom hex color—then export full-resolution HD, save a 300×300 portrait under 100KB, or click Continue to crop or compress further.',
-  },
-];
-
-const softwareSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: 'ImageLab AI Background Remover',
-  url: pageUrl,
-  applicationCategory: 'MultimediaApplication',
-  operatingSystem: 'All',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  description,
-};
-
-const breadcrumbSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
-    { '@type': 'ListItem', position: 2, name: 'AI Background Remover', item: pageUrl },
-  ],
-};
-
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqs.map((item) => ({
-    '@type': 'Question',
-    name: item.q,
-    acceptedAnswer: { '@type': 'Answer', text: item.a },
-  })),
-};
+  'ImageLab AI Background Remover is upgrading to instant studio-grade cloud cutouts with zero browser model downloads. Coming soon.';
 ---
 
-<Layout
-  title={title}
-  description={description}
-  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
->
-  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
-    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
-      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
-      <span class="opacity-40">/</span>
-      <span class="text-zinc-700 font-medium">AI Background Remover</span>
-    </nav>
-
-    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
-      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        AI Background Remover
-      </h1>
-      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        On-device BiRefNet HD cutouts with Edge Softness and manual Erase/Restore touch-up brushes.
-      </p>
-    </header>
-
-    <BgRemoverTool client:only="react">
-      <div
-        slot="fallback"
-        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
-      >
-        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
-        <p class="text-xs font-semibold text-zinc-500">Loading AI Background Studio...</p>
+<Layout title={title} description={description} noindex={true}>
+  <article class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-16 animate-fade-up">
+    <div class="studio-card rounded-3xl p-8 sm:p-14 text-center space-y-6">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/12 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-bold tracking-wide uppercase">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        Coming Soon
       </div>
-    </BgRemoverTool>
 
-    <div class="max-w-4xl mx-auto mt-16 space-y-10">
-      <section class="grid sm:grid-cols-3 gap-4">
-        <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">BiRefNet Studio + Fast Lite</h2>
-          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            General-purpose MIT BiRefNet cutouts for people, products, and pets—with instant fallback to lightweight MODNet.
-          </p>
-        </div>
-        <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Manual Erase & Restore Brush</h2>
-          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Fine-tune tricky hair or transparent edges directly on the canvas with Edge Softness, Invert, and unlimited Undo.
-          </p>
-        </div>
-        <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Private HD & 300×300 Export</h2>
-          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Export lossless transparent PNG, solid color MozJPEG, or chain directly into Crop and Compress with zero uploads.
-          </p>
-        </div>
-      </section>
+      <div class="w-16 h-16 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+        </svg>
+      </div>
 
-      <section>
-        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
-        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
-          {faqs.map((faq) => (
-            <details class="group px-6 py-4">
-              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
-                <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </summary>
-              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
-                {faq.a}
-              </p>
-            </details>
-          ))}
-        </div>
-      </section>
+      <div class="max-w-xl mx-auto space-y-3">
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-950 leading-[1.12]">
+          AI Background Remover
+        </h1>
+        <p class="text-sm sm:text-base text-zinc-500 leading-relaxed">
+          This tool is currently unavailable while we upgrade it to a faster, studio-grade cutout engine with crisp hair edges and zero heavy model downloads.
+        </p>
+      </div>
 
-      <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
-        <div class="flex flex-wrap gap-2">
-          {SEO_PAGES.slice(0, 8).map((item) => (
-            <a
-              href={`/${item.slug}`}
-              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
-            >
-              {item.shortName}
-            </a>
-          ))}
+      <div class="grid sm:grid-cols-3 gap-3 max-w-2xl mx-auto pt-2 text-left">
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">1–2 Second Cutouts</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Instant HD processing with zero waiting for browser weights.</p>
         </div>
-      </nav>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">Clean Hair &amp; Product Edges</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Studio precision for portraits, e-commerce shots, and logos.</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4">
+          <p class="text-xs font-bold text-zinc-900">Custom Backdrops</p>
+          <p class="text-[11.5px] text-zinc-500 mt-1">Transparent PNG, solid colors, and 300×300 portrait export.</p>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-zinc-200/80 space-y-3">
+        <p class="text-xs font-semibold text-zinc-500">Available right now in ImageLab</p>
+        <div class="flex flex-wrap items-center justify-center gap-2.5">
+          <a href="/" class="btn-studio-accent px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold">
+            Convert &amp; Compress
+          </a>
+          <a
+            href="/crop-image"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            Crop &amp; Rotate
+          </a>
+          <a
+            href="/image-to-text"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            Image to Text (OCR)
+          </a>
+          <a
+            href="/merge-pdf"
+            class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-sm font-semibold text-zinc-700 transition"
+          >
+            PDF Suite
+          </a>
+        </div>
+      </div>
     </div>
   </article>
 </Layout>
