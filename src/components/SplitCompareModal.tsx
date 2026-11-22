@@ -63,14 +63,13 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
         className="studio-card rounded-3xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Header */}
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="min-w-0">
             <h3 className="font-bold text-zinc-950 text-sm sm:text-base truncate">
               {item.fileName}
             </h3>
             <p className="text-xs text-zinc-500 tabular-nums">
-              Drag slider or use arrow keys · {item.width}×{item.height}px · {item.encoderUsed}
+              Drag slider or use arrow keys · {item.width}×{item.height} px
             </p>
           </div>
 
@@ -81,7 +80,11 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 transition cursor-pointer"
               title="Toggle 2× Zoom"
             >
-              {zoomed ? <ZoomOut className="w-3.5 h-3.5" /> : <ZoomIn className="w-3.5 h-3.5" />}
+              {zoomed ? (
+                <ZoomOut className="w-3.5 h-3.5" aria-hidden="true" />
+              ) : (
+                <ZoomIn className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
               <span className="hidden sm:inline">{zoomed ? '100%' : 'Zoom 2×'}</span>
             </button>
             <button
@@ -90,12 +93,11 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               aria-label="Close comparison"
               className="p-2 rounded-xl text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
-        {/* Interactive Split Stage */}
         <div className="relative flex-1 bg-zinc-950 overflow-hidden select-none flex items-center justify-center p-3 sm:p-5">
           <div
             ref={stageRef}
@@ -117,7 +119,6 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
             }}
           >
-            {/* Right Layer: Processed Result */}
             <img
               src={item.url}
               alt="Processed result"
@@ -127,7 +128,6 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               }`}
             />
 
-            {/* Left Layer: Original Image */}
             <img
               src={item.originalUrl}
               alt="Original image"
@@ -138,7 +138,6 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               }`}
             />
 
-            {/* Labels */}
             <div className="pointer-events-none absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-zinc-950/80 text-white text-[11px] font-semibold backdrop-blur-xs tabular-nums">
               Original · {item.sourceFormat} ({formatFileSize(item.originalSize)})
             </div>
@@ -146,19 +145,17 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
               Result · {item.outputFormat} ({formatFileSize(item.newSize)})
             </div>
 
-            {/* Draggable Vertical Divider & Handle */}
             <div
               className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(0,0,0,0.85)]"
               style={{ left: `${splitPos}%` }}
             >
               <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-zinc-950 shadow-xl border-2 border-blue-600 flex items-center justify-center">
-                <ChevronsLeftRight className="w-5 h-5" />
+                <ChevronsLeftRight className="w-5 h-5" aria-hidden="true" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Summary & Download */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm tabular-nums">
             <span className="text-zinc-600">
@@ -182,7 +179,7 @@ export default function SplitCompareModal({ item, onClose }: SplitCompareModalPr
             onClick={() => downloadSingleImage(item)}
             className="btn-studio-accent inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4" aria-hidden="true" />
             <span>Download {item.outputFormat}</span>
           </button>
         </div>
