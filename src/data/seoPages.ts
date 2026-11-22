@@ -188,6 +188,74 @@ export const SEO_PAGES: SeoToolPage[] = [
 
   // ================= CONVERTER =================
   {
+    slug: 'heic-to-jpg',
+    category: 'Convert',
+    toolType: 'converter',
+    shortName: 'HEIC to JPG',
+    title: 'HEIC to JPG Converter Free (iPhone) | ImageLab',
+    metaDescription:
+      'Convert iPhone HEIC and HEIF photos to universally compatible JPG in bulk locally inside your browser. Supports iOS 18+, batch ZIP export, zero uploads.',
+    h1: 'HEIC to JPG Converter',
+    subtitle: 'Turn iPhone & iPad HEIC photos into sharp MozJPEG JPG files locally—works on Windows, Android & Mac.',
+    defaults: { format: 'image/jpeg', quality: 0.88 },
+    proTips: [
+      'Uses native Safari decoding on Apple devices and modern libheif WebAssembly (heic-to) on Windows, Linux, and Android—compatible with iPhone 15/16 and iOS 18+.',
+      'EXIF GPS location data is automatically stripped during MozJPEG encoding for extra privacy.',
+      'Convert up to 20 HEIC photos at once and download them all in a single ZIP archive.',
+    ],
+    howToSteps: [
+      'Drag and drop your .heic or .heif photos anywhere on this page.',
+      'Local browser decoding and MozJPEG encoding start automatically.',
+      'Preview with Split Compare and click Download or Download ZIP.',
+    ],
+    faqs: [
+      {
+        q: 'Why can’t Windows or online forms open iPhone HEIC files?',
+        a: 'Apple saves iPhone camera shots in High Efficiency Image Container (.heic) format, which many older Windows apps and web portals still reject. Converting to standard .jpg ensures universal compatibility.',
+      },
+      {
+        q: 'Does it work with newer iPhone 15, iPhone 16, and iOS 18 HEIC photos?',
+        a: 'Yes. ImageLab uses the updated libheif WebAssembly decoder (heic-to) rather than outdated libraries, handling modern iOS HEIC files reliably.',
+      },
+      {
+        q: 'Are my personal iPhone photos uploaded to a cloud server?',
+        a: 'Never. Decoding and JPG conversion happen 100% inside your browser tab with zero server uploads.',
+      },
+    ],
+  },
+  {
+    slug: 'avif-to-jpg',
+    category: 'Convert',
+    toolType: 'converter',
+    shortName: 'AVIF to JPG',
+    title: 'AVIF to JPG Converter Free Online | ImageLab',
+    metaDescription:
+      'Convert modern AVIF images into standard JPG files using MozJPEG directly in your browser. Compact file size, crisp quality, batch ZIP export, zero uploads.',
+    h1: 'AVIF to JPG Converter',
+    subtitle: 'Convert web-downloaded .avif images into universally supported MozJPEG .jpg files.',
+    defaults: { format: 'image/jpeg', quality: 0.88 },
+    proTips: [
+      'MozJPEG produces ~40–60% smaller JPG files than basic browser Canvas converters at identical visual sharpness.',
+      'If your AVIF image has transparency, ImageLab automatically fills transparent areas with clean white.',
+      'Open Options to switch output to PNG or WEBP or choose Compact (72%) / Crisp (92%) quality.',
+    ],
+    howToSteps: [
+      'Drop one or up to 20 .avif images anywhere on the screen.',
+      'MozJPEG converts them immediately inside a background Web Worker.',
+      'Download individual .jpg files or grab a single ZIP.',
+    ],
+    faqs: [
+      {
+        q: 'Why do image editors or upload portals reject AVIF files?',
+        a: 'AVIF is a modern web compression format supported by browsers, but many desktop editors, social apps, and upload forms still require standard JPG or PNG files.',
+      },
+      {
+        q: 'Will converting AVIF to JPG bloat my file size?',
+        a: 'AVIF compresses more aggressively than JPG, so a JPG copy is naturally slightly larger—but ImageLab uses MozJPEG trellis optimization to keep it as compact as possible.',
+      },
+    ],
+  },
+  {
     slug: 'jpg-to-webp',
     category: 'Convert',
     toolType: 'converter',
