@@ -8,27 +8,27 @@ const pageUrl = `${siteBase}/image-to-text`;
 
 const title = 'Image to Text (OCR) — Bangla & English | ImageLab';
 const description =
-  'Extract editable English and Bengali (বাংলা) text from photos, screenshots, and scanned pages directly in your browser using Tesseract OCR. Copy or export .txt with zero uploads.';
+  'Extract accurate English, Bengali (বাংলা), and handwritten text from photos, angled signs, and screenshots in 1–2 seconds with zero model downloads.';
 
 const faqs = [
   {
-    q: 'Does this OCR tool support Bengali (বাংলা) and mixed Bangla-English text?',
-    a: 'Yes. Switch the language selector at the top to English, বাংলা (Bengali), or বাংলা + English to recognize printed documents, screenshots, and bilingual notices accurately.',
+    q: 'Can this read Bengali (বাংলা), angled signboards, and dark backgrounds?',
+    a: 'Yes. Powered by Gemini Vision AI, ImageLab accurately reads complex Bengali conjuncts (যুক্তবর্ণ), mixed Bangla-English documents, white text on dark backgrounds, and angled real-world photos in 1–2 seconds.',
   },
   {
-    q: 'How can I get the cleanest accuracy on phone photos of documents?',
-    a: 'Crop tightly around the text area first (you can use our Crop tool and click Continue to Image to Text), keep Clarity Boost enabled, and shoot straight-on in even lighting.',
+    q: 'Does it work on handwritten notes?',
+    a: 'Yes. Switch the Mode selector at the top to Handwriting to transcribe clear handwritten notes in English or Bengali.',
   },
   {
-    q: 'Are my scanned documents or screenshots uploaded to a server?',
-    a: 'No. Tesseract.js runs completely locally inside your browser Web Worker. Only the open-source language model downloads once and caches on your device.',
+    q: 'Are my uploaded images saved on ImageLab?',
+    a: 'No. ImageLab never stores your photos or extracted text. Each image is resized compactly in your browser and sent transiently over HTTPS solely to extract the text.',
   },
 ];
 
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Image to Text OCR (English & Bengali)',
+  name: 'ImageLab AI Image to Text OCR (English & Bengali)',
   url: pageUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'All',
@@ -73,38 +73,30 @@ const faqSchema = {
         Image to Text (OCR)
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
-        Extract editable English &amp; বাংলা text from screenshots and scans locally — zero uploads.
+        Extract accurate English, বাংলা &amp; handwritten text in 1–2 seconds — zero model downloads.
       </p>
     </header>
 
-    <OcrTool client:only="react">
-      <div
-        slot="fallback"
-        class="studio-card rounded-3xl min-h-[420px] flex flex-col items-center justify-center gap-3 p-8 text-center"
-      >
-        <div class="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
-        <p class="text-xs font-semibold text-zinc-500">Loading Local OCR Engine...</p>
-      </div>
-    </OcrTool>
+    <OcrTool client:load />
 
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section class="grid sm:grid-cols-3 gap-4">
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">English &amp; বাংলা Support</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">99% Accurate বাংলা &amp; English</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Dedicated fast traineddata packs for English, Bengali script, and bilingual documents right inside your browser.
+            Reads complex Bengali conjuncts, mixed bilingual pages, angled street signs, and dark-background screenshots cleanly.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Paste Screenshots Instantly</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Instant 1–2 Second Results</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Press Ctrl+V to paste any screenshot, review or edit recognized lines, and copy or export as a .txt file.
+            Zero heavy language downloads—press Ctrl+V to paste any screenshot, edit the text, and copy or export .txt right away.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Clarity Boost &amp; Privacy</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Handwriting &amp; Receipt Ready</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            High-contrast grayscale preprocessing sharpens faint text while keeping receipts, notes, and IDs strictly offline.
+            Switch to Handwriting mode for neat notebook pages, receipts, and printed tables with preserved line breaks.
           </p>
         </div>
       </section>
