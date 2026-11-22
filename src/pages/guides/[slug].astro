@@ -1,0 +1,184 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { GUIDES, type GuideArticle } from '../../data/guides';
+
+export function getStaticPaths() {
+  return GUIDES.map((guide) => ({
+    params: { slug: guide.slug },
+    props: { guide },
+  }));
+}
+
+const { guide } = Astro.props as { guide: GuideArticle };
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/guides/${guide.slug}`;
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: guide.title,
+  description: guide.description,
+  datePublished: guide.updatedAt,
+  dateModified: guide.updatedAt,
+  mainEntityOfPage: pageUrl,
+  author: {
+    '@type': 'Organization',
+    name: 'ImageLab',
+    url: siteBase,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'ImageLab',
+    logo: {
+      '@type': 'ImageObject',
+      url: `${siteBase}/logo.png`,
+    },
+  },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Guides', item: `${siteBase}/guides` },
+    { '@type': 'ListItem', position: 3, name: guide.title, item: pageUrl },
+  ],
+};
+
+const otherGuides = GUIDES.filter((g) => g.slug !== guide.slug);
+---
+
+<Layout
+  title={guide.metaTitle}
+  description={guide.description}
+  schemas={[articleSchema, breadcrumbSchema]}
+>
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-16 animate-fade-up">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex flex-wrap items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <a href="/guides" class="hover:text-zinc-950 dark:hover:text-white transition">Guides</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">{guide.category}</span>
+    </nav>
+
+    <header class="space-y-4 mb-10">
+      <div class="flex flex-wrap items-center gap-2.5 text-xs font-semibold">
+        <span class="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700">{guide.category}</span>
+        <span class="text-zinc-400 tabular-nums">{guide.readTime}</span>
+        <span class="text-zinc-300">·</span>
+        <time datetime={guide.updatedAt} class="text-zinc-400 tabular-nums">
+          Updated {guide.updatedAt}
+        </time>
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-950 leading-[1.15]">
+        {guide.title}
+      </h1>
+
+      <p class="text-sm sm:text-base text-zinc-600 leading-relaxed">
+        {guide.intro}
+      </p>
+    </header>
+
+    <!-- Main Editorial Content -->
+    <div class="studio-card rounded-3xl p-6 sm:p-9 space-y-9">
+      {guide.sections.map((section) => (
+        <section class="space-y-3.5">
+          <h2 class="text-lg sm:text-xl font-bold text-zinc-950 leading-snug">
+            {section.heading}
+          </h2>
+
+          {section.paragraphs.map((p) => (
+            <p class="text-sm sm:text-[15px] text-zinc-600 leading-relaxed">{p}</p>
+          ))}
+
+          {section.bullets && (
+            <ul class="space-y-2.5 pt-1">
+              {section.bullets.map((b) => (
+                <li class="flex items-start gap-2.5 text-sm text-zinc-600 leading-relaxed">
+                  <svg class="w-4 h-4 text-blue-600 shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {section.table && (
+            <div class="overflow-x-auto rounded-2xl border border-zinc-200/80 mt-3">
+              <table class="w-full text-left text-xs sm:text-[13px] border-collapse">
+                <thead class="bg-zinc-50 border-b border-zinc-200/80">
+                  <tr>
+                    {section.table.headers.map((h) => (
+                      <th class="px-4 py-3 font-bold text-zinc-900 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-100">
+                  {section.table.rows.map((row) => (
+                    <tr class="hover:bg-zinc-50/70">
+                      {row.map((cell, idx) => (
+                        <td
+                          class={`px-4 py-3 ${
+                            idx === 0 ? 'font-semibold text-zinc-900 whitespace-nowrap' : 'text-zinc-600'
+                          }`}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ))}
+    </div>
+
+    <!-- Try the Tools Mentioned -->
+    <section class="mt-10 space-y-3">
+      <h2 class="text-sm font-bold text-zinc-900">Try these free tools locally</h2>
+      <div class="grid sm:grid-cols-2 gap-3">
+        {guide.relatedTools.map((tool) => (
+          <a
+            href={tool.href}
+            class="group studio-card rounded-2xl p-4 hover:border-blue-500/40 transition flex items-center justify-between gap-3"
+          >
+            <div class="min-w-0">
+              <div class="text-sm font-bold text-zinc-950 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
+                {tool.label}
+              </div>
+              <div class="text-xs text-zinc-500 mt-0.5 truncate">{tool.desc}</div>
+            </div>
+            <svg class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- More Guides -->
+    <nav aria-label="More Guides" class="mt-12 pt-8 border-t border-zinc-200/80 space-y-3">
+      <h2 class="text-sm font-bold text-zinc-900">More guides</h2>
+      <div class="grid sm:grid-cols-3 gap-3">
+        {otherGuides.map((g) => (
+          <a
+            href={`/guides/${g.slug}`}
+            class="studio-card rounded-2xl p-4 hover:border-blue-500/40 transition flex flex-col justify-between gap-2"
+          >
+            <span class="text-[10.5px] font-bold uppercase tracking-wider text-zinc-400">
+              {g.category}
+            </span>
+            <span class="text-xs font-bold text-zinc-900 leading-snug">{g.title}</span>
+          </a>
+        ))}
+      </div>
+    </nav>
+  </article>
+</Layout>
