@@ -11,12 +11,23 @@ declare module 'upng-js' {
   export default UPNG;
 }
 
-declare module 'heic2any' {
-  interface Heic2AnyOptions {
+declare module 'heic-to' {
+  export interface HeicToOptions {
     blob: Blob;
-    toType?: string;
+    type?: 'image/jpeg' | 'image/png';
     quality?: number;
   }
-  function heic2any(options: Heic2AnyOptions): Promise<Blob | Blob[]>;
-  export default heic2any;
+  export function heicTo(options: HeicToOptions): Promise<Blob>;
+  export function isHeic(file: File): Promise<boolean>;
 }
+
+declare module 'heic-to/csp' {
+  export interface HeicToOptions {
+    blob: Blob;
+    type?: 'image/jpeg' | 'image/png';
+    quality?: number;
+  }
+  export function heicTo(options: HeicToOptions): Promise<Blob>;
+  export function isHeic(file: File): Promise<boolean>;
+}
+
