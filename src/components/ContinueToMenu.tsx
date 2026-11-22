@@ -11,7 +11,6 @@ interface HandoffTarget {
 
 const HANDOFF_TARGETS: HandoffTarget[] = [
   { path: '/crop-image', label: 'Crop & Rotate', desc: 'Frame or lock aspect ratio' },
-  { path: '/remove-background', label: 'AI Background Remover', desc: 'Cutout & swap backdrop' },
   { path: '/image-to-text', label: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text' },
   { path: '/blur-image', label: 'Privacy Blur & Redact', desc: 'Pixelate or blackout sensitive areas' },
   { path: '/image-compressor', label: 'Compress / Convert', desc: 'Optimize JPG, WEBP or PNG' },
@@ -167,7 +166,7 @@ export default function ContinueToMenu({
         disabled={disabled || isSending}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Send this file directly to Crop, Remove BG, Compress, or PDF without downloading"
+        title="Send this file directly to Crop, OCR, Blur, Compress, or PDF without downloading"
         onClick={toggleMenu}
         className={`inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer ${
           compact ? 'px-3 py-2 text-xs' : 'px-4 py-2.5 text-xs sm:text-sm'
