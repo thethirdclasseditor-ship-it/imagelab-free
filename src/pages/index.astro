@@ -11,30 +11,17 @@ const homeSchema = {
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Browser-native image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, watermark studio, AI background remover, and full PDF suite.',
+    'Browser-native image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, watermark studio, and full PDF suite.',
 };
 
 const imageStudioTools = [
   {
-    href: '/remove-background',
-    title: 'AI Background Remover',
-    desc: 'BiRefNet HD cutouts & touch-up brush.',
-    tag: 'On-Device AI',
-    icon: 'sparkles',
-  },
-  {
-    href: '/photo-enhancer',
-    title: 'AI Photo Enhancer',
-    desc: 'Neural super-resolution & clarity.',
-    tag: 'WebGPU AI',
-    icon: 'sliders',
-  },
-  {
     href: '/image-to-text',
     title: 'Image to Text (OCR)',
-    desc: 'Extract English & বাংলা text offline.',
-    tag: 'OCR',
+    desc: 'Extract English, বাংলা & handwritten text.',
+    tag: 'AI Vision',
     icon: 'ocr',
+    soon: false,
   },
   {
     href: '/crop-image',
@@ -42,6 +29,7 @@ const imageStudioTools = [
     desc: 'Exact aspect ratios & framing guides.',
     tag: 'Editor',
     icon: 'crop',
+    soon: false,
   },
   {
     href: '/blur-image',
@@ -49,6 +37,7 @@ const imageStudioTools = [
     desc: 'Pixelate, blur, or blackout faces & IDs.',
     tag: 'Privacy',
     icon: 'eyeoff',
+    soon: false,
   },
   {
     href: '/exif-remover',
@@ -56,6 +45,7 @@ const imageStudioTools = [
     desc: 'Inspect & strip GPS and camera tags.',
     tag: 'Privacy',
     icon: 'shield',
+    soon: false,
   },
   {
     href: '/watermark-image',
@@ -63,6 +53,23 @@ const imageStudioTools = [
     desc: 'Text, PNG logos & diagonal tiles.',
     tag: 'Batch',
     icon: 'stamp',
+    soon: false,
+  },
+  {
+    href: '/remove-background',
+    title: 'AI Background Remover',
+    desc: 'Upgrading to instant studio-grade cutouts.',
+    tag: 'Coming Soon',
+    icon: 'sparkles',
+    soon: true,
+  },
+  {
+    href: '/photo-enhancer',
+    title: 'AI Photo Enhancer',
+    desc: 'Upgrading to fast HD detail restoration.',
+    tag: 'Coming Soon',
+    icon: 'sliders',
+    soon: true,
   },
 ];
 
@@ -109,17 +116,17 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
 
 <Layout
   title="ImageLab — Browser Image & PDF Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), blur faces, remove EXIF, remove backgrounds with AI, and manage PDFs locally."
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, compress to target KB, crop visually, extract Bangla & English text (OCR), blur faces, remove EXIF, watermark, and manage PDFs locally."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
-  <section class="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-8">
-    <div class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-8">
+    <div class="text-center max-w-2xl mx-auto mb-8 animate-fade-up">
       <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-zinc-950 leading-[1.08]">
-        Image & PDF Studio.
+        Image &amp; PDF Studio.
       </h1>
-      <p class="text-zinc-500 mt-3.5 text-sm sm:text-base font-medium">
-        MozJPEG, LibWebP, PDF Suite, OCR & on-device AI — free, instant, zero uploads.
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        MozJPEG, LibWebP, PDF Suite &amp; AI OCR — free, fast, and clean.
       </p>
     </div>
 
@@ -136,10 +143,20 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
       {imageStudioTools.map((tool) => (
         <a
           href={tool.href}
-          class="group studio-card rounded-2xl p-5 hover:-translate-y-0.5 hover:border-blue-500/40 transition-all duration-200 flex flex-col justify-between gap-5"
+          class={`group studio-card rounded-2xl p-5 transition-all duration-200 flex flex-col justify-between gap-5 ${
+            tool.soon
+              ? 'opacity-75 hover:opacity-95 border-dashed'
+              : 'hover:-translate-y-0.5 hover:border-blue-500/40'
+          }`}
         >
           <div class="flex items-start justify-between gap-3">
-            <div class="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200/80 text-zinc-800 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 flex items-center justify-center transition-colors">
+            <div
+              class={`w-10 h-10 rounded-xl border flex items-center justify-center transition-colors ${
+                tool.soon
+                  ? 'bg-zinc-100 border-zinc-200/80 text-zinc-500'
+                  : 'bg-zinc-100 border-zinc-200/80 text-zinc-800 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'
+              }`}
+            >
               {tool.icon === 'sparkles' && (
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
@@ -198,7 +215,13 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
               )}
             </div>
 
-            <span class="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-[11px] font-semibold">
+            <span
+              class={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ${
+                tool.soon
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  : 'bg-zinc-100 text-zinc-600'
+              }`}
+            >
               {tool.tag}
             </span>
           </div>
@@ -340,7 +363,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
         <div>
           <h3 class="text-sm font-bold text-zinc-950">WebAssembly Codecs</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Real MozJPEG, LibWebP, UPNG, OCR & PDF engines running in background threads.
+            Real MozJPEG, LibWebP, UPNG &amp; PDF engines running in background threads.
           </p>
         </div>
       </div>
@@ -355,7 +378,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
         <div>
           <h3 class="text-sm font-bold text-zinc-950">Zero Server Uploads</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
-            Private photos, signatures & PDFs never leave your device.
+            Private photos, signatures &amp; PDFs stay locally on your device.
           </p>
         </div>
       </div>
@@ -367,7 +390,7 @@ const categories = ['Compress', 'Convert', 'Resize', 'Enhance'] as const;
           </svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-zinc-950">Instant Batch & ZIP</h3>
+          <h3 class="text-sm font-bold text-zinc-950">Instant Batch &amp; ZIP</h3>
           <p class="text-xs text-zinc-500 mt-1 leading-relaxed">
             Process up to 25 PDFs or 20 images at once with zero daily limits.
           </p>
