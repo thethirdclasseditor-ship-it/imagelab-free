@@ -15,6 +15,9 @@ import {
   LayoutGrid,
   Droplets,
   Ban,
+  Image as ImageIcon,
+  Layers,
+  Zap,
 } from 'lucide-react';
 import {
   encodeCanvasWithCodec,
@@ -53,6 +56,12 @@ type RedactAction =
       brushPct: number;
       points: NormPoint[];
     };
+
+const BLUR_FORMATS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
+  { id: 'image/jpeg', label: 'JPG', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
+  { id: 'image/webp', label: 'WEBP', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
+];
 
 function triggerBlobDownload(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -507,7 +516,6 @@ export default function PrivacyBlurTool() {
   const buildRedactedExport = async (): Promise<{
     blob: Blob;
     fileName: string;
-    encoderUsed: string;
   } | null> => {
     if (!file || !loadedImg) return null;
 
@@ -559,7 +567,6 @@ export default function PrivacyBlurTool() {
     return {
       blob: encoded.blob,
       fileName: `${baseName}_redacted.${ext}`,
-      encoderUsed: encoded.encoderUsed,
     };
   };
 
@@ -572,7 +579,7 @@ export default function PrivacyBlurTool() {
       const out = await buildRedactedExport();
       if (!out) return;
       triggerBlobDownload(out.blob, out.fileName);
-      setStatusMsg(`Saved (${formatFileSize(out.blob.size)} · ${out.encoderUsed})`);
+      setStatusMsg(`Saved (${formatFileSize(out.blob.size)})`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Export failed.');
     } finally {
@@ -608,7 +615,7 @@ export default function PrivacyBlurTool() {
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
           <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Upload className="w-7 h-7" />
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white">
               Release to Blur / Redact Photo
@@ -635,13 +642,13 @@ export default function PrivacyBlurTool() {
             >
               {isLoadingFile ? (
                 <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" aria-hidden="true" />
                   <p className="text-sm font-semibold text-zinc-700">Loading photo...</p>
                 </div>
               ) : (
                 <>
                   <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 shadow-sm flex items-center justify-center mb-6 group-hover:-translate-y-1 transition-transform">
-                    <EyeOff className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" />
+                    <EyeOff className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />
                   </div>
                   <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
                     Select Photo to Redact
@@ -673,7 +680,7 @@ export default function PrivacyBlurTool() {
                         : 'text-zinc-600'
                     }`}
                   >
-                    <Square className="w-3.5 h-3.5" /> Box
+                    <Square className="w-3.5 h-3.5" aria-hidden="true" /> Box
                   </button>
                   <button
                     type="button"
@@ -684,16 +691,16 @@ export default function PrivacyBlurTool() {
                         : 'text-zinc-600'
                     }`}
                   >
-                    <Paintbrush className="w-3.5 h-3.5" /> Brush
+                    <Paintbrush className="w-3.5 h-3.5" aria-hidden="true" /> Brush
                   </button>
                 </div>
 
                 <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl">
                   {(
                     [
-                      { id: 'pixelate', label: 'Pixelate', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
-                      { id: 'blur', label: 'Blur', icon: <Droplets className="w-3.5 h-3.5" /> },
-                      { id: 'blackout', label: 'Blackout', icon: <Ban className="w-3.5 h-3.5" /> },
+                      { id: 'pixelate', label: 'Pixelate', icon: <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" /> },
+                      { id: 'blur', label: 'Blur', icon: <Droplets className="w-3.5 h-3.5" aria-hidden="true" /> },
+                      { id: 'blackout', label: 'Blackout', icon: <Ban className="w-3.5 h-3.5" aria-hidden="true" /> },
                     ] as const
                   ).map((ef) => (
                     <button
@@ -720,7 +727,7 @@ export default function PrivacyBlurTool() {
                   onClick={() => setActions((prev) => prev.slice(0, -1))}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-35 text-xs font-semibold text-zinc-700 cursor-pointer"
                 >
-                  <Undo2 className="w-3.5 h-3.5" /> Undo
+                  <Undo2 className="w-3.5 h-3.5" aria-hidden="true" /> Undo
                 </button>
                 <button
                   type="button"
@@ -728,7 +735,7 @@ export default function PrivacyBlurTool() {
                   onClick={() => setActions([])}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-35 text-xs font-semibold text-zinc-700 cursor-pointer"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Clear
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /> Clear
                 </button>
                 <button
                   type="button"
@@ -736,7 +743,7 @@ export default function PrivacyBlurTool() {
                   aria-label="Remove image"
                   className="p-2 rounded-xl border border-zinc-200 bg-white hover:text-red-600 text-zinc-500 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -796,16 +803,34 @@ export default function PrivacyBlurTool() {
 
             <div className="p-4 sm:px-6 bg-zinc-50/80 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3 text-xs">
-                <select
+                <div
+                  role="radiogroup"
                   aria-label="Output format"
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value as SupportedFormat)}
-                  className="bg-white border border-zinc-300 rounded-xl px-3 py-2 font-semibold"
+                  className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl"
                 >
-                  <option value="image/jpeg">JPG · MozJPEG</option>
-                  <option value="image/png">PNG · Lossless</option>
-                  <option value="image/webp">WEBP</option>
-                </select>
+                  {BLUR_FORMATS.map((fmt) => {
+                    const active = format === fmt.id;
+                    return (
+                      <button
+                        key={fmt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setFormat(fmt.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition cursor-pointer ${
+                          active
+                            ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
+                            : 'text-zinc-600 hover:text-zinc-900'
+                        }`}
+                      >
+                        <span className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}>
+                          {fmt.icon}
+                        </span>
+                        <span>{fmt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
                 <span className="text-zinc-500 tabular-nums">
                   {actions.length} {actions.length === 1 ? 'area' : 'areas'} redacted
@@ -813,7 +838,7 @@ export default function PrivacyBlurTool() {
 
                 {statusMsg && (
                   <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                     {statusMsg}
                   </span>
                 )}
@@ -837,12 +862,12 @@ export default function PrivacyBlurTool() {
                 >
                   {isExporting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                       <span>Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4" aria-hidden="true" />
                       <span>Download Redacted</span>
                     </>
                   )}
@@ -854,15 +879,15 @@ export default function PrivacyBlurTool() {
 
         {errorMsg && (
           <div className="mx-5 sm:mx-7 mb-5 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 text-xs font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
       </div>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
-        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>100% Private · Sensitive images are redacted locally and never leave your device</span>
+        <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+        <span>Processed privately on your device · Zero uploads</span>
       </p>
     </div>
   );
