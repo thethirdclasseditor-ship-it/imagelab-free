@@ -20,11 +20,13 @@ import {
   normalizeImageBlob,
   MAX_SAFE_CANVAS_PIXELS,
 } from '../engine/imageEngine';
+import { consumeHandoffFile } from '../engine/handoff';
+import ContinueToMenu from './ContinueToMenu';
 
 interface BgPreset {
   id: string;
   label: string;
-  color: string | null; // null = transparent
+  color: string | null;
 }
 
 const BG_PRESETS: BgPreset[] = [
@@ -84,7 +86,7 @@ export default function BgRemoverTool() {
   const dragDepthRef = useRef(0);
   const runIdRef = useRef(0);
   const trackedUrlsRef = useRef<Set<string>>(new Set());
-  const selectHandlerRef = useRef<(files: FileList | null) => void>(() => {});
+  const selectHandlerRef = useRef<(files: FileList | File[] | null) => void>(() => {});
 
   const trackUrl = (url: string) => {
     trackedUrlsRef.current.add(url);
@@ -97,7 +99,6 @@ export default function BgRemoverTool() {
     trackedUrlsRef.current.delete(url);
   };
 
-  // Unmount-only cleanup so updating resultUrl NEVER prematurely revokes originalUrl
   useEffect(() => {
     return () => {
       runIdRef.current++;
@@ -127,7 +128,6 @@ export default function BgRemoverTool() {
     setProgressPct(4);
     setProgressLabel('Preparing image...');
 
-    // Cleanly release previous session URLs
     releaseUrl(originalUrl);
     releaseUrl(resultUrl);
     setOriginalUrl(null);
@@ -187,7 +187,7 @@ export default function BgRemoverTool() {
     }
   };
 
-  const handleFileSelect = (incoming: FileList | null) => {
+  const handleFileSelect = (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
     const picked = incoming[0];
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -195,6 +195,14 @@ export default function BgRemoverTool() {
   };
 
   selectHandlerRef.current = handleFileSelect;
+
+  useEffect(() => {
+    void consumeHandoffFile().then((handoffFile) => {
+      if (handoffFile) {
+        selectHandlerRef.current([handoffFile]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const hasFiles = (e: DragEvent) =>
@@ -245,48 +253,57 @@ export default function BgRemoverTool() {
     };
   }, []);
 
+  const buildCurrentComposite = async (): Promise<{
+    blob: Blob;
+    fileName: string;
+    encoderUsed: string;
+  } | null> => {
+    if (!cutoutBlob || !sourceFile) return null;
+    const baseName = sourceFile.name.replace(/\.[^/.]+$/, '');
+
+    if (bgColor === null) {
+      return { blob: cutoutBlob, fileName: `${baseName}_nobg.png`, encoderUsed: 'PNG' };
+    }
+
+    const img = await loadBitmapFromBlob(cutoutBlob);
+    let w = img.naturalWidth;
+    let h = img.naturalHeight;
+    if (w * h > MAX_SAFE_CANVAS_PIXELS) {
+      const s = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (w * h));
+      w = Math.max(1, Math.floor(w * s));
+      h = Math.max(1, Math.floor(h * s));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Canvas unavailable.');
+
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const encoded = await encodeCanvasWithCodec(canvas, 'image/jpeg', 0.92);
+    canvas.width = 0;
+    canvas.height = 0;
+
+    return {
+      blob: encoded.blob,
+      fileName: `${baseName}_bg.jpg`,
+      encoderUsed: encoded.encoderUsed,
+    };
+  };
+
   const handleDownloadFull = async () => {
-    if (!cutoutBlob || !sourceFile) return;
     setIsExporting(true);
     setErrorMsg(null);
     setStatusMsg(null);
-
     try {
-      const baseName = sourceFile.name.replace(/\.[^/.]+$/, '');
-
-      // Pure transparent PNG cutout
-      if (bgColor === null) {
-        triggerDownload(cutoutBlob, `${baseName}_nobg.png`);
-        setStatusMsg(`Saved transparent PNG (${formatFileSize(cutoutBlob.size)})`);
-        return;
-      }
-
-      // Composite onto chosen solid background & encode via MozJPEG
-      const img = await loadBitmapFromBlob(cutoutBlob);
-      let w = img.naturalWidth;
-      let h = img.naturalHeight;
-      if (w * h > MAX_SAFE_CANVAS_PIXELS) {
-        const s = Math.sqrt(MAX_SAFE_CANVAS_PIXELS / (w * h));
-        w = Math.max(1, Math.floor(w * s));
-        h = Math.max(1, Math.floor(h * s));
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) throw new Error('Canvas unavailable.');
-
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-
-      const encoded = await encodeCanvasWithCodec(canvas, 'image/jpeg', 0.92);
-      canvas.width = 0;
-      canvas.height = 0;
-
-      triggerDownload(encoded.blob, `${baseName}_bg.jpg`);
-      setStatusMsg(`Saved HD JPG (${formatFileSize(encoded.blob.size)} · ${encoded.encoderUsed})`);
+      const out = await buildCurrentComposite();
+      if (!out) return;
+      triggerDownload(out.blob, out.fileName);
+      setStatusMsg(`Saved (${formatFileSize(out.blob.size)} · ${out.encoderUsed})`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Download failed.');
     } finally {
@@ -314,7 +331,6 @@ export default function BgRemoverTool() {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // Top-biased cover crop to protect head/face framing
       const srcW = img.naturalWidth;
       const srcH = img.naturalHeight;
       const srcRatio = srcW / srcH;
@@ -424,7 +440,6 @@ export default function BgRemoverTool() {
           </div>
         ) : (
           <div className="divide-y divide-zinc-200/80">
-            {/* Top Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 bg-zinc-50/80">
               <span className="text-xs sm:text-sm font-semibold text-zinc-800 truncate max-w-[260px]">
                 {sourceFile.name}
@@ -457,7 +472,6 @@ export default function BgRemoverTool() {
               </div>
             </div>
 
-            {/* Preview Stage (Dark-mode safe transparency grid) */}
             <div className="bg-zinc-950 p-4 sm:p-6 flex items-center justify-center min-h-[320px] sm:min-h-[420px]">
               {isProcessing ? (
                 <div className="w-full max-w-xs text-center space-y-4">
@@ -498,7 +512,6 @@ export default function BgRemoverTool() {
               ) : null}
             </div>
 
-            {/* Background Picker & Export Controls */}
             {resultUrl && !isProcessing && (
               <div className="p-5 sm:px-7 bg-zinc-50/80 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -563,6 +576,15 @@ export default function BgRemoverTool() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
+                  <ContinueToMenu
+                    currentPath="/remove-background"
+                    disabled={isExporting}
+                    onPrepareFile={async () => {
+                      const out = await buildCurrentComposite();
+                      return out ? { blob: out.blob, fileName: out.fileName } : null;
+                    }}
+                  />
+
                   <button
                     type="button"
                     disabled={isExporting}
