@@ -12,6 +12,7 @@ import {
   Square,
   Sparkles,
   RotateCcw,
+  Contrast,
 } from 'lucide-react';
 import {
   validateImageFile,
@@ -30,13 +31,13 @@ interface TesseractWorkerLike {
   terminate: () => Promise<unknown>;
 }
 
-const LANG_OPTIONS: { id: OcrLang; label: string; hint: string }[] = [
-  { id: 'eng', label: 'English', hint: 'Fast (~4 MB)' },
-  { id: 'ben', label: 'বাংলা (Bengali)', hint: 'Bangla script' },
-  { id: 'ben+eng', label: 'বাংলা + English', hint: 'Mixed documents' },
+const LANG_OPTIONS: { id: OcrLang; label: string }[] = [
+  { id: 'eng', label: 'English' },
+  { id: 'ben', label: 'বাংলা (Bengali)' },
+  { id: 'ben+eng', label: 'বাংলা + English' },
 ];
 
-const MAX_OCR_SIDE = 2200;
+const MAX_OCR_SIDE = 2400;
 
 function loadBitmap(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -54,22 +55,32 @@ function loadBitmap(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
-/** Prepares an OCR-friendly bitmap (caps 12MP phone photos & optionally boosts text contrast) */
-async function prepareOcrBitmap(blob: Blob, enhanceText: boolean): Promise<Blob> {
+/** Smart OCR preprocessor: upscales small screenshots 2x, auto-inverts dark backgrounds (white text on dark bg) */
+async function prepareOcrBitmap(
+  blob: Blob,
+  enhanceText: boolean,
+  forceInvert: boolean
+): Promise<{ blob: Blob; autoInverted: boolean }> {
   const img = await loadBitmap(blob);
   const { naturalWidth: w, naturalHeight: h } = img;
+  const longest = Math.max(w, h);
 
-  const scale = Math.min(1, MAX_OCR_SIDE / Math.max(w, h));
+  // Upscale small screenshots (<1000px) by 2x for sharper glyphs; cap huge phone photos at 2400px
+  let scale = 1;
+  if (longest < 1000) {
+    scale = Math.min(2, 1600 / longest);
+  } else if (longest > MAX_OCR_SIDE) {
+    scale = MAX_OCR_SIDE / longest;
+  }
+
   const outW = Math.max(1, Math.round(w * scale));
   const outH = Math.max(1, Math.round(h * scale));
-
-  if (scale === 1 && !enhanceText) return blob;
 
   const canvas = document.createElement('canvas');
   canvas.width = outW;
   canvas.height = outH;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return blob;
+  if (!ctx) return { blob, autoInverted: false };
 
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, outW, outH);
@@ -77,17 +88,30 @@ async function prepareOcrBitmap(blob: Blob, enhanceText: boolean): Promise<Blob>
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, outW, outH);
 
-  if (enhanceText) {
-    const imgData = ctx.getImageData(0, 0, outW, outH);
-    const d = imgData.data;
-    const contrast = 1.45;
+  const imgData = ctx.getImageData(0, 0, outW, outH);
+  const d = imgData.data;
+
+  // Measure average brightness to detect dark-background photos/screenshots (e.g. white text on dark wall)
+  let lumSum = 0;
+  const pixelCount = outW * outH;
+  for (let i = 0; i < d.length; i += 4) {
+    lumSum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  }
+  const avgLum = lumSum / Math.max(1, pixelCount);
+  const shouldInvert = forceInvert || (enhanceText && avgLum < 115);
+
+  if (enhanceText || forceInvert) {
+    const contrast = enhanceText ? 1.32 : 1.0;
     for (let i = 0; i < d.length; i += 4) {
-      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      let boosted = (gray - 128) * contrast + 132;
-      boosted = boosted < 0 ? 0 : boosted > 255 ? 255 : boosted;
-      d[i] = boosted;
-      d[i + 1] = boosted;
-      d[i + 2] = boosted;
+      let gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (shouldInvert) {
+        gray = 255 - gray;
+      }
+      let val = (gray - 128) * contrast + 128;
+      val = val < 0 ? 0 : val > 255 ? 255 : val;
+      d[i] = val;
+      d[i + 1] = val;
+      d[i + 2] = val;
     }
     ctx.putImageData(imgData, 0, 0);
   }
@@ -100,7 +124,7 @@ async function prepareOcrBitmap(blob: Blob, enhanceText: boolean): Promise<Blob>
   });
   canvas.width = 0;
   canvas.height = 0;
-  return outBlob;
+  return { blob: outBlob, autoInverted: shouldInvert };
 }
 
 export default function OcrTool() {
@@ -110,6 +134,8 @@ export default function OcrTool() {
 
   const [lang, setLang] = useState<OcrLang>('eng');
   const [enhanceText, setEnhanceText] = useState<boolean>(true);
+  const [forceInvert, setForceInvert] = useState<boolean>(false);
+  const [didInvert, setDidInvert] = useState<boolean>(false);
   const [extractedText, setExtractedText] = useState<string>('');
   const [confidence, setConfidence] = useState<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState<number | null>(null);
@@ -135,7 +161,7 @@ export default function OcrTool() {
       try {
         await active.instance.terminate();
       } catch {
-        // Ignore termination errors
+        // Ignore
       }
     }
   };
@@ -154,7 +180,8 @@ export default function OcrTool() {
   const runOcr = async (
     targetBlob: Blob,
     targetLang: OcrLang,
-    useEnhance: boolean
+    useEnhance: boolean,
+    useInvert: boolean
   ) => {
     const runId = ++runIdRef.current;
     const t0 = performance.now();
@@ -165,11 +192,12 @@ export default function OcrTool() {
     setConfidence(null);
     setElapsedSec(null);
     setProgressPct(4);
-    setProgressStatus('Preparing image for text recognition...');
+    setProgressStatus('Optimizing image for OCR...');
 
     try {
-      const ocrInput = await prepareOcrBitmap(targetBlob, useEnhance);
+      const prepared = await prepareOcrBitmap(targetBlob, useEnhance, useInvert);
       if (runIdRef.current !== runId) return;
+      setDidInvert(prepared.autoInverted);
 
       let worker: TesseractWorkerLike;
       if (workerRef.current && workerRef.current.lang === targetLang) {
@@ -190,13 +218,13 @@ export default function OcrTool() {
         };
 
         worker = await tesseractMod.createWorker(targetLang, 1, {
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0_fast',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
           logger: (info: { status?: string; progress?: number }) => {
             if (runIdRef.current !== runId) return;
             const rawPct = typeof info.progress === 'number' ? Math.round(info.progress * 100) : 0;
             if (info.status === 'loading language traineddata') {
               setProgressPct(Math.max(15, Math.min(60, 15 + Math.round(rawPct * 0.45))));
-              setProgressStatus(`Downloading language pack (${rawPct}%)...`);
+              setProgressStatus(`Downloading accurate language pack (${rawPct}%)...`);
             } else if (info.status === 'recognizing text') {
               setProgressPct(Math.max(60, Math.min(98, 60 + Math.round(rawPct * 0.38))));
               setProgressStatus(`Extracting text (${rawPct}%)...`);
@@ -218,7 +246,7 @@ export default function OcrTool() {
       setProgressPct(60);
       setProgressStatus('Extracting text...');
 
-      const result = await worker.recognize(ocrInput);
+      const result = await worker.recognize(prepared.blob);
       if (runIdRef.current !== runId) return;
 
       const cleanText = (result.data.text || '').trim();
@@ -230,7 +258,7 @@ export default function OcrTool() {
 
       if (!cleanText) {
         setErrorMsg(
-          'No readable text detected. Try switching language or toggling Enhance Clarity.'
+          'No clear text detected. For best accuracy, crop around the text or try toggling Invert / Clarity Boost.'
         );
       }
     } catch (err) {
@@ -276,7 +304,7 @@ export default function OcrTool() {
       setNormalizedBlob(normalized);
       setPreviewUrl(url);
 
-      void runOcr(normalized, lang, enhanceText);
+      void runOcr(normalized, lang, enhanceText, forceInvert);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Could not open image.');
     }
@@ -351,7 +379,7 @@ export default function OcrTool() {
   const handleLangChange = (nextLang: OcrLang) => {
     setLang(nextLang);
     if (normalizedBlob && !isRunning) {
-      void runOcr(normalizedBlob, nextLang, enhanceText);
+      void runOcr(normalizedBlob, nextLang, enhanceText, forceInvert);
     }
   };
 
@@ -359,7 +387,15 @@ export default function OcrTool() {
     const next = !enhanceText;
     setEnhanceText(next);
     if (normalizedBlob && !isRunning) {
-      void runOcr(normalizedBlob, lang, next);
+      void runOcr(normalizedBlob, lang, next, forceInvert);
+    }
+  };
+
+  const handleToggleInvert = () => {
+    const next = !forceInvert;
+    setForceInvert(next);
+    if (normalizedBlob && !isRunning) {
+      void runOcr(normalizedBlob, lang, enhanceText, next);
     }
   };
 
@@ -414,9 +450,7 @@ export default function OcrTool() {
     setProgressStatus('');
   };
 
-  const wordCount = extractedText.trim()
-    ? extractedText.trim().split(/\s+/).length
-    : 0;
+  const wordCount = extractedText.trim() ? extractedText.trim().split(/\s+/).length : 0;
 
   return (
     <div className="space-y-4 animate-fade-up">
@@ -442,7 +476,6 @@ export default function OcrTool() {
       )}
 
       <div className="studio-card rounded-3xl overflow-hidden">
-        {/* Top Language & Clarity Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-b border-zinc-200/80 bg-zinc-50/80">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-zinc-500">Language</span>
@@ -465,20 +498,35 @@ export default function OcrTool() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={isRunning}
+              onClick={handleToggleInvert}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                forceInvert
+                  ? 'bg-blue-600 text-white border-transparent'
+                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+              }`}
+              title="Force invert colors for white text on dark backgrounds"
+            >
+              <Contrast className="w-3.5 h-3.5" />
+              <span>Dark BG</span>
+            </button>
+
             <button
               type="button"
               disabled={isRunning}
               onClick={handleToggleEnhance}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                 enhanceText
-                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-transparent'
+                  ? 'bg-blue-600 text-white border-transparent'
                   : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
               }`}
-              title="High-contrast grayscale preprocessing improves OCR on faded scans and Bengali text"
+              title="Auto-invert dark backgrounds and boost text contrast"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Clarity Boost</span>
+              <span>Smart Boost</span>
             </button>
 
             {isRunning && (
@@ -526,13 +574,12 @@ export default function OcrTool() {
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                English · বাংলা (Bengali) · Mixed Documents · Offline Tesseract OCR
+                English · বাংলা (Bengali) · Auto Dark-BG Detection · Zero Uploads
               </p>
             </div>
           </div>
         ) : (
           <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200/80">
-            {/* Left: Source Preview */}
             <div className="lg:col-span-5 bg-zinc-950 p-4 sm:p-6 flex flex-col justify-between gap-4">
               <div className="flex items-center justify-between gap-2 text-xs text-zinc-400">
                 <span className="truncate font-medium">
@@ -569,7 +616,7 @@ export default function OcrTool() {
               {normalizedBlob && !isRunning && (
                 <button
                   type="button"
-                  onClick={() => void runOcr(normalizedBlob, lang, enhanceText)}
+                  onClick={() => void runOcr(normalizedBlob, lang, enhanceText, forceInvert)}
                   className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-zinc-200 inline-flex items-center justify-center gap-1.5 cursor-pointer transition"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -578,7 +625,6 @@ export default function OcrTool() {
               )}
             </div>
 
-            {/* Right: Extracted Editable Text */}
             <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-4 bg-white">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -586,6 +632,11 @@ export default function OcrTool() {
                   {confidence !== null && !isRunning && (
                     <span className="px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">
                       {confidence}% confidence
+                    </span>
+                  )}
+                  {didInvert && !isRunning && (
+                    <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold">
+                      Dark-BG Inverted
                     </span>
                   )}
                   {elapsedSec !== null && !isRunning && (
@@ -674,7 +725,7 @@ export default function OcrTool() {
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>On-device Tesseract OCR · Screenshots and scanned documents never leave your browser</span>
+        <span>On-device OCR · Screenshots and scanned documents never leave your browser</span>
       </p>
     </div>
   );
