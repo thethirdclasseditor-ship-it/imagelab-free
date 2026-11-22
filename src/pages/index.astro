@@ -12,7 +12,7 @@ const homeSchema = {
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, QR & barcode generator, SVG to PNG, favicon generator, color palette extractor, and full PDF suite.',
+    'Fast browser image converter, compressor, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, QR & barcode generator, SVG to PNG, favicon generator, color palette extractor, and full PDF suite with signing and organizing.',
 };
 
 const graphicsTools = [
@@ -114,6 +114,20 @@ const imageStudioTools = [
 
 const pdfStudioTools = [
   {
+    href: '/sign-pdf',
+    title: 'Sign PDF',
+    desc: 'Draw, type or upload signature & date stamp.',
+    tag: 'Unlimited',
+    icon: 'lucide:pen-tool',
+  },
+  {
+    href: '/organize-pdf',
+    title: 'Organize & Rotate PDF',
+    desc: 'Reorder, rotate 90°, delete & watermark pages.',
+    tag: 'Pages',
+    icon: 'lucide:layout-grid',
+  },
+  {
     href: '/merge-pdf',
     title: 'Merge PDF',
     desc: 'Combine up to 25 PDFs in exact order.',
@@ -124,7 +138,7 @@ const pdfStudioTools = [
     href: '/split-pdf',
     title: 'Split & Extract PDF',
     desc: 'Extract page ranges or burst to ZIP.',
-    tag: 'Pages',
+    tag: 'Extract',
     icon: 'lucide:scissors',
   },
   {
@@ -176,7 +190,7 @@ function getPresetIcon(slug: string, cat: string): string {
 
 <Layout
   title="ImageLab — Free Online Image, PDF & Graphics Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, SVG to PNG, compress to target KB, crop visually, extract Bangla & English text (OCR), create QR codes, barcodes, favicons & palettes, and manage PDFs privately."
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, SVG to PNG, compress to target KB, crop visually, extract Bangla & English text (OCR), create QR codes, barcodes & favicons, and sign, organize, merge or compress PDFs privately."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
