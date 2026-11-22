@@ -1,0 +1,138 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ExifRemoverTool from '../components/ExifRemoverTool';
+import { SEO_PAGES } from '../data/seoPages';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/exif-remover`;
+
+const title = 'EXIF Metadata Viewer & Remover Free | ImageLab';
+const description =
+  'View and strip hidden GPS location, camera model, date taken, and EXIF/XMP metadata from JPG, PNG, WEBP, and HEIC photos locally in your browser. Zero uploads.';
+
+const faqs = [
+  {
+    q: 'What hidden information is stored inside smartphone photos?',
+    a: 'Most camera photos embed EXIF, XMP, and IPTC tags including exact GPS latitude/longitude coordinates, phone model, lens settings, capture timestamp, and editing software.',
+  },
+  {
+    q: 'Does removing EXIF metadata lower photo quality?',
+    a: 'ImageLab re-encodes your clean pixel data at crisp 92% MozJPEG/LibWebP or lossless PNG—stripping 100% of hidden headers and embedded thumbnails without visible quality loss.',
+  },
+  {
+    q: 'Can I clean metadata from multiple photos at once?',
+    a: 'Yes. Drop up to 20 photos at once, inspect any photo’s GPS or camera tags, and download all cleaned files together as a ZIP archive.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab EXIF Metadata Viewer & Remover',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'EXIF Remover', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">EXIF Remover</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        EXIF Metadata Viewer & Remover
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Inspect hidden GPS coordinates and camera info, then strip all metadata locally in one click.
+      </p>
+    </header>
+
+    <ExifRemoverTool client:load />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Instant GPS Detection</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Spot embedded home or office GPS coordinates immediately before posting photos on marketplaces or forums.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Complete Header Wipe</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Strips EXIF, GPS, IPTC, XMP, and hidden preview thumbnails cleanly across JPG, PNG, WEBP, and HEIC.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Zero Server Exposure</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Why upload sensitive location-tagged photos to a privacy tool? Everything stays 100% inside your browser.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="More Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          {SEO_PAGES.slice(0, 8).map((item) => (
+            <a
+              href={`/${item.slug}`}
+              class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
+            >
+              {item.shortName}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
