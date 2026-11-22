@@ -30,29 +30,64 @@ let jpegModPromise: Promise<typeof import('@jsquash/jpeg')> | null = null;
 let webpModPromise: Promise<typeof import('@jsquash/webp')> | null = null;
 let upngModPromise: Promise<typeof import('upng-js')> | null = null;
 
-async function encodeJpeg(imageData: ImageData, qualityPct: number): Promise<ArrayBuffer> {
-  if (!jpegModPromise) jpegModPromise = import('@jsquash/jpeg');
-  const { encode } = await jpegModPromise;
-  // Cap at 96 to prevent pointless 3x–4x file bloat with zero visible quality gain
+function getJpegMod() {
+  if (!jpegModPromise) {
+    jpegModPromise = import('@jsquash/jpeg').catch((err) => {
+      jpegModPromise = null;
+      throw err;
+    });
+  }
+  return jpegModPromise;
+}
+
+function getWebpMod() {
+  if (!webpModPromise) {
+    webpModPromise = import('@jsquash/webp').catch((err) => {
+      webpModPromise = null;
+      throw err;
+    });
+  }
+  return webpModPromise;
+}
+
+function getUpngMod() {
+  if (!upngModPromise) {
+    upngModPromise = import('upng-js').catch((err) => {
+      upngModPromise = null;
+      throw err;
+    });
+  }
+  return upngModPromise;
+}
+
+async function encodeJpeg(
+  imageData: ImageData,
+  qualityPct: number,
+  fastProbe = false
+): Promise<ArrayBuffer> {
+  const { encode } = await getJpegMod();
   const safeQ = Math.max(5, Math.min(96, Math.round(qualityPct)));
   return encode(imageData, {
     quality: safeQ,
     progressive: true,
     optimize_coding: true,
-    trellis_multipass: true,
-    trellis_opt_zero: true,
-    trellis_opt_table: true,
+    trellis_multipass: !fastProbe,
+    trellis_opt_zero: !fastProbe,
+    trellis_opt_table: !fastProbe,
     auto_subsample: true,
   });
 }
 
-async function encodeWebp(imageData: ImageData, qualityPct: number): Promise<ArrayBuffer> {
-  if (!webpModPromise) webpModPromise = import('@jsquash/webp');
-  const { encode } = await webpModPromise;
+async function encodeWebp(
+  imageData: ImageData,
+  qualityPct: number,
+  fastProbe = false
+): Promise<ArrayBuffer> {
+  const { encode } = await getWebpMod();
   const safeQ = Math.max(5, Math.min(98, Math.round(qualityPct)));
   return encode(imageData, {
     quality: safeQ,
-    method: 4,
+    method: fastProbe ? 2 : 4,
   });
 }
 
@@ -62,41 +97,48 @@ async function encodePng(
   height: number,
   cnum: number
 ): Promise<ArrayBuffer> {
-  if (!upngModPromise) upngModPromise = import('upng-js');
-  const mod = await upngModPromise;
+  const mod = await getUpngMod();
   const UPNG = mod.default || (mod as unknown as typeof mod.default);
   return UPNG.encode([rgbaBuffer], width, height, cnum);
 }
 
-async function binarySearchWasm(
-  encoderFn: (qPct: number) => Promise<ArrayBuffer>,
+async function binarySearchCodec(
+  probeFn: (qPct: number) => Promise<ArrayBuffer>,
+  finalFn: (qPct: number) => Promise<ArrayBuffer>,
   targetBytes: number
 ): Promise<{ best: ArrayBuffer | null; smallest: ArrayBuffer }> {
   let lo = 10;
   let hi = 95;
 
-  const minAttempt = await encoderFn(lo);
+  const minAttempt = await probeFn(lo);
   if (minAttempt.byteLength > targetBytes) {
     return { best: null, smallest: minAttempt };
   }
 
-  let best = minAttempt;
+  let bestQ = lo;
+  let bestBuf = minAttempt;
   let smallest = minAttempt;
 
   for (let i = 0; i < 6; i++) {
     const mid = Math.round((lo + hi) / 2);
     if (mid <= lo || mid >= hi) break;
-    const attempt = await encoderFn(mid);
+    const attempt = await probeFn(mid);
     if (attempt.byteLength < smallest.byteLength) smallest = attempt;
     if (attempt.byteLength <= targetBytes) {
-      best = attempt;
+      bestQ = mid;
+      bestBuf = attempt;
       lo = mid;
     } else {
       hi = mid;
     }
   }
 
-  return { best, smallest };
+  // Run one final studio-grade pass at the winning quality
+  const finalBuf = await finalFn(bestQ);
+  if (finalBuf.byteLength <= targetBytes) {
+    return { best: finalBuf, smallest: finalBuf };
+  }
+  return { best: bestBuf, smallest };
 }
 
 workerScope.onmessage = async (event: MessageEvent<EncodeWorkerRequest>) => {
@@ -113,49 +155,58 @@ workerScope.onmessage = async (event: MessageEvent<EncodeWorkerRequest>) => {
     if (format === 'image/jpeg') {
       encoderUsed = 'MozJPEG';
       if (targetBytes && targetBytes > 0) {
-        const { best, smallest } = await binarySearchWasm(
-          (q) => encodeJpeg(imageData, q),
+        const { best, smallest } = await binarySearchCodec(
+          (q) => encodeJpeg(imageData, q, true),
+          (q) => encodeJpeg(imageData, q, false),
           targetBytes
         );
         outBuffer = best ?? smallest;
         targetHit = best !== null;
       } else {
-        outBuffer = await encodeJpeg(imageData, quality * 100);
+        outBuffer = await encodeJpeg(imageData, quality * 100, false);
       }
     } else if (format === 'image/webp') {
       encoderUsed = 'LibWebP';
       if (targetBytes && targetBytes > 0) {
-        const { best, smallest } = await binarySearchWasm(
-          (q) => encodeWebp(imageData, q),
+        const { best, smallest } = await binarySearchCodec(
+          (q) => encodeWebp(imageData, q, true),
+          (q) => encodeWebp(imageData, q, false),
           targetBytes
         );
         outBuffer = best ?? smallest;
         targetHit = best !== null;
       } else {
-        outBuffer = await encodeWebp(imageData, quality * 100);
+        outBuffer = await encodeWebp(imageData, quality * 100, false);
       }
     } else {
-      // Smart TinyPNG-style PNG compression using UPNG palette quantization
+      // Fast TinyPNG-style UPNG palette quantization with quick feasibility check
       encoderUsed = 'UPNG';
       if (targetBytes && targetBytes > 0) {
-        const paletteSteps = [0, 256, 128, 64, 32, 16];
-        let best: ArrayBuffer | null = null;
-        let smallest: ArrayBuffer | null = null;
-
-        for (const cnum of paletteSteps) {
-          const attempt = await encodePng(rgbaBuffer, width, height, cnum);
-          if (!smallest || attempt.byteLength < smallest.byteLength) {
-            smallest = attempt;
-          }
-          if (attempt.byteLength <= targetBytes) {
-            best = attempt;
-            break;
+        const attempt256 = await encodePng(rgbaBuffer, width, height, 256);
+        if (attempt256.byteLength <= targetBytes) {
+          const attempt0 = await encodePng(rgbaBuffer, width, height, 0);
+          outBuffer = attempt0.byteLength <= targetBytes ? attempt0 : attempt256;
+          targetHit = true;
+        } else {
+          // Check smallest palette immediately before wasting passes
+          const attempt16 = await encodePng(rgbaBuffer, width, height, 16);
+          if (attempt16.byteLength > targetBytes) {
+            outBuffer = attempt16;
+            targetHit = false;
+          } else {
+            let best = attempt16;
+            for (const cnum of [128, 64, 32]) {
+              const attempt = await encodePng(rgbaBuffer, width, height, cnum);
+              if (attempt.byteLength <= targetBytes) {
+                best = attempt;
+                break;
+              }
+            }
+            outBuffer = best;
+            targetHit = true;
           }
         }
-        outBuffer = best ?? smallest!;
-        targetHit = best !== null;
       } else {
-        // Quality >= 95% -> Lossless PNG (cnum=0); lower -> quantized smaller PNG
         const qPct = Math.round(quality * 100);
         const cnum = qPct >= 95 ? 0 : qPct >= 75 ? 256 : qPct >= 50 ? 128 : 64;
         outBuffer = await encodePng(rgbaBuffer, width, height, cnum);
