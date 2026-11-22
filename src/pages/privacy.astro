@@ -3,59 +3,71 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Privacy Policy | ImageLab"
-  description="How ImageLab protects your privacy through 100% local browser processing with zero server image uploads."
+  title="Privacy Policy & Data Handling | ImageLab"
+  description="Read how ImageLab protects your files: 100% local on-device processing for core image & PDF tools, plus zero-storage transient encrypted processing for AI OCR."
 >
-  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fade-up">
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 pb-14 space-y-8 animate-fade-up">
     <header>
-      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Legal</p>
-      <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">Privacy Policy</h1>
-      <p class="text-xs text-zinc-500 mt-2">Last updated: November 2026</p>
+      <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Privacy</p>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-zinc-950">
+        Privacy Policy &amp; Data Handling
+      </h1>
+      <p class="text-xs text-zinc-500 mt-2">Last updated: November 22, 2026</p>
     </header>
 
     <div class="studio-card rounded-3xl p-6 sm:p-8 space-y-6 text-sm text-zinc-600 leading-relaxed">
       <section class="space-y-2">
-        <h2 class="text-base font-bold text-zinc-950">1. Zero Server Image Uploads</h2>
+        <h2 class="text-base font-bold text-zinc-950">1. Local On-Device Tools (Zero Uploads)</h2>
         <p>
-          Every image conversion, compression, resize, crop, watermark, PDF creation, background
-          removal, and AI enhancement runs strictly inside your web browser using WebAssembly,
-          WebGPU, and browser Canvas APIs. Your photos, signatures, and documents are never
-          uploaded to or stored on ImageLab servers.
+          All core image and PDF utilities on ImageLab—including Image Converter, Image Compressor,
+          Resizer, Visual Crop &amp; Rotate, Privacy Blur &amp; Redact, EXIF Metadata Remover, Batch
+          Watermark, Image to PDF, Merge PDF, Split PDF, Compress PDF, and PDF to JPG—execute
+          entirely inside your browser using local memory and background workers. Your files never
+          leave your device and are cleared automatically when you close or refresh the tab.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-bold text-zinc-950">2. Third-Party CDN Model Downloads</h2>
+        <h2 class="text-base font-bold text-zinc-950">2. Image to Text (AI OCR) Transient Processing</h2>
         <p>
-          When you choose to run our on-device AI tools (AI Background Remover or AI Photo
-          Enhancer), your browser fetches the open-source AI model weights from public CDNs
-          (such as jsDelivr, Hugging Face, or IMG.LY) and caches them locally in your browser.
-          Only the model files are downloaded; your personal photos are never sent to those CDNs.
+          To provide fast, high-accuracy text extraction for English, Bengali, angled signs, and
+          handwriting without requiring heavy multi-megabyte downloads, our{' '}
+          <a href="/image-to-text" class="text-blue-600 font-semibold hover:underline">Image to Text (OCR)</a>{' '}
+          tool resizes your photo locally and sends it transiently over HTTPS to our serverless OCR
+          endpoint, which forwards it to a cloud vision AI provider solely to return the recognized
+          text. ImageLab does <strong>not</strong> save, log, or store your uploaded images or
+          extracted text on any database or disk. Avoid submitting highly confidential credentials
+          or legal IDs to cloud OCR if you require strictly offline processing.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-bold text-zinc-950">3. Local Storage & Preferences</h2>
+        <h2 class="text-base font-bold text-zinc-950">3. Local Storage &amp; Browser Data</h2>
         <p>
-          ImageLab stores your Dark/Light theme preference in your browser’s
-          <code>localStorage</code>. We do not require accounts or collect personal profiles.
+          ImageLab uses lightweight browser storage only for core functionality:
         </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-xs sm:text-sm">
+          <li><strong>Theme preference:</strong> Saved in <code>localStorage</code> so your Light or Dark mode choice persists.</li>
+          <li><strong>Tool-to-tool handoff:</strong> When you click <em>Send to</em>, your file is stored temporarily in your browser’s local <code>IndexedDB</code> and deleted immediately once opened in the target tool.</li>
+          <li><strong>Offline app shell:</strong> Our Service Worker caches static interface assets locally so pages load faster.</li>
+        </ul>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-bold text-zinc-950">4. Hosting & Future Advertising</h2>
+        <h2 class="text-base font-bold text-zinc-950">4. Hosting, Analytics &amp; Advertising</h2>
         <p>
-          This site is hosted on Cloudflare Pages, which may process standard network access logs
-          (such as IP address and user agent) for security and DDoS protection. If advertising
-          partners (such as Google AdSense) are enabled in the future, they may use cookies
-          according to their respective privacy policies.
+          ImageLab is hosted on Cloudflare Pages, which may process standard transient network
+          metadata (such as IP address and request headers) to protect against abuse and deliver
+          pages globally. If privacy-first analytics or Google AdSense are enabled in the future,
+          this policy will be updated accordingly and any required consent controls will be shown.
         </p>
       </section>
 
       <section class="space-y-2">
         <h2 class="text-base font-bold text-zinc-950">5. Contact</h2>
         <p>
-          Questions regarding privacy? Reach out via our <a href="/contact" class="text-blue-600 font-semibold hover:underline">Contact page</a>.
+          Questions or privacy inquiries? Reach out anytime via our{' '}
+          <a href="/contact" class="text-blue-600 font-semibold hover:underline">Contact page</a>.
         </p>
       </section>
     </div>
