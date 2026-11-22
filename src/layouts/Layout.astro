@@ -1,4 +1,5 @@
 ---
+import { Icon } from 'astro-icon/components';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -43,6 +44,7 @@ interface NavItem {
   name: string;
   desc: string;
   href: string;
+  icon: string;
   soon?: boolean;
 }
 
@@ -50,44 +52,44 @@ const navMenus: { label: string; items: NavItem[] }[] = [
   {
     label: 'Studio',
     items: [
-      { name: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text', href: '/image-to-text' },
-      { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image' },
-      { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image' },
-      { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover' },
-      { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image' },
-      { name: 'AI Background Remover', desc: 'Upgrading to instant HD cutouts', href: '/remove-background', soon: true },
-      { name: 'AI Photo Enhancer', desc: 'Upgrading to HD restoration', href: '/photo-enhancer', soon: true },
+      { name: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text', href: '/image-to-text', icon: 'lucide:scan-text' },
+      { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image', icon: 'lucide:crop' },
+      { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image', icon: 'lucide:eye-off' },
+      { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover', icon: 'lucide:shield-check' },
+      { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image', icon: 'lucide:stamp' },
+      { name: 'AI Background Remover', desc: 'Upgrading to instant HD cutouts', href: '/remove-background', icon: 'lucide:sparkles', soon: true },
+      { name: 'AI Photo Enhancer', desc: 'Upgrading to HD restoration', href: '/photo-enhancer', icon: 'lucide:sliders-horizontal', soon: true },
     ],
   },
   {
     label: 'PDF Tools',
     items: [
-      { name: 'Merge PDF', desc: 'Combine multiple PDFs losslessly', href: '/merge-pdf' },
-      { name: 'Split & Extract PDF', desc: 'Extract ranges or separate pages', href: '/split-pdf' },
-      { name: 'Compress PDF', desc: 'Shrink scanned & photo PDFs', href: '/compress-pdf' },
-      { name: 'PDF to JPG', desc: 'Render PDF pages to HD images', href: '/pdf-to-jpg' },
-      { name: 'Image to PDF', desc: 'Merge up to 30 photos into A4 PDF', href: '/image-to-pdf' },
+      { name: 'Merge PDF', desc: 'Combine multiple PDFs losslessly', href: '/merge-pdf', icon: 'lucide:layers' },
+      { name: 'Split & Extract PDF', desc: 'Extract ranges or separate pages', href: '/split-pdf', icon: 'lucide:scissors' },
+      { name: 'Compress PDF', desc: 'Shrink scanned & photo PDFs', href: '/compress-pdf', icon: 'lucide:minimize-2' },
+      { name: 'PDF to JPG', desc: 'Render PDF pages to HD images', href: '/pdf-to-jpg', icon: 'lucide:image' },
+      { name: 'Image to PDF', desc: 'Merge up to 30 photos into A4 PDF', href: '/image-to-pdf', icon: 'lucide:file-text' },
     ],
   },
   {
     label: 'Optimize',
     items: [
-      { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg' },
-      { name: 'AVIF to JPG', desc: 'Web AVIF to universal JPG', href: '/avif-to-jpg' },
-      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp' },
-      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg' },
-      { name: 'Image Compressor', desc: 'MozJPEG, LibWebP & UPNG', href: '/image-compressor' },
-      { name: 'Compress to 50KB', desc: 'Auto-fit portal upload limits', href: '/compress-image-to-50kb' },
-      { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb' },
+      { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg', icon: 'lucide:smartphone' },
+      { name: 'AVIF to JPG', desc: 'Web AVIF to universal JPG', href: '/avif-to-jpg', icon: 'lucide:globe' },
+      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp', icon: 'lucide:zap' },
+      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg', icon: 'lucide:refresh-cw' },
+      { name: 'Image Compressor', desc: 'Shrink photos up to 80% smaller', href: '/image-compressor', icon: 'lucide:minimize-2' },
+      { name: 'Compress to 50KB', desc: 'Auto-fit portal upload limits', href: '/compress-image-to-50kb', icon: 'lucide:gauge' },
+      { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb', icon: 'lucide:gauge' },
     ],
   },
   {
     label: 'Presets',
     items: [
-      { name: '300×300 Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300' },
-      { name: '300×80 Signature', desc: 'Clean padding under 60KB', href: '/resize-signature-300x80' },
-      { name: 'Passport 600×600', desc: 'Digital 2×2 inch standard', href: '/passport-photo-resizer' },
-      { name: 'YouTube 1280×720', desc: 'Crisp 16:9 HD thumbnails', href: '/youtube-thumbnail-resizer' },
+      { name: '300×300 Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300', icon: 'lucide:user' },
+      { name: '300×80 Signature', desc: 'Clean padding under 60KB', href: '/resize-signature-300x80', icon: 'lucide:pen-tool' },
+      { name: 'Passport 600×600', desc: 'Digital 2×2 inch standard', href: '/passport-photo-resizer', icon: 'lucide:user-check' },
+      { name: 'YouTube 1280×720', desc: 'Crisp 16:9 HD thumbnails', href: '/youtube-thumbnail-resizer', icon: 'lucide:monitor' },
     ],
   },
 ];
@@ -161,31 +163,38 @@ const navMenus: { label: string; items: NavItem[] }[] = [
                 class="nav-dropdown-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
               >
                 <span>{menu.label}</span>
-                <svg class="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-3.5 h-3.5 opacity-55 group-hover:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
               </button>
 
-              <div class="nav-dropdown-panel invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-72 z-50">
+              <div class="nav-dropdown-panel invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-80 z-50">
                 <div class="studio-card rounded-2xl p-1.5 space-y-0.5">
                   {menu.items.map((item) => (
                     <a
                       href={item.href}
-                      class={`block px-3 py-2.5 rounded-xl hover:bg-zinc-100 transition group/item ${
+                      class={`flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 transition group/item ${
                         item.soon ? 'opacity-75' : ''
                       }`}
                     >
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="text-[13px] font-semibold text-zinc-900 group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition">
-                          {item.name}
-                        </span>
-                        {item.soon && (
-                          <span class="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wide shrink-0">
-                            Soon
+                      <span class="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200/80 text-zinc-600 group-hover/item:bg-blue-600 group-hover/item:text-white group-hover/item:border-blue-600 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <Icon name={item.icon} class="w-4 h-4" aria-hidden="true" />
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-[13px] font-semibold text-zinc-900 group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition truncate">
+                            {item.name}
                           </span>
-                        )}
+                          {item.soon && (
+                            <span class="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wide shrink-0">
+                              Soon
+                            </span>
+                          )}
+                        </div>
+                        <div class="text-[11.5px] text-zinc-500 mt-0.5 truncate">{item.desc}</div>
                       </div>
-                      <div class="text-[11.5px] text-zinc-500 mt-0.5">{item.desc}</div>
                     </a>
                   ))}
                 </div>
@@ -206,15 +215,7 @@ const navMenus: { label: string; items: NavItem[] }[] = [
             href="/image-to-text"
             class="btn-studio-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-semibold"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-              <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-              <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-              <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-              <path d="M7 8h8" />
-              <path d="M7 12h10" />
-              <path d="M7 16h6" />
-            </svg>
+            <Icon name="lucide:scan-text" class="w-3.5 h-3.5" aria-hidden="true" />
             <span class="hidden sm:inline">Image to Text</span>
             <span class="sm:hidden">AI OCR</span>
           </a>
@@ -225,13 +226,8 @@ const navMenus: { label: string; items: NavItem[] }[] = [
             aria-label="Toggle theme"
             class="w-9 h-9 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center transition active:scale-95 cursor-pointer"
           >
-            <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-            </svg>
-            <svg class="w-4 h-4 hidden dark:block text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
+            <Icon name="lucide:moon" class="w-4 h-4 block dark:hidden" aria-hidden="true" />
+            <Icon name="lucide:sun" class="w-4 h-4 hidden dark:block text-amber-300" aria-hidden="true" />
           </button>
 
           <button
@@ -241,9 +237,7 @@ const navMenus: { label: string; items: NavItem[] }[] = [
             aria-expanded="false"
             class="md:hidden w-9 h-9 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 flex items-center justify-center transition cursor-pointer"
           >
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <Icon name="lucide:menu" class="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -258,11 +252,12 @@ const navMenus: { label: string; items: NavItem[] }[] = [
               {menu.items.map((item) => (
                 <a
                   href={item.href}
-                  class={`px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-800 hover:border-blue-500 transition flex items-center justify-between gap-1 ${
+                  class={`px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-800 hover:border-blue-500 transition flex items-center gap-2 ${
                     item.soon ? 'opacity-70' : ''
                   }`}
                 >
-                  <span class="truncate">{item.name}</span>
+                  <Icon name={item.icon} class="w-3.5 h-3.5 text-zinc-500 shrink-0" aria-hidden="true" />
+                  <span class="truncate flex-1">{item.name}</span>
                   {item.soon && (
                     <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase shrink-0">
                       Soon
@@ -276,9 +271,10 @@ const navMenus: { label: string; items: NavItem[] }[] = [
         <div>
           <a
             href="/guides"
-            class="block px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-800 hover:border-blue-500 transition text-center"
+            class="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-800 hover:border-blue-500 transition"
           >
-            Image &amp; PDF Guides
+            <Icon name="lucide:book-open" class="w-3.5 h-3.5 text-zinc-500" aria-hidden="true" />
+            <span>Image &amp; PDF Guides</span>
           </a>
         </div>
       </div>
@@ -303,8 +299,8 @@ const navMenus: { label: string; items: NavItem[] }[] = [
               />
               <span>ImageLab</span>
             </div>
-            <p class="text-xs text-zinc-500 leading-relaxed max-w-[200px]">
-              Browser-native image &amp; PDF studio powered by WebAssembly. Zero uploads.
+            <p class="text-xs text-zinc-500 leading-relaxed max-w-[210px]">
+              Fast, private image &amp; PDF tools right in your browser.
             </p>
           </div>
 
