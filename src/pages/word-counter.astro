@@ -3,10 +3,10 @@ import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import WordCounterTool from '../components/WordCounterTool';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/word-counter`;
 
-const title = 'Free Word & Character Counter (English & বাংলা) | ImageLab';
+const title = 'Free Word & Character Counter (English & বাংলা) | ImageLabKit';
 const description =
   'Count words, characters (with and without spaces), sentences, paragraphs, reading time, and keyword density in English and Bengali (বাংলা). Includes case converter & text cleaner.';
 
@@ -28,7 +28,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Word & Character Counter',
+  name: 'ImageLabKit Free Word & Character Counter',
   url: pageUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'All',
