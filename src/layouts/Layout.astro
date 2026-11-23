@@ -61,6 +61,7 @@ const rawNavMenus: { label: string; items: Omit<NavItem, 'soon'>[] }[] = [
     label: 'Studio',
     items: [
       { name: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text', href: '/image-to-text', icon: 'lucide:scan-text' },
+      { name: 'Word & Character Counter', desc: 'Live count, case & text cleaner', href: '/word-counter', icon: 'lucide:file-text' },
       { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image', icon: 'lucide:crop' },
       { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image', icon: 'lucide:eye-off' },
       { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover', icon: 'lucide:shield-check' },
@@ -379,9 +380,10 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Image Studio</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Image &amp; Text Studio</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/image-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">Image to Text (OCR)</a></li>
+              <li><a href="/word-counter" class="hover:text-zinc-950 dark:hover:text-white transition">Word &amp; Character Counter</a></li>
               <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop &amp; Rotate</a></li>
               <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur &amp; Redact</a></li>
               <li><a href="/exif-remover" class="hover:text-zinc-950 dark:hover:text-white transition">EXIF Metadata Remover</a></li>
