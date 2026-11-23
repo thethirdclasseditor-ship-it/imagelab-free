@@ -5,7 +5,7 @@ import icon from 'astro-icon';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  site: 'https://imagelab-free.pages.dev',
+  site: 'https://imagelabkit.com',
   integrations: [
     react(),
     icon(),
