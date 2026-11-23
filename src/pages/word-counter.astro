@@ -1,0 +1,136 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import WordCounterTool from '../components/WordCounterTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const pageUrl = `${siteBase}/word-counter`;
+
+const title = 'Free Word & Character Counter (English & বাংলা) | ImageLab';
+const description =
+  'Count words, characters (with and without spaces), sentences, paragraphs, reading time, and keyword density in English and Bengali (বাংলা). Includes case converter & text cleaner.';
+
+const faqs = [
+  {
+    q: 'Does this Word Counter accurately count Bengali (বাংলা) words and sentences?',
+    a: 'Yes. It uses Unicode-aware word segmentation and recognizes both English punctuation (. ! ?) and Bengali danda (। ॥) so Bangla essays, news articles, and social captions are counted accurately.',
+  },
+  {
+    q: 'How are Reading Time and Speaking Time calculated?',
+    a: 'Reading time is estimated at an average silent reading pace of 200 words per minute, while speaking time is calculated at a presentation pace of 130 words per minute.',
+  },
+  {
+    q: 'Is my pasted article, essay, or confidential document stored anywhere?',
+    a: 'Never. Everything runs 100% locally inside your browser tab—zero text is transmitted to any server.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLab Free Word & Character Counter',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Word Counter', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Word Counter</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Word &amp; Character Counter
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Live word, character, sentence &amp; reading time counter for English and বাংলা — with 1-click text cleanup.
+      </p>
+    </header>
+
+    <WordCounterTool client:load />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">English &amp; বাংলা Ready</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Accurately counts bilingual articles, Unicode scripts, sentences ending with danda (।), and paragraphs in real time.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">1-Click Case &amp; Cleanup</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Convert to UPPERCASE, Title Case, or Sentence case, strip extra spaces, remove empty lines, and deduplicate lists.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">SEO &amp; Social Limit Bars</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Check Google SEO title (60), meta description (160), YouTube title (100), and social post limits plus keyword density.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="Related Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/image-to-text" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to Text (OCR)</a>
+          <a href="/qr-code-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">QR Code Generator</a>
+          <a href="/sign-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Sign PDF</a>
+          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
