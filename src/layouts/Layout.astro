@@ -18,7 +18,7 @@ interface Props {
 }
 
 const { title, description, schemas = [], noindex = false } = Astro.props;
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname.replace(/\/+$/, '') || '/', Astro.site).toString()
   : Astro.url.href;
@@ -34,14 +34,16 @@ const baseSchemas = [
   {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'ImageLab',
+    name: 'ImageLabKit',
+    alternateName: 'ImageLab',
     url: siteBase,
     logo: `${siteBase}/logo.png?v=2`,
   },
   {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'ImageLab',
+    name: 'ImageLabKit',
+    alternateName: 'ImageLab',
     url: siteBase,
   },
 ];
@@ -143,7 +145,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
     <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="ImageLab" />
+    <meta name="apple-mobile-web-app-title" content="ImageLabKit" />
 
     <script is:inline>
       (function () {
@@ -160,6 +162,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ImageLabKit" />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={`${siteBase}/logo.png?v=2`} />
     <meta name="twitter:card" content="summary" />
@@ -209,12 +212,12 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
         <a href="/" class="flex items-center gap-2 group shrink-0">
           <img
             src="/logo.png?v=2"
-            alt="ImageLab Logo"
+            alt="ImageLabKit Logo"
             width="38"
             height="38"
             class="w-9 h-9 sm:w-10 sm:h-10 object-contain dark:invert group-hover:scale-105 transition-transform"
           />
-          <span class="font-bold text-[18px] tracking-tight text-zinc-950">ImageLab</span>
+          <span class="font-bold text-[18px] tracking-tight text-zinc-950">ImageLabKit</span>
         </a>
 
         <nav aria-label="Main navigation" class="hidden md:flex items-center gap-0.5 lg:gap-1">
@@ -356,12 +359,12 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
             <div class="flex items-center gap-2 font-bold text-zinc-950">
               <img
                 src="/logo.png?v=2"
-                alt="ImageLab Logo"
+                alt="ImageLabKit Logo"
                 width="28"
                 height="28"
                 class="w-7 h-7 object-contain dark:invert"
               />
-              <span>ImageLab</span>
+              <span>ImageLabKit</span>
             </div>
             <p class="text-xs text-zinc-500 leading-relaxed max-w-[210px]">
               Fast, private image, PDF &amp; graphic tools right in your browser.
@@ -417,7 +420,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
         </div>
 
         <div class="mt-8 pt-6 border-t border-zinc-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
-          <span>© {new Date().getFullYear()} ImageLab</span>
+          <span>© {new Date().getFullYear()} ImageLabKit</span>
           <div class="flex flex-wrap items-center gap-4">
             <a href="/guides" class="hover:text-zinc-950 dark:hover:text-white transition">Guides</a>
             <a href="/about" class="hover:text-zinc-950 dark:hover:text-white transition">About</a>
