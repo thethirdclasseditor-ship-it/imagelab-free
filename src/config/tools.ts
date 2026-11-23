@@ -15,8 +15,9 @@ export const TOOL_STATUS: Record<string, ToolStatus> = {
   '/favicon-generator': 'live',
   '/color-picker': 'live',
 
-  // Image Studio
+  // Image & Text Studio
   '/image-to-text': 'live',
+  '/word-counter': 'live',
   '/crop-image': 'live',
   '/blur-image': 'live',
   '/exif-remover': 'live',
