@@ -1,7 +1,20 @@
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const FALLBACK_FAST = [
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+];
+const FALLBACK_HANDWRITING = [
+  'gemini-flash-latest',
+  'gemini-3.5-flash',
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+];
 
-const FAST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
-const HANDWRITING_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+// Cached in memory across warm requests for instant response
+const cachedModel = { fast: null, handwriting: null };
+const modelsWithoutThinkingConfig = new Set();
 
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -48,130 +61,103 @@ function cleanModelOutput(rawText) {
   return text;
 }
 
-async function querySingleModel({
-  apiKey,
-  model,
-  prompt,
-  mimeType,
-  cleanBase64,
-  signal,
-}) {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  const makePayload = (disableThinking) => {
-    const generationConfig = {
-      temperature: 0,
-      maxOutputTokens: 2048,
-    };
-    if (disableThinking && model.includes('2.5')) {
-      generationConfig.thinkingConfig = { thinkingBudget: 0 };
-    }
-    return JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: cleanBase64,
-              },
-            },
-          ],
-        },
-      ],
-      generationConfig,
-    });
-  };
-
-  let upstream = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: makePayload(true),
-    signal,
-  });
-
-  if (upstream.status === 400 && model.includes('2.5')) {
-    upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: makePayload(false),
-      signal,
-    });
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
-
-  const data = await upstream.json().catch(() => ({}));
-
-  if (!upstream.ok) {
-    const err = new Error(data?.error?.message || `HTTP ${upstream.status}`);
-    err.status = upstream.status;
-    throw err;
-  }
-
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const rawText = parts
-    .filter((p) => !p?.thought && typeof p?.text === 'string')
-    .map((p) => p.text)
-    .join('');
-
-  return cleanModelOutput(rawText);
 }
 
-/**
- * Hedged Parallel Race:
- * Starts primary model immediately; if it takes >2.2s, launches backups in parallel.
- * First successful response wins immediately and cancels remaining requests.
- */
-async function raceOcrModels({ models, apiKey, prompt, mimeType, cleanBase64 }) {
-  const controllers = models.map(() => new AbortController());
-  const hardTimer = setTimeout(() => {
-    controllers.forEach((c) => c.abort());
-  }, 15000);
-
-  const staggerDelays = [0, 2200, 4500];
-
-  const tasks = models.map((model, idx) => {
-    return new Promise((resolve, reject) => {
-      const delay = staggerDelays[idx] ?? idx * 2000;
-      const startTimer = setTimeout(() => {
-        querySingleModel({
-          apiKey,
-          model,
-          prompt,
-          mimeType,
-          cleanBase64,
-          signal: controllers[idx].signal,
-        })
-          .then((text) => {
-            controllers.forEach((c, i) => {
-              if (i !== idx) c.abort();
-            });
-            resolve({ text, model });
-          })
-          .catch((err) => {
-            reject(err);
-          });
-      }, delay);
-
-      controllers[idx].signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(startTimer);
-          const abortErr = new Error('Aborted');
-          abortErr.name = 'AbortError';
-          reject(abortErr);
-        },
-        { once: true }
-      );
-    });
-  });
-
+/** Auto-discovers live Gemini 3.x Flash models on this API key, prioritizing fast flash-lite */
+async function discoverFlashModels(apiKey, preferLite) {
   try {
-    return await Promise.any(tasks);
-  } finally {
-    clearTimeout(hardTimer);
+    const res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=${encodeURIComponent(apiKey)}`,
+      { method: 'GET' },
+      3500
+    );
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    const list = Array.isArray(data?.models) ? data.models : [];
+
+    const candidates = list
+      .filter((m) => {
+        const name = String(m?.name || '').toLowerCase();
+        const methods = Array.isArray(m?.supportedGenerationMethods)
+          ? m.supportedGenerationMethods
+          : [];
+        if (!methods.includes('generateContent')) return false;
+        if (!name.includes('gemini') || !name.includes('flash')) return false;
+        if (/tts|audio|live|image|embed|aqa|robotics|computer-use|1\.0|1\.5|2\.0|2\.5/.test(name)) {
+          return false;
+        }
+        return true;
+      })
+      .map((m) => String(m.name).replace(/^models\//, ''));
+
+    const scoreModel = (name) => {
+      let score = 0;
+      const ver = /gemini-(\d+(?:\.\d+)?)/.exec(name);
+      if (ver) score += parseFloat(ver[1]) * 100;
+      if (name === 'gemini-flash-lite-latest') score += preferLite ? 390 : 320;
+      if (name === 'gemini-flash-latest') score += preferLite ? 330 : 390;
+      if (name.includes('lite')) score += preferLite ? 50 : -15;
+      if (!name.includes('preview') && !name.includes('exp')) score += 15;
+      if (name.includes('thinking')) score -= 60;
+      return score;
+    };
+
+    candidates.sort((a, b) => scoreModel(b) - scoreModel(a));
+    return [...new Set(candidates)].slice(0, 4);
+  } catch {
+    return [];
   }
+}
+
+async function requestOcrModel({ apiKey, model, prompt, mimeType, cleanBase64, useThinkingConfig, timeoutMs }) {
+  const generationConfig = {
+    temperature: 0,
+    maxOutputTokens: 2048,
+  };
+
+  if (useThinkingConfig) {
+    if (model.includes('3.') || model.includes('latest')) {
+      generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+    } else if (model.includes('2.5')) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  return fetchWithTimeout(
+    endpoint,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: cleanBase64,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig,
+      }),
+    },
+    timeoutMs
+  );
 }
 
 export async function onRequestPost(context) {
@@ -225,42 +211,102 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Unsupported image format for OCR.' }, 400);
   }
 
-  const models = language === 'handwriting' ? HANDWRITING_MODELS : FAST_MODELS;
+  const bucket = language === 'handwriting' ? 'handwriting' : 'fast';
+  const preferLite = bucket === 'fast';
+  const fallbacks = preferLite ? FALLBACK_FAST : FALLBACK_HANDWRITING;
+
+  const discovered = cachedModel[bucket] ? [] : await discoverFlashModels(apiKey, preferLite);
+  const modelsToTry = [
+    ...new Set([
+      ...(cachedModel[bucket] ? [cachedModel[bucket]] : []),
+      ...discovered,
+      ...fallbacks,
+    ]),
+  ].slice(0, 4);
+
   const prompt = buildPrompt(language);
+  let lastErrorMsg = 'Could not extract text right now. Please try again.';
+  let lastStatus = 502;
 
-  try {
-    const result = await raceOcrModels({
-      models,
-      apiKey,
-      prompt,
-      mimeType,
-      cleanBase64,
-    });
-    return jsonResponse({ text: result.text, model: result.model }, 200);
-  } catch (aggErr) {
-    const errors = Array.isArray(aggErr?.errors) ? aggErr.errors : [aggErr];
-    const authErr = errors.find(
-      (e) => e?.status === 401 || e?.status === 403 || /api key/i.test(String(e?.message || ''))
-    );
-    if (authErr) {
-      return jsonResponse(
-        { error: 'OCR service authentication failed. Please check GEMINI_API_KEY.' },
-        503
-      );
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i];
+    const timeoutMs = i === 0 ? 12000 : 15000;
+    const tryThinking = !modelsWithoutThinkingConfig.has(model);
+
+    try {
+      let upstream = await requestOcrModel({
+        apiKey,
+        model,
+        prompt,
+        mimeType,
+        cleanBase64,
+        useThinkingConfig: tryThinking,
+        timeoutMs,
+      });
+
+      // If this model rejects thinkingConfig with 400, remember it and retry cleanly right away
+      if (upstream.status === 400 && tryThinking) {
+        const errBody = await upstream.clone().json().catch(() => ({}));
+        const msg = String(errBody?.error?.message || '');
+        if (/thinking/i.test(msg)) {
+          modelsWithoutThinkingConfig.add(model);
+          upstream = await requestOcrModel({
+            apiKey,
+            model,
+            prompt,
+            mimeType,
+            cleanBase64,
+            useThinkingConfig: false,
+            timeoutMs,
+          });
+        }
+      }
+
+      const data = await upstream.json().catch(() => ({}));
+
+      if (upstream.ok) {
+        cachedModel[bucket] = model;
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const rawText = parts
+          .filter((p) => !p?.thought && typeof p?.text === 'string')
+          .map((p) => p.text)
+          .join('');
+        return jsonResponse({ text: cleanModelOutput(rawText), model }, 200);
+      }
+
+      if (cachedModel[bucket] === model) {
+        cachedModel[bucket] = null;
+      }
+
+      const apiMsg = data?.error?.message || '';
+      if (upstream.status === 401 || upstream.status === 403 || /api key/i.test(apiMsg)) {
+        return jsonResponse(
+          { error: 'OCR service authentication failed. Please check GEMINI_API_KEY.' },
+          503
+        );
+      }
+
+      if (upstream.status === 429) {
+        lastStatus = 429;
+        lastErrorMsg = 'Free AI quota is momentarily busy. Wait 10 seconds and click Re-run OCR.';
+        continue;
+      }
+
+      lastStatus = upstream.status;
+      lastErrorMsg = apiMsg || lastErrorMsg;
+    } catch (err) {
+      if (cachedModel[bucket] === model) {
+        cachedModel[bucket] = null;
+      }
+      if (err && err.name === 'AbortError') {
+        lastStatus = 504;
+        lastErrorMsg = 'OCR server took too long to respond. Please click Re-run OCR.';
+        continue;
+      }
+      lastStatus = 502;
+      lastErrorMsg = err instanceof Error ? err.message : lastErrorMsg;
     }
-
-    const rateErr = errors.find((e) => e?.status === 429);
-    if (rateErr) {
-      return jsonResponse(
-        { error: 'Free AI quota is momentarily busy. Wait 10 seconds and click Re-run OCR.' },
-        429
-      );
-    }
-
-    const detail = errors.find((e) => e?.name !== 'AbortError')?.message || 'Upstream timeout';
-    return jsonResponse(
-      { error: `OCR took too long (${detail}). Please click Re-run OCR.` },
-      504
-    );
   }
+
+  return jsonResponse({ error: lastErrorMsg }, lastStatus);
 }
