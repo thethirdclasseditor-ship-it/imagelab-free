@@ -1,6 +1,5 @@
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-// Ultra-fast models first; handwriting uses full flash (with thinking off) for extra accuracy
 const FAST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
 const HANDWRITING_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
 
@@ -49,54 +48,130 @@ function cleanModelOutput(rawText) {
   return text;
 }
 
-async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function callGeminiOcr({ apiKey, model, prompt, mimeType, cleanBase64, disableThinking, timeoutMs }) {
-  const generationConfig = {
-    temperature: 0,
-    maxOutputTokens: 2048,
-  };
-
-  // Disable thinking tokens on 2.5 models for instant 1-2s OCR latency
-  if (disableThinking && model.includes('2.5')) {
-    generationConfig.thinkingConfig = { thinkingBudget: 0 };
-  }
-
+async function querySingleModel({
+  apiKey,
+  model,
+  prompt,
+  mimeType,
+  cleanBase64,
+  signal,
+}) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  return fetchWithTimeout(
-    endpoint,
-    {
+  const makePayload = (disableThinking) => {
+    const generationConfig = {
+      temperature: 0,
+      maxOutputTokens: 2048,
+    };
+    if (disableThinking && model.includes('2.5')) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+    return JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: cleanBase64,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig,
+    });
+  };
+
+  let upstream = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: makePayload(true),
+    signal,
+  });
+
+  if (upstream.status === 400 && model.includes('2.5')) {
+    upstream = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: cleanBase64,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig,
-      }),
-    },
-    timeoutMs
-  );
+      body: makePayload(false),
+      signal,
+    });
+  }
+
+  const data = await upstream.json().catch(() => ({}));
+
+  if (!upstream.ok) {
+    const err = new Error(data?.error?.message || `HTTP ${upstream.status}`);
+    err.status = upstream.status;
+    throw err;
+  }
+
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const rawText = parts
+    .filter((p) => !p?.thought && typeof p?.text === 'string')
+    .map((p) => p.text)
+    .join('');
+
+  return cleanModelOutput(rawText);
+}
+
+/**
+ * Hedged Parallel Race:
+ * Starts primary model immediately; if it takes >2.2s, launches backups in parallel.
+ * First successful response wins immediately and cancels remaining requests.
+ */
+async function raceOcrModels({ models, apiKey, prompt, mimeType, cleanBase64 }) {
+  const controllers = models.map(() => new AbortController());
+  const hardTimer = setTimeout(() => {
+    controllers.forEach((c) => c.abort());
+  }, 15000);
+
+  const staggerDelays = [0, 2200, 4500];
+
+  const tasks = models.map((model, idx) => {
+    return new Promise((resolve, reject) => {
+      const delay = staggerDelays[idx] ?? idx * 2000;
+      const startTimer = setTimeout(() => {
+        querySingleModel({
+          apiKey,
+          model,
+          prompt,
+          mimeType,
+          cleanBase64,
+          signal: controllers[idx].signal,
+        })
+          .then((text) => {
+            controllers.forEach((c, i) => {
+              if (i !== idx) c.abort();
+            });
+            resolve({ text, model });
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      }, delay);
+
+      controllers[idx].signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(startTimer);
+          const abortErr = new Error('Aborted');
+          abortErr.name = 'AbortError';
+          reject(abortErr);
+        },
+        { once: true }
+      );
+    });
+  });
+
+  try {
+    return await Promise.any(tasks);
+  } finally {
+    clearTimeout(hardTimer);
+  }
 }
 
 export async function onRequestPost(context) {
@@ -150,77 +225,42 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Unsupported image format for OCR.' }, 400);
   }
 
-  const modelsToTry = language === 'handwriting' ? HANDWRITING_MODELS : FAST_MODELS;
+  const models = language === 'handwriting' ? HANDWRITING_MODELS : FAST_MODELS;
   const prompt = buildPrompt(language);
 
-  let lastErrorMsg = 'Could not extract text right now. Please try again.';
-  let lastStatus = 502;
-
-  for (let i = 0; i < modelsToTry.length; i++) {
-    const model = modelsToTry[i];
-    const timeoutMs = i === 0 ? 10000 : 12000;
-
-    try {
-      let upstream = await callGeminiOcr({
-        apiKey,
-        model,
-        prompt,
-        mimeType,
-        cleanBase64,
-        disableThinking: true,
-        timeoutMs,
-      });
-
-      // If a model rejects thinkingConfig with 400, retry once cleanly without it
-      if (upstream.status === 400 && model.includes('2.5')) {
-        upstream = await callGeminiOcr({
-          apiKey,
-          model,
-          prompt,
-          mimeType,
-          cleanBase64,
-          disableThinking: false,
-          timeoutMs,
-        });
-      }
-
-      const data = await upstream.json().catch(() => ({}));
-
-      if (upstream.ok) {
-        const parts = data?.candidates?.[0]?.content?.parts || [];
-        const rawText = parts
-          .filter((p) => !p?.thought && typeof p?.text === 'string')
-          .map((p) => p.text)
-          .join('');
-        return jsonResponse({ text: cleanModelOutput(rawText) }, 200);
-      }
-
-      const apiMsg = data?.error?.message || '';
-      if (upstream.status === 401 || upstream.status === 403 || /api key/i.test(apiMsg)) {
-        return jsonResponse(
-          { error: 'OCR service authentication failed. Please contact the site administrator.' },
-          503
-        );
-      }
-
-      if (upstream.status === 429) {
-        lastStatus = 429;
-        lastErrorMsg = 'OCR service is busy right now. Please wait 10 seconds and click Re-run OCR.';
-        continue;
-      }
-
-      lastStatus = upstream.status;
-      lastErrorMsg = apiMsg || lastErrorMsg;
-    } catch (err) {
-      if (err && err.name === 'AbortError') {
-        lastStatus = 504;
-        lastErrorMsg = 'OCR timed out on upstream server. Please try again.';
-        continue;
-      }
-      lastStatus = 502;
-      lastErrorMsg = err instanceof Error ? err.message : lastErrorMsg;
+  try {
+    const result = await raceOcrModels({
+      models,
+      apiKey,
+      prompt,
+      mimeType,
+      cleanBase64,
+    });
+    return jsonResponse({ text: result.text, model: result.model }, 200);
+  } catch (aggErr) {
+    const errors = Array.isArray(aggErr?.errors) ? aggErr.errors : [aggErr];
+    const authErr = errors.find(
+      (e) => e?.status === 401 || e?.status === 403 || /api key/i.test(String(e?.message || ''))
+    );
+    if (authErr) {
+      return jsonResponse(
+        { error: 'OCR service authentication failed. Please check GEMINI_API_KEY.' },
+        503
+      );
     }
-  }
 
-  return jsonResponse({ error: lastErrorMsg }, lastStatus);
+    const rateErr = errors.find((e) => e?.status === 429);
+    if (rateErr) {
+      return jsonResponse(
+        { error: 'Free AI quota is momentarily busy. Wait 10 seconds and click Re-run OCR.' },
+        429
+      );
+    }
+
+    const detail = errors.find((e) => e?.name !== 'AbortError')?.message || 'Upstream timeout';
+    return jsonResponse(
+      { error: `OCR took too long (${detail}). Please click Re-run OCR.` },
+      504
+    );
+  }
 }
