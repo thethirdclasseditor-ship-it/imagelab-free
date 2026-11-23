@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://imagelab-free.pages.dev/sitemap-index.xml
+Sitemap: https://imagelabkit.com/sitemap-index.xml
