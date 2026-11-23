@@ -1,7 +1,8 @@
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
-let cachedWorkingModel = null;
+// Ultra-fast models first; handwriting uses full flash (with thinking off) for extra accuracy
+const FAST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
+const HANDWRITING_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
 
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -28,19 +29,16 @@ function isAllowedOrigin(request) {
 }
 
 function buildPrompt(language) {
-  const baseRules =
-    'You are a high-precision OCR engine. Extract ALL visible text from this image accurately, including angled signs, logos with text, dark backgrounds, receipts, tables, and dense paragraphs. Preserve natural line breaks and reading order. Output ONLY the extracted text itself—no explanations, no markdown code blocks, no intro or outro. If there is genuinely no readable text in the image, return an empty string.';
-
   if (language === 'ben') {
-    return `${baseRules} Focus especially on accurate Bengali (বাংলা) script, matra, and juktakhor (যুক্তবর্ণ), while keeping any numbers or English words intact.`;
+    return 'Extract all visible Bengali (বাংলা) and any English/numbers from this image accurately, preserving line breaks. Output ONLY the extracted text with no markdown or explanations. Return empty string if no text.';
   }
   if (language === 'eng') {
-    return `${baseRules} Focus on accurate English text, punctuation, and numbers.`;
+    return 'Extract all visible English text and numbers from this image accurately, preserving line breaks. Output ONLY the extracted text with no markdown or explanations. Return empty string if no text.';
   }
   if (language === 'handwriting') {
-    return `${baseRules} This image may contain handwritten notes (Bengali or English). Transcribe the handwriting faithfully line by line.`;
+    return 'Transcribe all handwritten text (Bengali or English) from this image accurately, preserving line breaks. Output ONLY the transcribed text with no markdown or explanations. Return empty string if no text.';
   }
-  return `${baseRules} Auto-detect all languages present (including Bengali/বাংলা, English, or mixed text) and transcribe them in their original script.`;
+  return 'Extract all visible text from this image accurately (including English, Bengali/বাংলা, angled signs, or dark backgrounds), preserving line breaks. Output ONLY the extracted text with no markdown or explanations. Return empty string if no text.';
 }
 
 function cleanModelOutput(rawText) {
@@ -51,51 +49,57 @@ function cleanModelOutput(rawText) {
   return text;
 }
 
-/** Auto-discovers the newest live Gemini Flash models available on this API key */
-async function discoverFlashModels(apiKey) {
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=${encodeURIComponent(apiKey)}`
-    );
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => ({}));
-    const list = Array.isArray(data?.models) ? data.models : [];
-
-    const candidates = list
-      .filter((m) => {
-        const name = String(m?.name || '').toLowerCase();
-        const methods = Array.isArray(m?.supportedGenerationMethods)
-          ? m.supportedGenerationMethods
-          : [];
-        if (!methods.includes('generateContent')) return false;
-        if (!name.includes('gemini') || !name.includes('flash')) return false;
-        if (/tts|audio|live|image|embed|aqa|robotics|computer-use|1\.0|1\.5|2\.0/.test(name)) {
-          return false;
-        }
-        return true;
-      })
-      .map((m) => String(m.name).replace(/^models\//, ''));
-
-    const scoreModel = (name) => {
-      let score = 0;
-      const ver = /gemini-(\d+(?:\.\d+)?)/.exec(name);
-      if (ver) score += parseFloat(ver[1]) * 100;
-      if (name === 'gemini-flash-latest') score += 290;
-      if (!name.includes('lite')) score += 20;
-      if (!name.includes('preview') && !name.includes('exp')) score += 15;
-      if (name.includes('thinking')) score -= 30;
-      return score;
-    };
-
-    candidates.sort((a, b) => scoreModel(b) - scoreModel(a));
-    return [...new Set(candidates)].slice(0, 6);
-  } catch {
-    return [];
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
 }
 
+async function callGeminiOcr({ apiKey, model, prompt, mimeType, cleanBase64, disableThinking, timeoutMs }) {
+  const generationConfig = {
+    temperature: 0,
+    maxOutputTokens: 2048,
+  };
+
+  // Disable thinking tokens on 2.5 models for instant 1-2s OCR latency
+  if (disableThinking && model.includes('2.5')) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  return fetchWithTimeout(
+    endpoint,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: cleanBase64,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig,
+      }),
+    },
+    timeoutMs
+  );
+}
+
 export async function onRequestPost(context) {
-  // Instant remote kill-switch via Cloudflare Pages Settings -> Variables and secrets (OCR_DISABLED=true)
   if (String(context.env?.OCR_DISABLED || '').toLowerCase() === 'true') {
     return jsonResponse(
       { error: 'Image to Text (OCR) is temporarily paused for maintenance. Please check back shortly.' },
@@ -103,7 +107,6 @@ export async function onRequestPost(context) {
     );
   }
 
-  // Prevent external websites from hotlinking/leeching your OCR endpoint
   if (!isAllowedOrigin(context.request)) {
     return jsonResponse({ error: 'Cross-origin OCR requests are not allowed.' }, 403);
   }
@@ -147,62 +150,49 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'Unsupported image format for OCR.' }, 400);
   }
 
-  const discovered = cachedWorkingModel ? [] : await discoverFlashModels(apiKey);
-  const modelsToTry = [
-    ...new Set([
-      ...(cachedWorkingModel ? [cachedWorkingModel] : []),
-      ...discovered,
-      ...FALLBACK_MODELS,
-    ]),
-  ];
-
+  const modelsToTry = language === 'handwriting' ? HANDWRITING_MODELS : FAST_MODELS;
   const prompt = buildPrompt(language);
+
   let lastErrorMsg = 'Could not extract text right now. Please try again.';
   let lastStatus = 502;
 
-  for (const model of modelsToTry) {
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i];
+    const timeoutMs = i === 0 ? 10000 : 12000;
+
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const upstream = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: cleanBase64,
-                  },
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 4096,
-          },
-        }),
+      let upstream = await callGeminiOcr({
+        apiKey,
+        model,
+        prompt,
+        mimeType,
+        cleanBase64,
+        disableThinking: true,
+        timeoutMs,
       });
+
+      // If a model rejects thinkingConfig with 400, retry once cleanly without it
+      if (upstream.status === 400 && model.includes('2.5')) {
+        upstream = await callGeminiOcr({
+          apiKey,
+          model,
+          prompt,
+          mimeType,
+          cleanBase64,
+          disableThinking: false,
+          timeoutMs,
+        });
+      }
 
       const data = await upstream.json().catch(() => ({}));
 
       if (upstream.ok) {
-        cachedWorkingModel = model;
         const parts = data?.candidates?.[0]?.content?.parts || [];
         const rawText = parts
           .filter((p) => !p?.thought && typeof p?.text === 'string')
           .map((p) => p.text)
           .join('');
-        const text = cleanModelOutput(rawText);
-        return jsonResponse({ text }, 200);
-      }
-
-      if (cachedWorkingModel === model) {
-        cachedWorkingModel = null;
+        return jsonResponse({ text: cleanModelOutput(rawText) }, 200);
       }
 
       const apiMsg = data?.error?.message || '';
@@ -215,13 +205,18 @@ export async function onRequestPost(context) {
 
       if (upstream.status === 429) {
         lastStatus = 429;
-        lastErrorMsg = 'OCR service is busy right now. Please wait 10–15 seconds and click Re-run OCR.';
+        lastErrorMsg = 'OCR service is busy right now. Please wait 10 seconds and click Re-run OCR.';
         continue;
       }
 
       lastStatus = upstream.status;
       lastErrorMsg = apiMsg || lastErrorMsg;
     } catch (err) {
+      if (err && err.name === 'AbortError') {
+        lastStatus = 504;
+        lastErrorMsg = 'OCR timed out on upstream server. Please try again.';
+        continue;
+      }
       lastStatus = 502;
       lastErrorMsg = err instanceof Error ? err.message : lastErrorMsg;
     }
