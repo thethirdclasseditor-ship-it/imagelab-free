@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Page Not Found | ImageLab"
-  description="The page you are looking for does not exist. Explore ImageLab's free browser-based image and PDF tools."
+  title="Page Not Found | ImageLabKit"
+  description="The page you are looking for does not exist. Explore ImageLabKit's free browser-based image, PDF, text, and graphics tools."
   noindex={true}
 >
   <section class="max-w-xl mx-auto px-4 sm:px-6 py-20 text-center animate-fade-up">
@@ -19,24 +19,24 @@ import Layout from '../layouts/Layout.astro';
 
       <div class="flex flex-wrap items-center justify-center gap-2.5 pt-2">
         <a href="/" class="btn-studio-accent px-5 py-2.5 rounded-xl text-sm font-semibold">
-          Open Image Studio
+          Open ImageLabKit Studio
         </a>
         <a
-          href="/remove-background"
+          href="/merge-pdf"
           class="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-sm font-semibold text-zinc-700 transition"
         >
-          AI Background Remover
+          Merge PDF
         </a>
       </div>
 
       <div class="pt-4 border-t border-zinc-200/80 flex flex-wrap justify-center gap-2 text-xs text-zinc-500">
-        <a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop & Rotate</a>
+        <a href="/image-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">Image to Text (OCR)</a>
         <span>·</span>
-        <a href="/photo-enhancer" class="hover:text-zinc-950 dark:hover:text-white transition">Photo Enhancer</a>
+        <a href="/merge-images" class="hover:text-zinc-950 dark:hover:text-white transition">Merge Images (NID A4)</a>
         <span>·</span>
-        <a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a>
+        <a href="/passport-photo-sheet" class="hover:text-zinc-950 dark:hover:text-white transition">Passport Sheet</a>
         <span>·</span>
-        <a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Watermark</a>
+        <a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Generator</a>
       </div>
     </div>
   </section>
