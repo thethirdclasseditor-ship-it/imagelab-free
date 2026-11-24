@@ -3,10 +3,10 @@ import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import ColorPaletteTool from '../components/ColorPaletteTool';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/color-picker`;
 
-const title = 'Image Color Palette Extractor & Picker | ImageLab';
+const title = 'Image Color Palette Extractor & Picker | ImageLabKit';
 const description =
   'Extract dominant color palettes and pick exact HEX, RGB, and HSL codes from any photo or logo locally in your browser. Copy CSS variables or save a palette PNG card.';
 
@@ -28,7 +28,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Color Palette Extractor & Eyedropper',
+  name: 'ImageLabKit Color Palette Extractor & Eyedropper',
   url: pageUrl,
   applicationCategory: 'DesignApplication',
   operatingSystem: 'All',
@@ -123,12 +123,13 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Graphics Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
           <a href="/favicon-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Favicon Generator</a>
           <a href="/svg-to-png" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">SVG to PNG</a>
           <a href="/qr-code-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">QR Code Generator</a>
           <a href="/watermark-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Batch Watermark</a>
+          <a href="/guides/svg-vs-png-vs-ico-favicon-developer-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">SVG, PNG &amp; Favicon Guide →</a>
         </div>
       </nav>
     </div>
