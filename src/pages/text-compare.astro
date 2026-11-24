@@ -1,0 +1,136 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import TextCompareTool from '../components/TextCompareTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
+const pageUrl = `${siteBase}/text-compare`;
+
+const title = 'Free Text Compare & Diff Checker (English & বাংলা) | ImageLabKit';
+const description =
+  'Compare two texts, articles, or code snippets side-by-side or inline to find exact additions and deletions. Supports English and Bengali (বাংলা) Unicode with zero server uploads.';
+
+const faqs = [
+  {
+    q: 'Does Text Compare accurately highlight Bengali (বাংলা) text changes?',
+    a: 'Yes. It uses Unicode-aware word and grapheme tokenization so Bengali words, vowel signs (কার), and conjunct characters (যুক্তবর্ণ) stay intact while highlighting exact edits.',
+  },
+  {
+    q: 'What is the difference between Lines, Words, and Characters mode?',
+    a: 'Lines mode shows side-by-side or unified line numbers with inline word highlights inside modified lines—ideal for code and essays. Words and Characters modes render a continuous inline view for spotting subtle typo fixes.',
+  },
+  {
+    q: 'Is my pasted document or source code stored on any server?',
+    a: 'Never. All comparison logic runs 100% locally inside your browser tab, making it safe for private contracts, drafts, and proprietary code.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLabKit Free Text Compare & Diff Checker',
+  url: pageUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Text Compare', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Text Compare</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Text Compare &amp; Diff Checker
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Compare two drafts, lists, or code blocks side-by-side — instant line, word &amp; character highlights for English and বাংলা.
+      </p>
+    </header>
+
+    <TextCompareTool client:load />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Split &amp; Inline Highlights</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Spot exact word edits inside modified lines, switch to unified view, or filter to show only changed lines.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">English, বাংলা &amp; Code Ready</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Upload .txt, .md, .json, or code files directly, ignore case or extra spaces, and see instant similarity percentage.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">100% Private Comparison</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Zero uploads and zero logging—ideal for comparing legal agreements, articles, and source code safely.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="Related Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/word-counter" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Word Counter</a>
+          <a href="/pdf-to-text" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to Text</a>
+          <a href="/image-to-text" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to Text (OCR)</a>
+          <a href="/merge-images" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Merge Images</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
