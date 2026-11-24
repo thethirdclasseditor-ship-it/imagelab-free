@@ -3,17 +3,17 @@ import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import QrGeneratorTool from '../components/QrGeneratorTool';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/qr-code-generator`;
 
-const title = 'Free Static QR Code Generator (SVG & PNG) | ImageLab';
+const title = 'Free Static QR Code Generator (SVG & PNG) | ImageLabKit';
 const description =
   'Create custom static QR codes that never expire—with center logo, brand colors, Wi-Fi, WhatsApp, vCard, and email templates. Download crisp SVG & HD PNG free.';
 
 const faqs = [
   {
-    q: 'Do QR codes created on ImageLab ever expire or stop working?',
-    a: 'Never. Unlike freemium services that route scans through expiring trial links, ImageLab embeds your URL, Wi-Fi credentials, or contact card directly inside the static QR code pattern—so it works forever with zero scan limits.',
+    q: 'Do QR codes created on ImageLabKit ever expire or stop working?',
+    a: 'Never. Unlike freemium services that route scans through expiring trial links, ImageLabKit embeds your URL, Wi-Fi credentials, or contact card directly inside the static QR code pattern—so it works forever with zero scan limits.',
   },
   {
     q: 'Should I download PNG or Vector SVG for printing?',
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: 'Will adding a center logo break scannability?',
-    a: 'When you upload a logo, ImageLab automatically enables High (H) error correction (up to 30% damage tolerance) and clears dots behind the logo so smartphones still scan it reliably. Always test with your phone camera before printing.',
+    a: 'When you upload a logo, ImageLabKit automatically enables High (H) error correction (up to 30% damage tolerance) and clears dots behind the logo so smartphones still scan it reliably. Always test with your phone camera before printing.',
   },
   {
     q: 'Is my Wi-Fi password or contact card uploaded to a server?',
@@ -32,7 +32,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Static QR Code Generator',
+  name: 'ImageLabKit Free Static QR Code Generator',
   url: pageUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'All',
@@ -127,12 +127,13 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Graphics Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
           <a href="/barcode-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Barcode Generator</a>
+          <a href="/svg-to-png" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">SVG to PNG</a>
+          <a href="/color-picker" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Color Palette Picker</a>
           <a href="/watermark-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Batch Watermark</a>
-          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
-          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+          <a href="/guides/static-vs-dynamic-qr-codes-print-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">Static vs Dynamic QR Print Guide →</a>
         </div>
       </nav>
     </div>
