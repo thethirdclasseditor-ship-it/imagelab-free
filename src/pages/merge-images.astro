@@ -1,0 +1,136 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../layouts/Layout.astro';
+import MergeImagesTool from '../components/MergeImagesTool';
+
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
+const pageUrl = `${siteBase}/merge-images`;
+
+const title = 'Merge Images Online Free — Side-by-Side, Vertical & NID Front-Back A4 | ImageLabKit';
+const description =
+  'Combine multiple photos side-by-side, vertically, in a 2-column grid, or place NID / ID card front & back onto a print-ready A4 page. Export as JPG, PNG, WEBP, or PDF privately in your browser.';
+
+const faqs = [
+  {
+    q: 'How do I merge NID or ID card front and back onto one A4 page?',
+    a: 'Select the "NID / ID (A4)" preset at the top, upload both the front and back photos of your card, rotate if needed, and download as JPG or print-ready A4 PDF.',
+  },
+  {
+    q: 'Will my photos lose quality or get uploaded to a server?',
+    a: 'No. All image merging, rotation, and A4 PDF creation happens 100% locally inside your browser using HTML5 Canvas. Your personal ID cards and photos never leave your device.',
+  },
+  {
+    q: 'Can I merge images of different sizes cleanly?',
+    a: 'Yes. Keep "Auto-match height" (for Side-by-Side) or "Auto-match width" (for Vertical) checked and the tool automatically scales each photo proportionally so edges align cleanly without cropping.',
+  },
+];
+
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'ImageLabKit Free Image Merger & NID Front-Back Maker',
+  url: pageUrl,
+  applicationCategory: 'MultimediaApplication',
+  operatingSystem: 'All',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteBase },
+    { '@type': 'ListItem', position: 2, name: 'Merge Images', item: pageUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Layout
+  title={title}
+  description={description}
+  schemas={[softwareSchema, breadcrumbSchema, faqSchema]}
+>
+  <article class="max-w-6xl mx-auto px-4 sm:px-6 pt-7 sm:pt-11 pb-12">
+    <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+      <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
+      <span class="opacity-40">/</span>
+      <span class="text-zinc-700 font-medium">Merge Images</span>
+    </nav>
+
+    <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+        Merge Images Online
+      </h1>
+      <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
+        Combine photos side-by-side, vertically, in a grid, or put NID / ID card front &amp; back on one print-ready A4 page.
+      </p>
+    </header>
+
+    <MergeImagesTool client:load />
+
+    <div class="max-w-4xl mx-auto mt-16 space-y-10">
+      <section class="grid sm:grid-cols-3 gap-4">
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">NID &amp; ID Card A4 Preset</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Automatically centers front and back scans onto a crisp A4 sheet ready for instant printing or PDF submission.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">Auto-Align &amp; Rotate</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Rotate sideways phone shots, reorder photos with one click, adjust spacing, margins, and export to JPG, PNG, WEBP, or PDF.
+          </p>
+        </div>
+        <div class="studio-card rounded-2xl p-5">
+          <h2 class="font-bold text-zinc-950 text-sm">100% Private on Device</h2>
+          <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+            Ideal for sensitive ID cards, passports, and certificates—nothing is uploaded to any server.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-bold text-zinc-950 mb-4">Questions</h2>
+        <div class="divide-y divide-zinc-200/80 studio-card rounded-3xl overflow-hidden">
+          {faqs.map((faq) => (
+            <details class="group px-6 py-4">
+              <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
+                <span>{faq.q}</span>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="text-xs sm:text-[13.5px] text-zinc-500 mt-2.5 leading-relaxed pr-6">
+                {faq.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <nav aria-label="Related Tools" class="pt-4">
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <div class="flex flex-wrap gap-2">
+          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+          <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
+          <a href="/blur-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Privacy Blur</a>
+          <a href="/resize-photo-300x300" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">300×300 Photo</a>
+        </div>
+      </nav>
+    </div>
+  </article>
+</Layout>
