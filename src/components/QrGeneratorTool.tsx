@@ -1,24 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  Link as LinkIcon,
-  Type,
-  Wifi,
-  User,
-  MessageCircle,
-  Mail,
-  Download,
-  Copy,
-  Check,
-  Upload,
-  Trash2,
-  Lock,
-  AlertCircle,
-  Palette,
-  Sparkles,
-  FileCode2,
-  Image as ImageIcon,
-  Eye,
-  EyeOff,
+  Link as LinkIcon, Type, Wifi, User, MessageCircle, Mail,
+  Copy, Check, Upload, Trash2, Lock, AlertCircle, Palette,
+  Sparkles, FileCode2, Image as ImageIcon, Eye, EyeOff,
 } from 'lucide-react';
 import ContinueToMenu from './ContinueToMenu';
 
@@ -85,8 +69,8 @@ function toBlobSafe(raw: Blob | ArrayBuffer | null, mime: string): Blob | null {
 export default function QrGeneratorTool() {
   const [template, setTemplate] = useState<QrTemplate>('url');
 
-  // Template fields
-  const [urlVal, setUrlVal] = useState('https://imagelab-free.pages.dev');
+  // Template fields (clean empty inputs with helpful placeholders)
+  const [urlVal, setUrlVal] = useState('');
   const [textVal, setTextVal] = useState('');
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPass, setWifiPass] = useState('');
@@ -118,7 +102,7 @@ export default function QrGeneratorTool() {
   // Center Logo
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [logoName, setLogoName] = useState<string>('');
-  const [logoScale, setLogoScale] = useState<number>(36); // 20-45%
+  const [logoScale, setLogoScale] = useState<number>(36);
 
   // Feedback
   const [copied, setCopied] = useState(false);
@@ -129,15 +113,14 @@ export default function QrGeneratorTool() {
   const qrInstanceRef = useRef<QrCodeInstance | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Build final static QR payload
   const qrPayload = useMemo(() => {
     if (template === 'url') {
       const clean = urlVal.trim();
-      if (!clean) return 'https://imagelab-free.pages.dev';
+      if (!clean) return 'https://imagelabkit.com';
       return /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
     }
     if (template === 'text') {
-      return textVal.trim() || 'Hello from ImageLab';
+      return textVal.trim() || 'Hello from ImageLabKit';
     }
     if (template === 'wifi') {
       const ssid = escapeWifiField(wifiSsid.trim() || 'MyWiFi');
@@ -156,7 +139,6 @@ export default function QrGeneratorTool() {
       const q = params.length ? `?${params.join('&')}` : '';
       return `mailto:${mailTo.trim() || 'hello@example.com'}${q}`;
     }
-    // vCard 3.0
     const lines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
@@ -169,22 +151,9 @@ export default function QrGeneratorTool() {
     lines.push('END:VCARD');
     return lines.join('\n');
   }, [
-    template,
-    urlVal,
-    textVal,
-    wifiSsid,
-    wifiPass,
-    wifiSec,
-    waPhone,
-    waMsg,
-    vcName,
-    vcPhone,
-    vcEmail,
-    vcOrg,
-    vcSite,
-    mailTo,
-    mailSubject,
-    mailBody,
+    template, urlVal, textVal, wifiSsid, wifiPass, wifiSec,
+    waPhone, waMsg, vcName, vcPhone, vcEmail, vcOrg, vcSite,
+    mailTo, mailSubject, mailBody,
   ]);
 
   const effectiveEc: EcLevel = logoDataUrl ? 'H' : ecLevel;
@@ -195,24 +164,11 @@ export default function QrGeneratorTool() {
     type: renderType,
     data: qrPayload,
     margin: Math.max(8, Math.round(size * 0.045)),
-    qrOptions: {
-      errorCorrectionLevel: effectiveEc,
-    },
-    dotsOptions: {
-      color: fgColor,
-      type: dotStyle,
-    },
-    cornersSquareOptions: {
-      color: fgColor,
-      type: cornerStyle,
-    },
-    cornersDotOptions: {
-      color: fgColor,
-      type: cornerStyle === 'dot' ? 'dot' : 'square',
-    },
-    backgroundOptions: {
-      color: transparentBg ? 'transparent' : bgColor,
-    },
+    qrOptions: { errorCorrectionLevel: effectiveEc },
+    dotsOptions: { color: fgColor, type: dotStyle },
+    cornersSquareOptions: { color: fgColor, type: cornerStyle },
+    cornersDotOptions: { color: fgColor, type: cornerStyle === 'dot' ? 'dot' : 'square' },
+    backgroundOptions: { color: transparentBg ? 'transparent' : bgColor },
     image: logoDataUrl || undefined,
     imageOptions: {
       hideBackgroundDots: true,
@@ -221,19 +177,15 @@ export default function QrGeneratorTool() {
     },
   });
 
-  // Initialize & live-update crisp SVG preview
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
         if (!qrCtorRef.current) {
           const mod = await import('qr-code-styling');
-          const Ctor = (mod.default ?? mod) as unknown as QrCodeCtor;
-          qrCtorRef.current = Ctor;
+          qrCtorRef.current = (mod.default ?? mod) as unknown as QrCodeCtor;
         }
         if (cancelled || !previewRef.current) return;
-
         const opts = buildQrConfig(280, 'svg');
         if (!qrInstanceRef.current) {
           previewRef.current.innerHTML = '';
@@ -248,10 +200,7 @@ export default function QrGeneratorTool() {
         if (!cancelled) setErrorMsg('Could not render QR code. Try shortening the content.');
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [qrPayload, dotStyle, cornerStyle, fgColor, bgColor, transparentBg, effectiveEc, logoDataUrl, logoScale]);
 
   const handleLogoUpload = (files: FileList | null) => {
@@ -289,7 +238,7 @@ export default function QrGeneratorTool() {
     try {
       const blob = await generateBlob(kind);
       if (!blob) throw new Error('Export failed');
-      triggerDownload(blob, `imagelab-qr-${template}.${kind}`);
+      triggerDownload(blob, `imagelabkit-qr-${template}.${kind}`);
     } catch {
       setErrorMsg(`Failed to download ${kind.toUpperCase()} QR code.`);
     }
@@ -307,9 +256,7 @@ export default function QrGeneratorTool() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Could not copy image. Click Download PNG instead.'
-      );
+      setErrorMsg(err instanceof Error ? err.message : 'Could not copy image. Click Download PNG instead.');
     }
   };
 
@@ -357,24 +304,32 @@ export default function QrGeneratorTool() {
         <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200/80">
           {/* Left: Content & Design Controls */}
           <div className="lg:col-span-7 p-5 sm:p-7 space-y-6 bg-white">
-            {/* Dynamic Content Inputs */}
             <div className="space-y-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                1. Content
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">1. Content</p>
 
               {template === 'url' && (
                 <div>
-                  <label htmlFor="qr-url" className="block text-xs font-semibold text-zinc-700 mb-1.5">
-                    Website Link
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="qr-url" className="block text-xs font-semibold text-zinc-700">
+                      Website Link
+                    </label>
+                    {urlVal && (
+                      <button
+                        type="button"
+                        onClick={() => setUrlVal('')}
+                        className="text-[11px] font-semibold text-zinc-500 hover:text-red-600 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                   <input
                     id="qr-url"
                     type="text"
                     value={urlVal}
                     onChange={(e) => setUrlVal(e.target.value)}
-                    placeholder="https://yourwebsite.com"
-                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    placeholder="https://imagelabkit.com"
+                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3.5 py-2.5 text-sm font-medium placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   />
                 </div>
               )}
@@ -430,32 +385,24 @@ export default function QrGeneratorTool() {
                         aria-label="Toggle password visibility"
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer"
                       >
-                        {showWifiPass ? (
-                          <EyeOff className="w-4 h-4" aria-hidden="true" />
-                        ) : (
-                          <Eye className="w-4 h-4" aria-hidden="true" />
-                        )}
+                        {showWifiPass ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
                   <div className="sm:col-span-2">
                     <span className="block text-xs font-semibold text-zinc-700 mb-1.5">Security</span>
                     <div className="inline-flex bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5">
-                      {(
-                        [
-                          { id: 'WPA', label: 'WPA / WPA2' },
-                          { id: 'WEP', label: 'WEP' },
-                          { id: 'nopass', label: 'No Password' },
-                        ] as const
-                      ).map((sec) => (
+                      {([
+                        { id: 'WPA', label: 'WPA / WPA2' },
+                        { id: 'WEP', label: 'WEP' },
+                        { id: 'nopass', label: 'No Password' },
+                      ] as const).map((sec) => (
                         <button
                           key={sec.id}
                           type="button"
                           onClick={() => setWifiSec(sec.id)}
                           className={`px-3 py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer ${
-                            wifiSec === sec.id
-                              ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
-                              : 'text-zinc-600'
+                            wifiSec === sec.id ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs' : 'text-zinc-600'
                           }`}
                         >
                           {sec.label}
@@ -500,69 +447,24 @@ export default function QrGeneratorTool() {
               {template === 'vcard' && (
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="vc-name" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      id="vc-name"
-                      type="text"
-                      value={vcName}
-                      onChange={(e) => setVcName(e.target.value)}
-                      placeholder="Alex Rahman"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="vc-name" className="block text-xs font-semibold text-zinc-700 mb-1">Full Name</label>
+                    <input id="vc-name" type="text" value={vcName} onChange={(e) => setVcName(e.target.value)} placeholder="Alex Rahman" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label htmlFor="vc-phone" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      id="vc-phone"
-                      type="text"
-                      value={vcPhone}
-                      onChange={(e) => setVcPhone(e.target.value)}
-                      placeholder="+880 1700 000000"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm tabular-nums"
-                    />
+                    <label htmlFor="vc-phone" className="block text-xs font-semibold text-zinc-700 mb-1">Phone</label>
+                    <input id="vc-phone" type="text" value={vcPhone} onChange={(e) => setVcPhone(e.target.value)} placeholder="+880 1700 000000" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm tabular-nums" />
                   </div>
                   <div>
-                    <label htmlFor="vc-email" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      id="vc-email"
-                      type="email"
-                      value={vcEmail}
-                      onChange={(e) => setVcEmail(e.target.value)}
-                      placeholder="alex@company.com"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="vc-email" className="block text-xs font-semibold text-zinc-700 mb-1">Email</label>
+                    <input id="vc-email" type="email" value={vcEmail} onChange={(e) => setVcEmail(e.target.value)} placeholder="alex@company.com" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label htmlFor="vc-org" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Company / Role
-                    </label>
-                    <input
-                      id="vc-org"
-                      type="text"
-                      value={vcOrg}
-                      onChange={(e) => setVcOrg(e.target.value)}
-                      placeholder="ImageLab Studio"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="vc-org" className="block text-xs font-semibold text-zinc-700 mb-1">Company / Role</label>
+                    <input id="vc-org" type="text" value={vcOrg} onChange={(e) => setVcOrg(e.target.value)} placeholder="ImageLabKit Studio" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label htmlFor="vc-site" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Website (Optional)
-                    </label>
-                    <input
-                      id="vc-site"
-                      type="text"
-                      value={vcSite}
-                      onChange={(e) => setVcSite(e.target.value)}
-                      placeholder="https://company.com"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="vc-site" className="block text-xs font-semibold text-zinc-700 mb-1">Website (Optional)</label>
+                    <input id="vc-site" type="text" value={vcSite} onChange={(e) => setVcSite(e.target.value)} placeholder="https://company.com" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                 </div>
               )}
@@ -570,43 +472,16 @@ export default function QrGeneratorTool() {
               {template === 'email' && (
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="em-to" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Recipient Email
-                    </label>
-                    <input
-                      id="em-to"
-                      type="email"
-                      value={mailTo}
-                      onChange={(e) => setMailTo(e.target.value)}
-                      placeholder="support@company.com"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="em-to" className="block text-xs font-semibold text-zinc-700 mb-1">Recipient Email</label>
+                    <input id="em-to" type="email" value={mailTo} onChange={(e) => setMailTo(e.target.value)} placeholder="support@company.com" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label htmlFor="em-sub" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Subject (Optional)
-                    </label>
-                    <input
-                      id="em-sub"
-                      type="text"
-                      value={mailSubject}
-                      onChange={(e) => setMailSubject(e.target.value)}
-                      placeholder="Product Inquiry"
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="em-sub" className="block text-xs font-semibold text-zinc-700 mb-1">Subject (Optional)</label>
+                    <input id="em-sub" type="text" value={mailSubject} onChange={(e) => setMailSubject(e.target.value)} placeholder="Product Inquiry" className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label htmlFor="em-body" className="block text-xs font-semibold text-zinc-700 mb-1">
-                      Message (Optional)
-                    </label>
-                    <input
-                      id="em-body"
-                      type="text"
-                      value={mailBody}
-                      onChange={(e) => setMailBody(e.target.value)}
-                      placeholder="Hello, I scanned your QR code..."
-                      className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm"
-                    />
+                    <label htmlFor="em-body" className="block text-xs font-semibold text-zinc-700 mb-1">Message (Optional)</label>
+                    <input id="em-body" type="text" value={mailBody} onChange={(e) => setMailBody(e.target.value)} placeholder="Hello, I scanned your QR code..." className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-sm" />
                   </div>
                 </div>
               )}
@@ -614,9 +489,7 @@ export default function QrGeneratorTool() {
 
             {/* Design & Branding */}
             <div className="space-y-4 pt-4 border-t border-zinc-200/80">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                2. Style &amp; Branding
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">2. Style &amp; Branding</p>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -723,10 +596,7 @@ export default function QrGeneratorTool() {
                   {logoDataUrl && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setLogoDataUrl(null);
-                        setLogoName('');
-                      }}
+                      onClick={() => { setLogoDataUrl(null); setLogoName(''); }}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -742,23 +612,13 @@ export default function QrGeneratorTool() {
                     className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-dashed border-zinc-300 hover:border-blue-500 text-xs font-semibold text-zinc-700 cursor-pointer transition"
                   >
                     <Upload className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
-                    <span className="truncate max-w-[200px]">
-                      {logoName ? logoName : 'Upload Logo (PNG / SVG)'}
-                    </span>
+                    <span className="truncate max-w-[200px]">{logoName || 'Upload Logo (PNG / SVG)'}</span>
                   </button>
 
                   {logoDataUrl && (
                     <div className="flex items-center gap-2 text-xs text-zinc-600 tabular-nums">
                       <span>Size {logoScale}%</span>
-                      <input
-                        type="range"
-                        aria-label="Logo size"
-                        min={20}
-                        max={45}
-                        value={logoScale}
-                        onChange={(e) => setLogoScale(Number(e.target.value))}
-                        className="w-24"
-                      />
+                      <input type="range" aria-label="Logo size" min={20} max={45} value={logoScale} onChange={(e) => setLogoScale(Number(e.target.value))} className="w-24" />
                     </div>
                   )}
                 </div>
@@ -767,9 +627,7 @@ export default function QrGeneratorTool() {
               {/* PNG Size & Error Correction */}
               <div className="grid sm:grid-cols-2 gap-3 pt-1">
                 <div>
-                  <span className="block text-[11px] font-semibold text-zinc-500 mb-1.5">
-                    PNG Resolution
-                  </span>
+                  <span className="block text-[11px] font-semibold text-zinc-500 mb-1.5">PNG Resolution</span>
                   <div className="grid grid-cols-3 bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-xl gap-0.5">
                     {[512, 1024, 2048].map((sz) => (
                       <button
@@ -777,9 +635,7 @@ export default function QrGeneratorTool() {
                         type="button"
                         onClick={() => setPngSize(sz)}
                         className={`py-1.5 rounded-[10px] text-xs font-semibold tabular-nums cursor-pointer ${
-                          pngSize === sz
-                            ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
-                            : 'text-zinc-600'
+                          pngSize === sz ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs' : 'text-zinc-600'
                         }`}
                       >
                         {sz}px
@@ -800,9 +656,7 @@ export default function QrGeneratorTool() {
                         disabled={Boolean(logoDataUrl)}
                         onClick={() => setEcLevel(lvl)}
                         className={`py-1.5 rounded-[10px] text-xs font-semibold cursor-pointer disabled:opacity-60 ${
-                          effectiveEc === lvl
-                            ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs'
-                            : 'text-zinc-600'
+                          effectiveEc === lvl ? 'bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs' : 'text-zinc-600'
                         }`}
                       >
                         {lvl}
@@ -817,9 +671,7 @@ export default function QrGeneratorTool() {
           {/* Right: Live Preview & Export */}
           <div className="lg:col-span-5 p-6 sm:p-7 bg-zinc-50/70 flex flex-col items-center justify-between gap-6">
             <div className="w-full flex flex-col items-center gap-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                Live Scannable Preview
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Live Scannable Preview</p>
 
               <div
                 className="p-4 rounded-3xl border border-zinc-200/90 shadow-lg flex items-center justify-center"
@@ -847,20 +699,11 @@ export default function QrGeneratorTool() {
 
             <div className="w-full space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleDownload('png')}
-                  className="btn-studio-accent inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer"
-                >
+                <button type="button" onClick={() => void handleDownload('png')} className="btn-studio-accent inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer">
                   <ImageIcon className="w-4 h-4" aria-hidden="true" />
                   <span>PNG ({pngSize}px)</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => void handleDownload('svg')}
-                  className="btn-studio-primary inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer"
-                >
+                <button type="button" onClick={() => void handleDownload('svg')} className="btn-studio-primary inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer">
                   <FileCode2 className="w-4 h-4" aria-hidden="true" />
                   <span>Vector SVG</span>
                 </button>
@@ -873,15 +716,9 @@ export default function QrGeneratorTool() {
                   className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 transition cursor-pointer"
                 >
                   {copied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-                      <span>Copied!</span>
-                    </>
+                    <><Check className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" /><span>Copied!</span></>
                   ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span>Copy PNG</span>
-                    </>
+                    <><Copy className="w-3.5 h-3.5" aria-hidden="true" /><span>Copy PNG</span></>
                   )}
                 </button>
 
@@ -890,7 +727,7 @@ export default function QrGeneratorTool() {
                   currentPath="/qr-code-generator"
                   onPrepareFile={async () => {
                     const blob = await generateBlob('png');
-                    return blob ? { blob, fileName: `imagelab-qr-${template}.png` } : null;
+                    return blob ? { blob, fileName: `imagelabkit-qr-${template}.png` } : null;
                   }}
                 />
               </div>
