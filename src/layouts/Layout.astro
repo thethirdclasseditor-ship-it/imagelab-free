@@ -60,50 +60,56 @@ interface NavItem {
 
 const rawNavMenus: { label: string; items: Omit<NavItem, 'soon'>[] }[] = [
   {
-    label: 'Studio',
+    label: 'PDF Tools',
     items: [
-      { name: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text', href: '/image-to-text', icon: 'lucide:scan-text' },
-      { name: 'Word & Character Counter', desc: 'Live count, case & text cleaner', href: '/word-counter', icon: 'lucide:file-text' },
-      { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image', icon: 'lucide:crop' },
-      { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image', icon: 'lucide:eye-off' },
-      { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover', icon: 'lucide:shield-check' },
-      { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image', icon: 'lucide:stamp' },
-      { name: 'AI Background Remover', desc: 'Upgrading to instant HD cutouts', href: '/remove-background', icon: 'lucide:sparkles' },
-      { name: 'AI Photo Enhancer', desc: 'Upgrading to HD restoration', href: '/photo-enhancer', icon: 'lucide:sliders-horizontal' },
+      { name: 'Merge PDF', desc: 'Combine multiple PDFs losslessly', href: '/merge-pdf', icon: 'lucide:layers' },
+      { name: 'Compress PDF', desc: 'Shrink scanned & photo PDFs', href: '/compress-pdf', icon: 'lucide:minimize-2' },
+      { name: 'Image to PDF', desc: 'Merge up to 30 photos into A4 PDF', href: '/image-to-pdf', icon: 'lucide:file-text' },
+      { name: 'PDF to JPG', desc: 'Render PDF pages to HD images', href: '/pdf-to-jpg', icon: 'lucide:image' },
+      { name: 'Split & Extract PDF', desc: 'Extract ranges or separate pages', href: '/split-pdf', icon: 'lucide:scissors' },
+      { name: 'Add Page Numbers', desc: 'Stamp clean vector numbers & skip cover', href: '/add-page-numbers-pdf', icon: 'lucide:hash' },
+      { name: 'PDF to Text', desc: 'Extract clean text to .TXT & Markdown', href: '/pdf-to-text', icon: 'lucide:file-text' },
+      { name: 'Sign PDF', desc: 'Draw, type or upload signature & date', href: '/sign-pdf', icon: 'lucide:pen-tool' },
+      { name: 'Organize & Rotate PDF', desc: 'Reorder, rotate, delete & watermark', href: '/organize-pdf', icon: 'lucide:layout-grid' },
     ],
   },
   {
-    label: 'PDF Tools',
+    label: 'Image & Text',
     items: [
-      { name: 'Sign PDF', desc: 'Draw, type or upload signature & date', href: '/sign-pdf', icon: 'lucide:pen-tool' },
-      { name: 'Organize & Rotate PDF', desc: 'Reorder, rotate, delete & watermark', href: '/organize-pdf', icon: 'lucide:layout-grid' },
-      { name: 'Merge PDF', desc: 'Combine multiple PDFs losslessly', href: '/merge-pdf', icon: 'lucide:layers' },
-      { name: 'Split & Extract PDF', desc: 'Extract ranges or separate pages', href: '/split-pdf', icon: 'lucide:scissors' },
-      { name: 'Compress PDF', desc: 'Shrink scanned & photo PDFs', href: '/compress-pdf', icon: 'lucide:minimize-2' },
-      { name: 'PDF to JPG', desc: 'Render PDF pages to HD images', href: '/pdf-to-jpg', icon: 'lucide:image' },
-      { name: 'Image to PDF', desc: 'Merge up to 30 photos into A4 PDF', href: '/image-to-pdf', icon: 'lucide:file-text' },
+      { name: 'Image to Text (OCR)', desc: 'Extract English & বাংলা text', href: '/image-to-text', icon: 'lucide:scan-text' },
+      { name: 'Merge Images (NID A4)', desc: 'Side-by-side, vertical & ID front-back', href: '/merge-images', icon: 'lucide:image-plus' },
+      { name: 'Passport Photo Sheet', desc: '300 DPI A4 & 4×6 printable sheets', href: '/passport-photo-sheet', icon: 'lucide:printer' },
+      { name: 'Crop & Rotate', desc: 'Visual framing & aspect ratios', href: '/crop-image', icon: 'lucide:crop' },
+      { name: 'Word & Character Counter', desc: 'Live count, case & text cleaner', href: '/word-counter', icon: 'lucide:file-text' },
+      { name: 'Text Compare (Diff)', desc: 'Highlight English & বাংলা text changes', href: '/text-compare', icon: 'lucide:arrow-left-right' },
+      { name: 'Batch Watermark', desc: 'Text, logos & tiled stamps', href: '/watermark-image', icon: 'lucide:stamp' },
+      { name: 'Privacy Blur & Redact', desc: 'Pixelate or blackout faces & IDs', href: '/blur-image', icon: 'lucide:eye-off' },
+      { name: 'EXIF Metadata Remover', desc: 'Inspect & wipe GPS/camera tags', href: '/exif-remover', icon: 'lucide:shield-check' },
+      { name: 'AI Background Remover', desc: 'Instant studio-grade cutouts', href: '/remove-background', icon: 'lucide:sparkles' },
+      { name: 'AI Photo Enhancer', desc: 'HD detail restoration', href: '/photo-enhancer', icon: 'lucide:sliders-horizontal' },
     ],
   },
   {
     label: 'Graphics',
     items: [
       { name: 'QR Code Generator', desc: 'Static SVG/PNG with logo · never expires', href: '/qr-code-generator', icon: 'lucide:qr-code' },
+      { name: 'Color Palette Picker', desc: 'Extract HEX/RGB/HSL & CSS from photos', href: '/color-picker', icon: 'lucide:palette' },
       { name: 'Barcode Generator', desc: 'EAN-13, UPC-A, Code 128 & bulk ZIP', href: '/barcode-generator', icon: 'lucide:barcode' },
       { name: 'SVG to PNG', desc: 'Render vector SVGs up to 4096px HD', href: '/svg-to-png', icon: 'lucide:file-code-2' },
       { name: 'Favicon Generator', desc: 'Multi-size .ICO, Apple & PWA icon pack', href: '/favicon-generator', icon: 'lucide:globe' },
-      { name: 'Color Palette Picker', desc: 'Extract HEX/RGB/HSL & CSS from photos', href: '/color-picker', icon: 'lucide:palette' },
     ],
   },
   {
     label: 'Optimize',
     items: [
-      { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg', icon: 'lucide:smartphone' },
-      { name: 'AVIF to JPG', desc: 'Web AVIF to universal JPG', href: '/avif-to-jpg', icon: 'lucide:globe' },
-      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp', icon: 'lucide:zap' },
-      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg', icon: 'lucide:refresh-cw' },
       { name: 'Image Compressor', desc: 'Shrink photos up to 80% smaller', href: '/image-compressor', icon: 'lucide:minimize-2' },
-      { name: 'Compress to 50KB', desc: 'Auto-fit portal upload limits', href: '/compress-image-to-50kb', icon: 'lucide:gauge' },
-      { name: 'Compress to 100KB', desc: 'Balanced web & portal size', href: '/compress-image-to-100kb', icon: 'lucide:gauge' },
+      { name: 'Compress to 50KB', desc: 'Auto-fit strict portal upload limits', href: '/compress-image-to-50kb', icon: 'lucide:gauge' },
+      { name: 'Compress to 100KB', desc: 'Balanced web & ID portal size', href: '/compress-image-to-100kb', icon: 'lucide:gauge' },
+      { name: 'WEBP to JPG', desc: 'Universal photo compatibility', href: '/webp-to-jpg', icon: 'lucide:refresh-cw' },
+      { name: 'PNG to JPG', desc: 'Shrink heavy screenshots fast', href: '/png-to-jpg', icon: 'lucide:refresh-cw' },
+      { name: 'HEIC to JPG', desc: 'iPhone photos to standard JPG', href: '/heic-to-jpg', icon: 'lucide:smartphone' },
+      { name: 'JPG to WEBP', desc: 'Faster website images', href: '/jpg-to-webp', icon: 'lucide:zap' },
+      { name: 'AVIF to JPG', desc: 'Web AVIF to universal JPG', href: '/avif-to-jpg', icon: 'lucide:globe' },
     ],
   },
   {
@@ -111,8 +117,10 @@ const rawNavMenus: { label: string; items: Omit<NavItem, 'soon'>[] }[] = [
     items: [
       { name: '300×300 Photo', desc: 'Portrait crop under 100KB', href: '/resize-photo-300x300', icon: 'lucide:user' },
       { name: '300×80 Signature', desc: 'Clean padding under 60KB', href: '/resize-signature-300x80', icon: 'lucide:pen-tool' },
+      { name: 'Passport Print Sheet', desc: '4×6 & A4 sheet at 300 DPI', href: '/passport-photo-sheet', icon: 'lucide:printer' },
       { name: 'Passport 600×600', desc: 'Digital 2×2 inch standard', href: '/passport-photo-resizer', icon: 'lucide:user-check' },
       { name: 'YouTube 1280×720', desc: 'Crisp 16:9 HD thumbnails', href: '/youtube-thumbnail-resizer', icon: 'lucide:monitor' },
+      { name: 'Instagram 1080×1080', desc: 'Square HD feed & carousels', href: '/instagram-photo-resizer', icon: 'lucide:maximize-2' },
     ],
   },
 ];
@@ -238,7 +246,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
               </button>
 
               <div class="nav-dropdown-panel invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 w-80 z-50">
-                <div class="studio-card rounded-2xl p-1.5 space-y-0.5">
+                <div class="studio-card rounded-2xl p-1.5 space-y-0.5 max-h-[78vh] overflow-y-auto">
                   {menu.items.map((item) => (
                     <a
                       href={item.href}
@@ -372,13 +380,16 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Graphics</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">PDF Suite</p>
             <ul class="space-y-2 text-xs text-zinc-500">
-              <li><a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Generator</a></li>
-              <li><a href="/barcode-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Barcode Generator</a></li>
-              <li><a href="/svg-to-png" class="hover:text-zinc-950 dark:hover:text-white transition">SVG to PNG</a></li>
-              <li><a href="/favicon-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Favicon Generator</a></li>
-              <li><a href="/color-picker" class="hover:text-zinc-950 dark:hover:text-white transition">Color Palette Picker</a></li>
+              <li><a href="/merge-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Merge PDF</a></li>
+              <li><a href="/compress-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Compress PDF</a></li>
+              <li><a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a></li>
+              <li><a href="/pdf-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">PDF to JPG</a></li>
+              <li><a href="/split-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Split &amp; Extract PDF</a></li>
+              <li><a href="/add-page-numbers-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Add Page Numbers</a></li>
+              <li><a href="/pdf-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">PDF to Text</a></li>
+              <li><a href="/sign-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Sign PDF</a></li>
             </ul>
           </div>
 
@@ -386,35 +397,37 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
             <p class="font-semibold text-zinc-900 text-xs mb-3">Image &amp; Text Studio</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/image-to-text" class="hover:text-zinc-950 dark:hover:text-white transition">Image to Text (OCR)</a></li>
-              <li><a href="/word-counter" class="hover:text-zinc-950 dark:hover:text-white transition">Word &amp; Character Counter</a></li>
+              <li><a href="/merge-images" class="hover:text-zinc-950 dark:hover:text-white transition">Merge Images (NID A4)</a></li>
+              <li><a href="/passport-photo-sheet" class="hover:text-zinc-950 dark:hover:text-white transition">Passport Photo Sheet</a></li>
               <li><a href="/crop-image" class="hover:text-zinc-950 dark:hover:text-white transition">Crop &amp; Rotate</a></li>
-              <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur &amp; Redact</a></li>
-              <li><a href="/exif-remover" class="hover:text-zinc-950 dark:hover:text-white transition">EXIF Metadata Remover</a></li>
+              <li><a href="/word-counter" class="hover:text-zinc-950 dark:hover:text-white transition">Word &amp; Character Counter</a></li>
+              <li><a href="/text-compare" class="hover:text-zinc-950 dark:hover:text-white transition">Text Compare (Diff)</a></li>
               <li><a href="/watermark-image" class="hover:text-zinc-950 dark:hover:text-white transition">Batch Watermark</a></li>
+              <li><a href="/blur-image" class="hover:text-zinc-950 dark:hover:text-white transition">Privacy Blur &amp; Redact</a></li>
             </ul>
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">PDF Suite</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Graphics</p>
             <ul class="space-y-2 text-xs text-zinc-500">
-              <li><a href="/sign-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Sign PDF</a></li>
-              <li><a href="/organize-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Organize &amp; Rotate PDF</a></li>
-              <li><a href="/merge-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Merge PDF</a></li>
-              <li><a href="/split-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Split &amp; Extract PDF</a></li>
-              <li><a href="/compress-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Compress PDF</a></li>
-              <li><a href="/pdf-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">PDF to JPG</a></li>
-              <li><a href="/image-to-pdf" class="hover:text-zinc-950 dark:hover:text-white transition">Image to PDF</a></li>
+              <li><a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Generator</a></li>
+              <li><a href="/color-picker" class="hover:text-zinc-950 dark:hover:text-white transition">Color Palette Picker</a></li>
+              <li><a href="/barcode-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Barcode Generator</a></li>
+              <li><a href="/svg-to-png" class="hover:text-zinc-950 dark:hover:text-white transition">SVG to PNG</a></li>
+              <li><a href="/favicon-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Favicon Generator</a></li>
             </ul>
           </div>
 
           <div>
-            <p class="font-semibold text-zinc-900 text-xs mb-3">Popular</p>
+            <p class="font-semibold text-zinc-900 text-xs mb-3">Popular Presets</p>
             <ul class="space-y-2 text-xs text-zinc-500">
-              <li><a href="/heic-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">HEIC to JPG</a></li>
-              <li><a href="/jpg-to-webp" class="hover:text-zinc-950 dark:hover:text-white transition">JPG to WEBP</a></li>
               <li><a href="/compress-image-to-50kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 50KB</a></li>
+              <li><a href="/compress-image-to-100kb" class="hover:text-zinc-950 dark:hover:text-white transition">Compress to 100KB</a></li>
               <li><a href="/resize-photo-300x300" class="hover:text-zinc-950 dark:hover:text-white transition">300×300 Photo</a></li>
               <li><a href="/resize-signature-300x80" class="hover:text-zinc-950 dark:hover:text-white transition">300×80 Signature</a></li>
+              <li><a href="/webp-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">WEBP to JPG</a></li>
+              <li><a href="/heic-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">HEIC to JPG</a></li>
+              <li><a href="/png-to-jpg" class="hover:text-zinc-950 dark:hover:text-white transition">PNG to JPG</a></li>
             </ul>
           </div>
         </div>
