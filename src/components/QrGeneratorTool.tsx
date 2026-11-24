@@ -3,6 +3,7 @@ import {
   Link as LinkIcon, Type, Wifi, User, MessageCircle, Mail,
   Copy, Check, Upload, Trash2, Lock, AlertCircle, Palette,
   Sparkles, FileCode2, Image as ImageIcon, Eye, EyeOff,
+  ShieldCheck, AlertTriangle, ScanLine, QrCode,
 } from 'lucide-react';
 import ContinueToMenu from './ContinueToMenu';
 
@@ -10,6 +11,7 @@ type QrTemplate = 'url' | 'text' | 'wifi' | 'vcard' | 'whatsapp' | 'email';
 type DotStyle = 'square' | 'rounded' | 'dots' | 'classy-rounded';
 type CornerStyle = 'square' | 'extra-rounded' | 'dot';
 type EcLevel = 'L' | 'M' | 'Q' | 'H';
+type ScanCheckState = 'checking' | 'verified' | 'warning';
 
 interface QrCodeInstance {
   append: (el: HTMLElement) => void;
@@ -21,6 +23,13 @@ interface QrCodeCtor {
   new (opts: Record<string, unknown>): QrCodeInstance;
 }
 
+type JsQrFn = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: { inversionAttempts?: 'dontInvert' | 'onlyInvert' | 'attemptBoth' | 'invertFirst' }
+) => { data: string } | null;
+
 const TEMPLATES: { id: QrTemplate; label: string; icon: React.ReactNode }[] = [
   { id: 'url', label: 'URL', icon: <LinkIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
   { id: 'wifi', label: 'Wi-Fi', icon: <Wifi className="w-3.5 h-3.5" aria-hidden="true" /> },
@@ -31,15 +40,15 @@ const TEMPLATES: { id: QrTemplate; label: string; icon: React.ReactNode }[] = [
 ];
 
 const DOT_STYLES: { id: DotStyle; label: string }[] = [
-  { id: 'rounded', label: 'Rounded' },
   { id: 'square', label: 'Classic' },
+  { id: 'rounded', label: 'Rounded' },
   { id: 'dots', label: 'Dots' },
   { id: 'classy-rounded', label: 'Fluid' },
 ];
 
 const CORNER_STYLES: { id: CornerStyle; label: string }[] = [
-  { id: 'extra-rounded', label: 'Rounded' },
   { id: 'square', label: 'Square' },
+  { id: 'extra-rounded', label: 'Rounded' },
   { id: 'dot', label: 'Circle' },
 ];
 
@@ -66,10 +75,26 @@ function toBlobSafe(raw: Blob | ArrayBuffer | null, mime: string): Blob | null {
   return new Blob([raw], { type: mime });
 }
 
+function loadBlobAsImage(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image decode failed'));
+    };
+    img.src = url;
+  });
+}
+
 export default function QrGeneratorTool() {
   const [template, setTemplate] = useState<QrTemplate>('url');
 
-  // Template fields (clean empty inputs with helpful placeholders)
+  // Template fields
   const [urlVal, setUrlVal] = useState('');
   const [textVal, setTextVal] = useState('');
   const [wifiSsid, setWifiSsid] = useState('');
@@ -90,27 +115,28 @@ export default function QrGeneratorTool() {
   const [mailSubject, setMailSubject] = useState('');
   const [mailBody, setMailBody] = useState('');
 
-  // Styling controls
-  const [dotStyle, setDotStyle] = useState<DotStyle>('rounded');
-  const [cornerStyle, setCornerStyle] = useState<CornerStyle>('extra-rounded');
+  // Styling controls — Classic square defaults for 100% instant camera & Google Lens recognition
+  const [dotStyle, setDotStyle] = useState<DotStyle>('square');
+  const [cornerStyle, setCornerStyle] = useState<CornerStyle>('square');
   const [fgColor, setFgColor] = useState('#09090b');
   const [bgColor, setBgColor] = useState('#ffffff');
   const [transparentBg, setTransparentBg] = useState(false);
   const [ecLevel, setEcLevel] = useState<EcLevel>('M');
   const [pngSize, setPngSize] = useState<number>(1024);
 
-  // Center Logo
+  // Center Logo — Safe 22% default (max 30%) so Level H error correction is never exceeded
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [logoName, setLogoName] = useState<string>('');
-  const [logoScale, setLogoScale] = useState<number>(36);
+  const [logoScale, setLogoScale] = useState<number>(22);
 
-  // Feedback
+  // Live Scannability Verification & Feedback
+  const [scanCheck, setScanCheck] = useState<ScanCheckState>('checking');
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const qrCtorRef = useRef<QrCodeCtor | null>(null);
-  const qrInstanceRef = useRef<QrCodeInstance | null>(null);
+  const jsQrRef = useRef<JsQrFn | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const qrPayload = useMemo(() => {
@@ -139,17 +165,19 @@ export default function QrGeneratorTool() {
       const q = params.length ? `?${params.join('&')}` : '';
       return `mailto:${mailTo.trim() || 'hello@example.com'}${q}`;
     }
+    const nameClean = (vcName.trim() || 'Alex Rahman').replace(/\r?\n/g, ' ');
     const lines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
-      `FN:${(vcName.trim() || 'Alex Rahman').replace(/\n/g, ' ')}`,
+      `N:;${nameClean};;;`,
+      `FN:${nameClean}`,
     ];
-    if (vcOrg.trim()) lines.push(`ORG:${vcOrg.trim().replace(/\n/g, ' ')}`);
+    if (vcOrg.trim()) lines.push(`ORG:${vcOrg.trim().replace(/\r?\n/g, ' ')}`);
     if (vcPhone.trim()) lines.push(`TEL;TYPE=CELL:${vcPhone.trim()}`);
     if (vcEmail.trim()) lines.push(`EMAIL:${vcEmail.trim()}`);
     if (vcSite.trim()) lines.push(`URL:${vcSite.trim()}`);
     lines.push('END:VCARD');
-    return lines.join('\n');
+    return lines.join('\r\n');
   }, [
     template, urlVal, textVal, wifiSsid, wifiPass, wifiSec,
     waPhone, waMsg, vcName, vcPhone, vcEmail, vcOrg, vcSite,
@@ -158,49 +186,107 @@ export default function QrGeneratorTool() {
 
   const effectiveEc: EcLevel = logoDataUrl ? 'H' : ecLevel;
 
+  // Full 10% ISO Quiet Zone margin + clean config for 100% reliable scanning
   const buildQrConfig = (size: number, renderType: 'svg' | 'canvas') => ({
     width: size,
     height: size,
     type: renderType,
     data: qrPayload,
-    margin: Math.max(8, Math.round(size * 0.045)),
-    qrOptions: { errorCorrectionLevel: effectiveEc },
+    margin: Math.max(24, Math.round(size * 0.1)),
+    qrOptions: {
+      errorCorrectionLevel: effectiveEc,
+      mode: 'Byte',
+    },
     dotsOptions: { color: fgColor, type: dotStyle },
     cornersSquareOptions: { color: fgColor, type: cornerStyle },
     cornersDotOptions: { color: fgColor, type: cornerStyle === 'dot' ? 'dot' : 'square' },
     backgroundOptions: { color: transparentBg ? 'transparent' : bgColor },
-    image: logoDataUrl || undefined,
-    imageOptions: {
-      hideBackgroundDots: true,
-      imageSize: logoScale / 100,
-      margin: Math.max(4, Math.round(size * 0.015)),
-    },
+    ...(logoDataUrl
+      ? {
+          image: logoDataUrl,
+          imageOptions: {
+            hideBackgroundDots: true,
+            imageSize: Math.min(0.3, Math.max(0.15, logoScale / 100)),
+            margin: Math.max(4, Math.round(size * 0.01)),
+          },
+        }
+      : {}),
   });
 
+  // Render crisp 560x560 Retina canvas preview & self-verify scannability with jsQR
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    setScanCheck('checking');
+
+    const timer = window.setTimeout(async () => {
       try {
         if (!qrCtorRef.current) {
           const mod = await import('qr-code-styling');
           qrCtorRef.current = (mod.default ?? mod) as unknown as QrCodeCtor;
         }
-        if (cancelled || !previewRef.current) return;
-        const opts = buildQrConfig(280, 'svg');
-        if (!qrInstanceRef.current) {
-          previewRef.current.innerHTML = '';
-          const inst = new qrCtorRef.current(opts);
-          inst.append(previewRef.current);
-          qrInstanceRef.current = inst;
-        } else {
-          qrInstanceRef.current.update(opts);
+        if (!jsQrRef.current) {
+          const jsqrMod = await import('jsqr');
+          jsQrRef.current = (jsqrMod.default ?? jsqrMod) as unknown as JsQrFn;
         }
+        if (cancelled || !previewRef.current) return;
+
+        // Fresh canvas instance avoids qr-code-styling v1.6 SVG clipPath / update() bugs
+        const previewSize = 560;
+        const inst = new qrCtorRef.current(buildQrConfig(previewSize, 'canvas'));
+        const rawPng = await inst.getRawData('png');
+        if (cancelled || !previewRef.current) return;
+
+        const pngBlob = toBlobSafe(rawPng, 'image/png');
+        if (!pngBlob) throw new Error('Could not generate QR preview');
+
+        const img = await loadBlobAsImage(pngBlob);
+        if (cancelled || !previewRef.current) return;
+
+        // Mount crisp canvas into previewRef
+        const displayCanvas = document.createElement('canvas');
+        displayCanvas.width = previewSize;
+        displayCanvas.height = previewSize;
+        displayCanvas.className = 'w-full h-full block rounded-xl';
+        const dCtx = displayCanvas.getContext('2d');
+        if (dCtx) {
+          dCtx.drawImage(img, 0, 0, previewSize, previewSize);
+        }
+        previewRef.current.innerHTML = '';
+        previewRef.current.appendChild(displayCanvas);
+
+        // Verify scannability on actual rendered pixels (composite over white if transparentBg)
+        const verifyCanvas = document.createElement('canvas');
+        verifyCanvas.width = previewSize;
+        verifyCanvas.height = previewSize;
+        const vCtx = verifyCanvas.getContext('2d', { willReadFrequently: true });
+        if (vCtx && jsQrRef.current) {
+          if (transparentBg) {
+            vCtx.fillStyle = '#ffffff';
+            vCtx.fillRect(0, 0, previewSize, previewSize);
+          }
+          vCtx.drawImage(img, 0, 0, previewSize, previewSize);
+          const imageData = vCtx.getImageData(0, 0, previewSize, previewSize);
+          const decoded = jsQrRef.current(imageData.data, previewSize, previewSize, {
+            inversionAttempts: 'dontInvert',
+          });
+          setScanCheck(decoded && decoded.data === qrPayload ? 'verified' : 'warning');
+        }
+        verifyCanvas.width = 0;
+        verifyCanvas.height = 0;
+
         setErrorMsg(null);
       } catch {
-        if (!cancelled) setErrorMsg('Could not render QR code. Try shortening the content.');
+        if (!cancelled) {
+          setScanCheck('warning');
+          setErrorMsg('Could not render QR code. Try shortening the content.');
+        }
       }
-    })();
-    return () => { cancelled = true; };
+    }, 60);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [qrPayload, dotStyle, cornerStyle, fgColor, bgColor, transparentBg, effectiveEc, logoDataUrl, logoScale]);
 
   const handleLogoUpload = (files: FileList | null) => {
@@ -230,7 +316,17 @@ export default function QrGeneratorTool() {
     const size = kind === 'svg' ? 512 : pngSize;
     const exportInst = new qrCtorRef.current(buildQrConfig(size, kind === 'svg' ? 'svg' : 'canvas'));
     const raw = await exportInst.getRawData(kind);
-    return toBlobSafe(raw, kind === 'svg' ? 'image/svg+xml' : 'image/png');
+    let blob = toBlobSafe(raw, kind === 'svg' ? 'image/svg+xml;charset=utf-8' : 'image/png');
+
+    // Guarantee valid SVG viewBox for scalable printing & mobile rendering
+    if (kind === 'svg' && blob) {
+      let svgText = await blob.text();
+      if (!/viewBox=/i.test(svgText)) {
+        svgText = svgText.replace(/<svg\b/i, `<svg viewBox="0 0 ${size} ${size}"`);
+      }
+      blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    }
+    return blob;
   };
 
   const handleDownload = async (kind: 'png' | 'svg') => {
@@ -269,6 +365,23 @@ export default function QrGeneratorTool() {
         className="hidden"
         onChange={(e) => handleLogoUpload(e.target.files)}
       />
+
+      {/* Quick Mode Switcher: Generator vs Reader */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center p-1 rounded-2xl bg-zinc-200/70 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 gap-1">
+          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-xs font-bold shadow-xs">
+            <QrCode className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
+            Create QR Code
+          </span>
+          <a
+            href="/qr-code-reader"
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-zinc-600 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white text-xs font-semibold transition"
+          >
+            <ScanLine className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
+            Scan / Read QR
+          </a>
+        </div>
+      </div>
 
       <div className="studio-card rounded-3xl overflow-hidden">
         {/* Top Template Selector */}
@@ -618,7 +731,7 @@ export default function QrGeneratorTool() {
                   {logoDataUrl && (
                     <div className="flex items-center gap-2 text-xs text-zinc-600 tabular-nums">
                       <span>Size {logoScale}%</span>
-                      <input type="range" aria-label="Logo size" min={20} max={45} value={logoScale} onChange={(e) => setLogoScale(Number(e.target.value))} className="w-24" />
+                      <input type="range" aria-label="Logo size" min={15} max={30} value={logoScale} onChange={(e) => setLogoScale(Number(e.target.value))} className="w-24" />
                     </div>
                   )}
                 </div>
@@ -668,33 +781,53 @@ export default function QrGeneratorTool() {
             </div>
           </div>
 
-          {/* Right: Live Preview & Export */}
-          <div className="lg:col-span-5 p-6 sm:p-7 bg-zinc-50/70 flex flex-col items-center justify-between gap-6">
-            <div className="w-full flex flex-col items-center gap-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Live Scannable Preview</p>
+          {/* Right: Live Preview & Self-Verified Scan Status */}
+          <div className="lg:col-span-5 p-6 sm:p-7 bg-zinc-50/70 flex flex-col items-center justify-between gap-5">
+            <div className="w-full flex flex-col items-center gap-3.5">
+              <div className="flex items-center justify-between w-full max-w-[296px]">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Live Preview</p>
+                {scanCheck === 'verified' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                    Verified Scannable
+                  </span>
+                )}
+                {scanCheck === 'warning' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold">
+                    <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                    Low Scan Score
+                  </span>
+                )}
+              </div>
 
               <div
-                className="p-4 rounded-3xl border border-zinc-200/90 shadow-lg flex items-center justify-center"
+                className="p-3 rounded-3xl border border-zinc-200/90 shadow-lg flex items-center justify-center"
                 style={
                   transparentBg
                     ? {
                         backgroundImage:
                           'linear-gradient(45deg, #e4e4e7 25%, #fafafa 25%), linear-gradient(-45deg, #e4e4e7 25%, #fafafa 25%), linear-gradient(45deg, #fafafa 75%, #e4e4e7 75%), linear-gradient(-45deg, #fafafa 75%, #e4e4e7 75%)',
-                        backgroundSize: '18px 18px',
-                        backgroundPosition: '0 0, 0 9px, 9px -9px, -9px 0px',
+                        backgroundSize: '16px 16px',
+                        backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
                       }
                     : { backgroundColor: bgColor }
                 }
               >
                 <div
                   ref={previewRef}
-                  className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                  className="w-[248px] h-[248px] sm:w-[272px] sm:h-[272px] flex items-center justify-center"
                 />
               </div>
 
-              <p className="text-[11.5px] text-zinc-500 text-center max-w-[260px]">
-                Test with your phone camera anytime. Keep dark dots on a light background for instant scanning.
-              </p>
+              {scanCheck === 'warning' ? (
+                <p className="text-[11.5px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-center max-w-[290px] leading-relaxed">
+                  Hard for cameras to read. Switch to <strong>Classic</strong> dots, increase contrast (dark code on white), or shrink your logo.
+                </p>
+              ) : (
+                <p className="text-[11.5px] text-zinc-500 text-center max-w-[275px]">
+                  Built-in decoder confirmed this QR code scans cleanly. Includes a full ISO white quiet zone.
+                </p>
+              )}
             </div>
 
             <div className="w-full space-y-2.5">
@@ -745,7 +878,7 @@ export default function QrGeneratorTool() {
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
         <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
-        <span>100% Static &amp; Private · Generated locally on your device · Zero tracking redirects</span>
+        <span>100% Static &amp; Private · Generated &amp; verified locally on your device</span>
       </p>
     </div>
   );
