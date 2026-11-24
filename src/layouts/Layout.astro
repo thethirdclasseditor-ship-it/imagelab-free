@@ -93,6 +93,7 @@ const rawNavMenus: { label: string; items: Omit<NavItem, 'soon'>[] }[] = [
     label: 'Graphics',
     items: [
       { name: 'QR Code Generator', desc: 'Static SVG/PNG with logo · never expires', href: '/qr-code-generator', icon: 'lucide:qr-code' },
+      { name: 'QR Code Reader', desc: 'Scan QR from image, clipboard or camera', href: '/qr-code-reader', icon: 'lucide:scan-line' },
       { name: 'Color Palette Picker', desc: 'Extract HEX/RGB/HSL & CSS from photos', href: '/color-picker', icon: 'lucide:palette' },
       { name: 'Barcode Generator', desc: 'EAN-13, UPC-A, Code 128 & bulk ZIP', href: '/barcode-generator', icon: 'lucide:barcode' },
       { name: 'SVG to PNG', desc: 'Render vector SVGs up to 4096px HD', href: '/svg-to-png', icon: 'lucide:file-code-2' },
@@ -152,6 +153,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="ImageLabKit" />
 
@@ -411,6 +413,7 @@ const navMenus: { label: string; items: NavItem[] }[] = rawNavMenus.map((menu) =
             <p class="font-semibold text-zinc-900 text-xs mb-3">Graphics</p>
             <ul class="space-y-2 text-xs text-zinc-500">
               <li><a href="/qr-code-generator" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Generator</a></li>
+              <li><a href="/qr-code-reader" class="hover:text-zinc-950 dark:hover:text-white transition">QR Code Reader</a></li>
               <li><a href="/color-picker" class="hover:text-zinc-950 dark:hover:text-white transition">Color Palette Picker</a></li>
               <li><a href="/barcode-generator" class="hover:text-zinc-950 dark:hover:text-white transition">Barcode Generator</a></li>
               <li><a href="/svg-to-png" class="hover:text-zinc-950 dark:hover:text-white transition">SVG to PNG</a></li>
