@@ -58,7 +58,7 @@ main > article {
   background-size: 100% 100%, 24px 24px;
 }
 
-/* Refined motion primitives */
+/* Refined motion primitives (transform: none prevents clipping fixed drag overlays) */
 @keyframes studioFadeUp {
   from {
     opacity: 0;
@@ -66,7 +66,7 @@ main > article {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -77,7 +77,7 @@ main > article {
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
 }
 
@@ -96,7 +96,23 @@ main > article {
   }
 }
 
-/* Premium Sapphire-Blue Primary Action (replaces dull black Download buttons everywhere) */
+/* Light frosted full-screen drag-and-drop overlay across all tools (excludes SplitCompareModal) */
+.fixed.inset-0.z-50.pointer-events-none {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.dark .fixed.inset-0.z-50.pointer-events-none {
+  background-color: rgba(9, 9, 11, 0.55) !important;
+}
+
+.fixed.inset-0.z-50.pointer-events-none > div {
+  border: 2px dashed rgba(37, 99, 235, 0.65) !important;
+  box-shadow: 0 20px 45px -15px rgba(37, 99, 235, 0.18) !important;
+}
+
+/* Premium Sapphire-Blue Primary Action */
 .btn-studio-primary {
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   color: #ffffff;
@@ -271,7 +287,7 @@ input[type="range"] {
 .dark .divide-zinc-100 > :not(:last-child),
 .dark .divide-zinc-200\/80 > :not(:last-child),
 .dark .divide-slate-100 > :not(:last-child),
-.dark .divide-slate-200 > :not(:last-child) {
+.dark .divide-slate-200\/80 > :not(:last-child) {
   border-color: rgba(255, 255, 255, 0.075);
 }
 
