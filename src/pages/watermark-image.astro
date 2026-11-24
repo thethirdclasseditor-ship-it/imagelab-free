@@ -3,10 +3,10 @@ import Layout from '../layouts/Layout.astro';
 import WatermarkTool from '../components/WatermarkTool';
 import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/watermark-image`;
 
-const title = 'Add Watermark to Photos Online Free | ImageLab';
+const title = 'Add Watermark to Photos Online Free | ImageLabKit';
 const description =
   'Stamp custom text or transparent PNG logos onto up to 20 photos at once with live preview and tiled patterns. Free, zero uploads, batch ZIP export.';
 
@@ -20,7 +20,7 @@ const faqs = [
     a: 'Single Stamp places your brand mark cleanly in one of 9 anchor positions (such as bottom-right). Tiled Repeat creates a full diagonal pattern across the entire image—ideal for portfolios, proofs, and ID copy protection.',
   },
   {
-    q: 'Will ImageLab add its own branding to my watermarked images?',
+    q: 'Will ImageLabKit add its own branding to my watermarked images?',
     a: 'Never. Only your custom text or uploaded logo is applied, and all rendering runs locally inside your browser.',
   },
 ];
@@ -28,7 +28,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Batch Photo Watermark Studio',
+  name: 'ImageLabKit Batch Photo Watermark Studio',
   url: pageUrl,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
@@ -82,7 +82,7 @@ const faqSchema = {
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section class="grid sm:grid-cols-3 gap-4">
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Text & PNG Logo Stamps</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Text &amp; PNG Logo Stamps</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
             Control color, size, opacity, angle, and 9-point placement with instant live canvas preview.
           </p>
@@ -108,7 +108,7 @@ const faqSchema = {
             <details class="group px-6 py-4">
               <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
                 <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </summary>
@@ -121,9 +121,11 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
-          {SEO_PAGES.slice(0, 8).map((item) => (
+          <a href="/merge-images" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Merge Images (NID A4)</a>
+          <a href="/organize-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF Watermark</a>
+          {SEO_PAGES.slice(0, 5).map((item) => (
             <a
               href={`/${item.slug}`}
               class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
@@ -131,6 +133,7 @@ const faqSchema = {
               {item.shortName}
             </a>
           ))}
+          <a href="/guides/merge-id-card-front-back-a4-print-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">Safe ID Copy &amp; Watermark Guide →</a>
         </div>
       </nav>
     </div>
