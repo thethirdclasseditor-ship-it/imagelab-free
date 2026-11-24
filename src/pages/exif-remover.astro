@@ -3,10 +3,10 @@ import Layout from '../layouts/Layout.astro';
 import ExifRemoverTool from '../components/ExifRemoverTool';
 import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/exif-remover`;
 
-const title = 'EXIF Metadata Viewer & Remover Free | ImageLab';
+const title = 'EXIF Metadata Viewer & Remover Free | ImageLabKit';
 const description =
   'View and strip hidden GPS location, camera model, date taken, and EXIF/XMP metadata from JPG, PNG, WEBP, and HEIC photos locally in your browser. Zero uploads.';
 
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: 'Does removing EXIF metadata lower photo quality?',
-    a: 'ImageLab re-encodes your clean pixel data at crisp 92% MozJPEG/LibWebP or lossless PNG—stripping 100% of hidden headers and embedded thumbnails without visible quality loss.',
+    a: 'ImageLabKit re-encodes your clean pixel data at crisp 92% MozJPEG/LibWebP or lossless PNG—stripping 100% of hidden headers and embedded thumbnails without visible quality loss.',
   },
   {
     q: 'Can I clean metadata from multiple photos at once?',
@@ -28,7 +28,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab EXIF Metadata Viewer & Remover',
+  name: 'ImageLabKit EXIF Metadata Viewer & Remover',
   url: pageUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'All',
@@ -70,7 +70,7 @@ const faqSchema = {
 
     <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        EXIF Metadata Viewer & Remover
+        EXIF Metadata Viewer &amp; Remover
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
         Inspect hidden GPS coordinates and camera info, then strip all metadata locally in one click.
@@ -108,7 +108,7 @@ const faqSchema = {
             <details class="group px-6 py-4">
               <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
                 <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </summary>
@@ -121,9 +121,11 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
-          {SEO_PAGES.slice(0, 8).map((item) => (
+          <a href="/blur-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Privacy Blur</a>
+          <a href="/heic-to-jpg" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">HEIC to JPG</a>
+          {SEO_PAGES.slice(0, 4).map((item) => (
             <a
               href={`/${item.slug}`}
               class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
@@ -131,6 +133,8 @@ const faqSchema = {
               {item.shortName}
             </a>
           ))}
+          <a href="/guides/remove-iphone-android-gps-exif-before-selling-online" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">GPS Privacy for eBay &amp; Vinted →</a>
+          <a href="/guides/verify-zero-upload-browser-tools-and-exif-privacy" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">Verify Zero-Upload Privacy →</a>
         </div>
       </nav>
     </div>
