@@ -3,10 +3,10 @@ import Layout from '../layouts/Layout.astro';
 import VisualCropTool from '../components/VisualCropTool';
 import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/crop-image`;
 
-const title = 'Crop & Rotate Image Online Free | ImageLab';
+const title = 'Crop & Rotate Image Online Free | ImageLabKit';
 const description =
   'Crop, rotate, and flip JPG, PNG, WEBP, or HEIC photos visually in your browser. Includes 1:1, 16:9 YouTube, 4:5 Instagram, 300×300 portrait, and 300×80 signature presets.';
 
@@ -28,7 +28,7 @@ const faqs = [
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Visual Image Cropper & Rotator',
+  name: 'ImageLabKit Visual Image Cropper & Rotator',
   url: pageUrl,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'All',
@@ -65,12 +65,12 @@ const faqSchema = {
     <nav aria-label="Breadcrumb" class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
       <a href="/" class="hover:text-zinc-950 dark:hover:text-white transition">Home</a>
       <span class="opacity-40">/</span>
-      <span class="text-zinc-700 font-medium">Crop & Rotate</span>
+      <span class="text-zinc-700 font-medium">Crop &amp; Rotate</span>
     </nav>
 
     <header class="text-center max-w-2xl mx-auto mb-9 animate-fade-up">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
-        Visual Crop & Rotate
+        Visual Crop &amp; Rotate
       </h1>
       <p class="text-zinc-500 mt-3 text-sm sm:text-base font-medium">
         Frame subjects with rule-of-thirds guides, lock exact ratios, and export with MozJPEG or WEBP.
@@ -82,13 +82,13 @@ const faqSchema = {
     <div class="max-w-4xl mx-auto mt-16 space-y-10">
       <section class="grid sm:grid-cols-3 gap-4">
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Portrait & Signature Framing</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Portrait &amp; Signature Framing</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
             Select 300×300 or 300×80 presets to frame faces or ink cleanly while staying under strict portal KB caps.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Instant 90° Rotate & Flip</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Instant 90° Rotate &amp; Flip</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
             Fix sideways phone captures or mirrored selfies in one click before saving with zero cloud uploads.
           </p>
@@ -108,7 +108,7 @@ const faqSchema = {
             <details class="group px-6 py-4">
               <summary class="flex items-center justify-between gap-4 font-semibold text-sm text-zinc-900 cursor-pointer list-none">
                 <span>{faq.q}</span>
-                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4 text-zinc-400 shrink-0 group-open:rotate-180 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </summary>
@@ -121,9 +121,11 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
-          {SEO_PAGES.slice(0, 8).map((item) => (
+          <a href="/passport-photo-sheet" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Passport Photo Sheet</a>
+          <a href="/merge-images" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Merge Images (NID A4)</a>
+          {SEO_PAGES.slice(0, 6).map((item) => (
             <a
               href={`/${item.slug}`}
               class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
@@ -131,6 +133,7 @@ const faqSchema = {
               {item.shortName}
             </a>
           ))}
+          <a href="/guides/passport-photo-300-dpi-print-sheet-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">300 DPI Passport Photo Guide →</a>
         </div>
       </nav>
     </div>
