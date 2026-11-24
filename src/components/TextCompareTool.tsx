@@ -33,12 +33,8 @@ Added a brand new line at the bottom for comparison.`;
 
 function normalizeForCompare(str: string, ignoreCase: boolean, ignoreWhitespace: boolean): string {
   let out = str;
-  if (ignoreWhitespace) {
-    out = out.trim().replace(/[ \t]+/g, ' ');
-  }
-  if (ignoreCase) {
-    out = out.toLowerCase();
-  }
+  if (ignoreWhitespace) out = out.trim().replace(/[ \t]+/g, ' ');
+  if (ignoreCase) out = out.toLowerCase();
   return out;
 }
 
@@ -76,12 +72,9 @@ function computeDiff(
   const aNorm = aTokens.map((t) => normalizeForCompare(t, ignoreCase, ignoreWhitespace));
   const bNorm = bTokens.map((t) => normalizeForCompare(t, ignoreCase, ignoreWhitespace));
 
-  // Fast trim of common prefix & suffix
   let start = 0;
   const minLen = Math.min(aTokens.length, bTokens.length);
-  while (start < minLen && aNorm[start] === bNorm[start]) {
-    start++;
-  }
+  while (start < minLen && aNorm[start] === bNorm[start]) start++;
 
   let aEnd = aTokens.length - 1;
   let bEnd = bTokens.length - 1;
@@ -91,14 +84,10 @@ function computeDiff(
   }
 
   const prefix: DiffOp[] = [];
-  for (let i = 0; i < start; i++) {
-    prefix.push({ type: 'equal', value: bTokens[i] });
-  }
+  for (let i = 0; i < start; i++) prefix.push({ type: 'equal', value: bTokens[i] });
 
   const suffix: DiffOp[] = [];
-  for (let i = bEnd + 1; i < bTokens.length; i++) {
-    suffix.push({ type: 'equal', value: bTokens[i] });
-  }
+  for (let i = bEnd + 1; i < bTokens.length; i++) suffix.push({ type: 'equal', value: bTokens[i] });
 
   const aMid = aTokens.slice(start, aEnd + 1);
   const bMid = bTokens.slice(start, bEnd + 1);
@@ -118,12 +107,10 @@ function computeDiff(
     return [...prefix, ...middle, ...suffix];
   }
 
-  // Exact LCS for normal sizes; greedy window fallback for huge inputs to keep UI instant
   const MAX_CELLS = 2_400_000;
   if (m * n <= MAX_CELLS) {
     const stride = n + 1;
     const dp = new Uint32Array((m + 1) * stride);
-
     for (let i = m - 1; i >= 0; i--) {
       const rowOffset = i * stride;
       const nextRowOffset = (i + 1) * stride;
@@ -147,19 +134,13 @@ function computeDiff(
         i++;
         j++;
       } else if (dp[(i + 1) * stride + j] >= dp[i * stride + j + 1]) {
-        middle.push({ type: 'remove', value: aMid[i] });
-        i++;
+        middle.push({ type: 'remove', value: aMid[i++] });
       } else {
-        middle.push({ type: 'add', value: bMid[j] });
-        j++;
+        middle.push({ type: 'add', value: bMid[j++] });
       }
     }
-    while (i < m) {
-      middle.push({ type: 'remove', value: aMid[i++] });
-    }
-    while (j < n) {
-      middle.push({ type: 'add', value: bMid[j++] });
-    }
+    while (i < m) middle.push({ type: 'remove', value: aMid[i++] });
+    while (j < n) middle.push({ type: 'add', value: bMid[j++] });
   } else {
     let i = 0;
     let j = 0;
@@ -207,18 +188,11 @@ function buildSplitRows(
   while (i < lineOps.length) {
     const op = lineOps[i];
     if (op.type === 'equal') {
-      rows.push({
-        leftNum: leftLine++,
-        rightNum: rightLine++,
-        leftText: op.value,
-        rightText: op.value,
-        kind: 'equal',
-      });
+      rows.push({ leftNum: leftLine++, rightNum: rightLine++, leftText: op.value, rightText: op.value, kind: 'equal' });
       i++;
       continue;
     }
 
-    // Group adjacent remove + add blocks to pair modified lines side-by-side
     const removed: string[] = [];
     const added: string[] = [];
     while (i < lineOps.length && lineOps[i].type !== 'equal') {
@@ -231,14 +205,8 @@ function buildSplitRows(
     for (let k = 0; k < maxCount; k++) {
       const l = k < removed.length ? removed[k] : null;
       const r = k < added.length ? added[k] : null;
-
       if (l !== null && r !== null) {
-        const inlineOps = computeDiff(
-          tokenizeWords(l),
-          tokenizeWords(r),
-          ignoreCase,
-          ignoreWhitespace
-        );
+        const inlineOps = computeDiff(tokenizeWords(l), tokenizeWords(r), ignoreCase, ignoreWhitespace);
         rows.push({
           leftNum: leftLine++,
           rightNum: rightLine++,
@@ -249,25 +217,12 @@ function buildSplitRows(
           rightInline: inlineOps.filter((x) => x.type !== 'remove'),
         });
       } else if (l !== null) {
-        rows.push({
-          leftNum: leftLine++,
-          rightNum: null,
-          leftText: l,
-          rightText: null,
-          kind: 'remove',
-        });
+        rows.push({ leftNum: leftLine++, rightNum: null, leftText: l, rightText: null, kind: 'remove' });
       } else if (r !== null) {
-        rows.push({
-          leftNum: null,
-          rightNum: rightLine++,
-          leftText: null,
-          rightText: r,
-          kind: 'add',
-        });
+        rows.push({ leftNum: null, rightNum: rightLine++, leftText: null, rightText: r, kind: 'add' });
       }
     }
   }
-
   return rows;
 }
 
@@ -283,23 +238,17 @@ export default function TextCompareTool() {
 
   const [copiedState, setCopiedState] = useState<string>('');
   const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [dragSide, setDragSide] = useState<'left' | 'right' | null>(null);
+  const [fileError, setFileError] = useState<string>('');
 
   const leftFileRef = useRef<HTMLInputElement>(null);
   const rightFileRef = useRef<HTMLInputElement>(null);
 
   const hasContent = originalText.length > 0 || modifiedText.length > 0;
 
-  // Compute active diff
   const diffResult = useMemo(() => {
     if (!hasContent) {
-      return {
-        ops: [] as DiffOp[],
-        rows: [] as SplitRow[],
-        added: 0,
-        removed: 0,
-        unchanged: 0,
-        similarity: 100,
-      };
+      return { ops: [] as DiffOp[], rows: [] as SplitRow[], added: 0, removed: 0, unchanged: 0, similarity: 100 };
     }
 
     const normA = originalText.replace(/\r\n/g, '\n');
@@ -319,11 +268,8 @@ export default function TextCompareTool() {
         else if (op.type === 'remove') removed++;
         else unchanged++;
       }
-
       const denom = Math.max(1, unchanged * 2 + added + removed);
-      const similarity = Math.round(((unchanged * 2) / denom) * 100);
-
-      return { ops, rows, added, removed, unchanged, similarity };
+      return { ops, rows, added, removed, unchanged, similarity: Math.round(((unchanged * 2) / denom) * 100) };
     }
 
     const aTokens = mode === 'words' ? tokenizeWords(normA) : tokenizeChars(normA);
@@ -339,59 +285,45 @@ export default function TextCompareTool() {
       else if (op.type === 'remove') removed++;
       else unchanged++;
     }
-
     const denom = Math.max(1, unchanged * 2 + added + removed);
-    const similarity = Math.round(((unchanged * 2) / denom) * 100);
-
-    return { ops, rows: [] as SplitRow[], added, removed, unchanged, similarity };
+    return { ops, rows: [] as SplitRow[], added, removed, unchanged, similarity: Math.round(((unchanged * 2) / denom) * 100) };
   }, [originalText, modifiedText, mode, ignoreCase, ignoreWhitespace, hasContent]);
 
-  // Unified text report for Copy / Download
   const diffReport = useMemo(() => {
     if (!hasContent) return '';
     if (mode === 'lines') {
       return diffResult.ops
-        .map((op) => {
-          const prefix = op.type === 'add' ? '+ ' : op.type === 'remove' ? '- ' : '  ';
-          return `${prefix}${op.value}`;
-        })
+        .map((op) => `${op.type === 'add' ? '+ ' : op.type === 'remove' ? '- ' : '  '}${op.value}`)
         .join('\n');
     }
     return diffResult.ops
-      .map((op) => {
-        if (op.type === 'add') return `{+${op.value}+}`;
-        if (op.type === 'remove') return `[-${op.value}-]`;
-        return op.value;
-      })
+      .map((op) => (op.type === 'add' ? `{+${op.value}+}` : op.type === 'remove' ? `[-${op.value}-]` : op.value))
       .join('');
   }, [diffResult.ops, mode, hasContent]);
 
   useEffect(() => {
     if (!diffReport) {
-      setDownloadUrl((old) => {
-        if (old) URL.revokeObjectURL(old);
-        return '';
-      });
+      setDownloadUrl((old) => { if (old) URL.revokeObjectURL(old); return ''; });
       return;
     }
-
-    const next = URL.createObjectURL(
-      new Blob([diffReport], { type: 'text/plain;charset=utf-8' })
-    );
-    setDownloadUrl((old) => {
-      if (old) URL.revokeObjectURL(old);
-      return next;
-    });
+    const next = URL.createObjectURL(new Blob([diffReport], { type: 'text/plain;charset=utf-8' }));
+    setDownloadUrl((old) => { if (old) URL.revokeObjectURL(old); return next; });
     return () => URL.revokeObjectURL(next);
   }, [diffReport]);
 
   const handleFileUpload = (file: File, side: 'left' | 'right') => {
+    setFileError('');
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError('File exceeds 5MB limit. Please upload a smaller text or code file.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const content = typeof reader.result === 'string' ? reader.result : '';
       if (side === 'left') setOriginalText(content);
       else setModifiedText(content);
     };
+    reader.onerror = () => setFileError('Could not read the dropped file.');
     reader.readAsText(file);
   };
 
@@ -403,11 +335,13 @@ export default function TextCompareTool() {
   const handleSample = () => {
     setOriginalText(SAMPLE_ORIGINAL);
     setModifiedText(SAMPLE_MODIFIED);
+    setFileError('');
   };
 
   const handleClear = () => {
     setOriginalText('');
     setModifiedText('');
+    setFileError('');
   };
 
   const handleCopyDiff = async () => {
@@ -421,55 +355,43 @@ export default function TextCompareTool() {
     }
   };
 
-  const visibleSplitRows = useMemo(() => {
-    if (!changesOnly) return diffResult.rows;
-    return diffResult.rows.filter((r) => r.kind !== 'equal');
-  }, [diffResult.rows, changesOnly]);
+  const visibleSplitRows = useMemo(
+    () => (changesOnly ? diffResult.rows.filter((r) => r.kind !== 'equal') : diffResult.rows),
+    [diffResult.rows, changesOnly]
+  );
 
   const visibleUnifiedLineOps = useMemo(() => {
     if (mode !== 'lines') return [];
     let lNum = 1;
     let rNum = 1;
     const mapped = diffResult.ops.map((op) => {
-      if (op.type === 'equal') {
-        return { op, leftNum: lNum++, rightNum: rNum++ };
-      }
-      if (op.type === 'remove') {
-        return { op, leftNum: lNum++, rightNum: null };
-      }
+      if (op.type === 'equal') return { op, leftNum: lNum++, rightNum: rNum++ };
+      if (op.type === 'remove') return { op, leftNum: lNum++, rightNum: null };
       return { op, leftNum: null, rightNum: rNum++ };
     });
     return changesOnly ? mapped.filter((m) => m.op.type !== 'equal') : mapped;
   }, [diffResult.ops, mode, changesOnly]);
 
-  const isIdentical =
-    hasContent && diffResult.added === 0 && diffResult.removed === 0;
-
-  const unitLabel =
-    mode === 'lines' ? 'lines' : mode === 'words' ? 'words' : 'chars';
+  const isIdentical = hasContent && diffResult.added === 0 && diffResult.removed === 0;
+  const unitLabel = mode === 'lines' ? 'lines' : mode === 'words' ? 'words' : 'chars';
 
   return (
     <div className="space-y-6">
       {/* Toolbar */}
       <div className="studio-card rounded-3xl p-4 flex flex-wrap items-center justify-between gap-3">
-        {/* Granularity & View */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden text-xs font-semibold">
-            {(
-              [
-                { id: 'lines', label: 'Lines' },
-                { id: 'words', label: 'Words' },
-                { id: 'chars', label: 'Characters' },
-              ] as { id: CompareMode; label: string }[]
-            ).map((m) => (
+            {([
+              { id: 'lines', label: 'Lines' },
+              { id: 'words', label: 'Words' },
+              { id: 'chars', label: 'Characters' },
+            ] as { id: CompareMode; label: string }[]).map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => setMode(m.id)}
                 className={`px-3 py-1.5 cursor-pointer transition ${
-                  mode === m.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  mode === m.id ? 'bg-blue-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                 }`}
               >
                 {m.label}
@@ -483,9 +405,7 @@ export default function TextCompareTool() {
                 type="button"
                 onClick={() => setLayout('split')}
                 className={`px-3 py-1.5 cursor-pointer transition ${
-                  layout === 'split'
-                    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300'
+                  layout === 'split' ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300'
                 }`}
               >
                 Split
@@ -494,9 +414,7 @@ export default function TextCompareTool() {
                 type="button"
                 onClick={() => setLayout('unified')}
                 className={`px-3 py-1.5 cursor-pointer transition ${
-                  layout === 'unified'
-                    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300'
+                  layout === 'unified' ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300'
                 }`}
               >
                 Unified
@@ -505,86 +423,66 @@ export default function TextCompareTool() {
           )}
         </div>
 
-        {/* Options & Quick Actions */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <label className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={ignoreCase}
-              onChange={(e) => setIgnoreCase(e.target.checked)}
-              className="accent-blue-600 rounded"
-            />
+            <input type="checkbox" checked={ignoreCase} onChange={(e) => setIgnoreCase(e.target.checked)} className="accent-blue-600 rounded" />
             <span>Ignore case</span>
           </label>
-
           <label className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={ignoreWhitespace}
-              onChange={(e) => setIgnoreWhitespace(e.target.checked)}
-              className="accent-blue-600 rounded"
-            />
+            <input type="checkbox" checked={ignoreWhitespace} onChange={(e) => setIgnoreWhitespace(e.target.checked)} className="accent-blue-600 rounded" />
             <span>Ignore spaces</span>
           </label>
-
           {mode === 'lines' && (
             <label className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={changesOnly}
-                onChange={(e) => setChangesOnly(e.target.checked)}
-                className="accent-blue-600 rounded"
-              />
+              <input type="checkbox" checked={changesOnly} onChange={(e) => setChangesOnly(e.target.checked)} className="accent-blue-600 rounded" />
               <span>Changes only</span>
             </label>
           )}
 
           <div className="flex items-center gap-1.5 pl-1">
-            <button
-              type="button"
-              onClick={handleSample}
-              className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 font-semibold text-zinc-700 dark:text-zinc-200 cursor-pointer transition"
-            >
-              Sample
-            </button>
-            <button
-              type="button"
-              onClick={handleSwap}
-              disabled={!hasContent}
-              className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 font-semibold text-zinc-700 dark:text-zinc-200 disabled:opacity-40 cursor-pointer transition"
-            >
-              Swap
-            </button>
-            <button
-              type="button"
-              onClick={handleClear}
-              disabled={!hasContent}
-              className="px-2.5 py-1.5 rounded-xl text-zinc-500 hover:text-red-600 font-semibold disabled:opacity-40 cursor-pointer transition"
-            >
-              Clear
-            </button>
+            <button type="button" onClick={handleSample} className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 font-semibold text-zinc-700 dark:text-zinc-200 cursor-pointer transition">Sample</button>
+            <button type="button" onClick={handleSwap} disabled={!hasContent} className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 font-semibold text-zinc-700 dark:text-zinc-200 disabled:opacity-40 cursor-pointer transition">Swap</button>
+            <button type="button" onClick={handleClear} disabled={!hasContent} className="px-2.5 py-1.5 rounded-xl text-zinc-500 hover:text-red-600 font-semibold disabled:opacity-40 cursor-pointer transition">Clear</button>
           </div>
         </div>
       </div>
 
-      {/* Dual Text Input Area */}
+      {fileError && (
+        <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-xs font-medium text-red-700 dark:text-red-300">
+          {fileError}
+        </div>
+      )}
+
+      {/* Dual Text Input Area (Both sides support Drag & Drop) */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* Original Text */}
-        <div className="studio-card rounded-3xl p-4 space-y-2.5">
+        <div
+          className={`relative studio-card rounded-3xl p-4 space-y-2.5 transition ${dragSide === 'left' ? 'ring-2 ring-blue-500/70' : ''}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragSide('left');
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setDragSide((cur) => (cur === 'left' ? null : cur));
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragSide(null);
+            const f = e.dataTransfer.files?.[0];
+            if (f) handleFileUpload(f, 'left');
+          }}
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-              <label
-                htmlFor="diff-original"
-                className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300"
-              >
+              <label htmlFor="diff-original" className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                 Original Text
               </label>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-zinc-400 font-mono">
-                {originalText ? originalText.split(/\r?\n/).length : 0} lines
-              </span>
+              <span className="text-[11px] text-zinc-400 font-mono">{originalText ? originalText.split(/\r?\n/).length : 0} lines</span>
               <input
                 ref={leftFileRef}
                 type="file"
@@ -592,17 +490,10 @@ export default function TextCompareTool() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) {
-                    handleFileUpload(f, 'left');
-                    e.target.value = '';
-                  }
+                  if (f) { handleFileUpload(f, 'left'); e.target.value = ''; }
                 }}
               />
-              <button
-                type="button"
-                onClick={() => leftFileRef.current?.click()}
-                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 cursor-pointer"
-              >
+              <button type="button" onClick={() => leftFileRef.current?.click()} className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 cursor-pointer">
                 Upload File
               </button>
             </div>
@@ -613,28 +504,47 @@ export default function TextCompareTool() {
             value={originalText}
             onChange={(e) => setOriginalText(e.target.value)}
             rows={10}
-            placeholder="Paste original text, code, or বাংলা paragraph here…"
+            placeholder="Paste original text, code, or drag & drop a .TXT / .MD / code file here…"
             spellCheck={false}
             className="w-full rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/70 p-3.5 text-xs sm:text-[13.5px] leading-relaxed text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-y"
           />
+
+          {dragSide === 'left' && (
+            <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-dashed border-blue-500 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 text-center">
+              <p className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">Drop file into Original Text</p>
+              <p className="text-[11px] text-zinc-500">.TXT, .MD, .JSON, .CSV, or source code</p>
+            </div>
+          )}
         </div>
 
         {/* Modified Text */}
-        <div className="studio-card rounded-3xl p-4 space-y-2.5">
+        <div
+          className={`relative studio-card rounded-3xl p-4 space-y-2.5 transition ${dragSide === 'right' ? 'ring-2 ring-blue-500/70' : ''}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragSide('right');
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setDragSide((cur) => (cur === 'right' ? null : cur));
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragSide(null);
+            const f = e.dataTransfer.files?.[0];
+            if (f) handleFileUpload(f, 'right');
+          }}
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <label
-                htmlFor="diff-modified"
-                className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300"
-              >
+              <label htmlFor="diff-modified" className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                 Modified Text
               </label>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-zinc-400 font-mono">
-                {modifiedText ? modifiedText.split(/\r?\n/).length : 0} lines
-              </span>
+              <span className="text-[11px] text-zinc-400 font-mono">{modifiedText ? modifiedText.split(/\r?\n/).length : 0} lines</span>
               <input
                 ref={rightFileRef}
                 type="file"
@@ -642,17 +552,10 @@ export default function TextCompareTool() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) {
-                    handleFileUpload(f, 'right');
-                    e.target.value = '';
-                  }
+                  if (f) { handleFileUpload(f, 'right'); e.target.value = ''; }
                 }}
               />
-              <button
-                type="button"
-                onClick={() => rightFileRef.current?.click()}
-                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 cursor-pointer"
-              >
+              <button type="button" onClick={() => rightFileRef.current?.click()} className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 cursor-pointer">
                 Upload File
               </button>
             </div>
@@ -663,48 +566,37 @@ export default function TextCompareTool() {
             value={modifiedText}
             onChange={(e) => setModifiedText(e.target.value)}
             rows={10}
-            placeholder="Paste updated or changed text here to compare…"
+            placeholder="Paste updated text or drag & drop a .TXT / .MD / code file here to compare…"
             spellCheck={false}
             className="w-full rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/70 p-3.5 text-xs sm:text-[13.5px] leading-relaxed text-zinc-900 dark:text-zinc-100 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-y"
           />
+
+          {dragSide === 'right' && (
+            <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-dashed border-blue-500 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 text-center">
+              <p className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400">Drop file into Modified Text</p>
+              <p className="text-[11px] text-zinc-500">.TXT, .MD, .JSON, .CSV, or source code</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Live Comparison Output */}
       {hasContent && (
         <div className="studio-card rounded-3xl overflow-hidden">
-          {/* Summary Header */}
           <div className="px-4 sm:px-5 py-3.5 border-b border-zinc-200/80 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3 bg-zinc-50/70 dark:bg-zinc-900/50">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="px-2.5 py-1 rounded-xl bg-rose-500/12 text-rose-700 dark:text-rose-300 font-bold">
-                − {diffResult.removed} removed
-              </span>
-              <span className="px-2.5 py-1 rounded-xl bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 font-bold">
-                + {diffResult.added} added
-              </span>
-              <span className="px-2.5 py-1 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">
-                {diffResult.unchanged} unchanged {unitLabel}
-              </span>
-              <span className="px-2.5 py-1 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 font-bold">
-                {diffResult.similarity}% match
-              </span>
+              <span className="px-2.5 py-1 rounded-xl bg-rose-500/12 text-rose-700 dark:text-rose-300 font-bold">− {diffResult.removed} removed</span>
+              <span className="px-2.5 py-1 rounded-xl bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 font-bold">+ {diffResult.added} added</span>
+              <span className="px-2.5 py-1 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">{diffResult.unchanged} unchanged {unitLabel}</span>
+              <span className="px-2.5 py-1 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 font-bold">{diffResult.similarity}% match</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCopyDiff}
-                className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-xs font-semibold text-zinc-800 dark:text-zinc-100 cursor-pointer transition"
-              >
+              <button type="button" onClick={handleCopyDiff} className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-blue-500 text-xs font-semibold text-zinc-800 dark:text-zinc-100 cursor-pointer transition">
                 {copiedState === 'diff' ? 'Copied!' : 'Copy Diff'}
               </button>
-
               {downloadUrl && (
-                <a
-                  href={downloadUrl}
-                  download="imagelabkit-diff.txt"
-                  className="btn-studio-primary px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5"
-                >
+                <a href={downloadUrl} download="imagelabkit-diff.txt" className="btn-studio-primary px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                   </svg>
@@ -714,7 +606,6 @@ export default function TextCompareTool() {
             </div>
           </div>
 
-          {/* Identical Banner */}
           {isIdentical ? (
             <div className="p-8 text-center space-y-1.5">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mb-1">
@@ -722,15 +613,10 @@ export default function TextCompareTool() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                Both texts are identical!
-              </p>
-              <p className="text-xs text-zinc-500">
-                No differences found with your current comparison settings.
-              </p>
+              <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Both texts are identical!</p>
+              <p className="text-xs text-zinc-500">No differences found with your current comparison settings.</p>
             </div>
           ) : mode === 'lines' && layout === 'split' ? (
-            /* Split Side-by-Side Line View */
             <div className="overflow-x-auto">
               <div className="min-w-[640px] divide-y divide-zinc-200/70 dark:divide-zinc-800/80 font-mono text-xs sm:text-[13px]">
                 {visibleSplitRows.map((row, idx) => {
@@ -740,63 +626,45 @@ export default function TextCompareTool() {
                       : row.leftText === null
                       ? 'bg-zinc-50/80 dark:bg-zinc-900/40'
                       : '';
-
                   const rightBg =
                     row.kind === 'add' || row.kind === 'modify'
                       ? 'bg-emerald-500/10 dark:bg-emerald-500/15'
                       : row.rightText === null
                       ? 'bg-zinc-50/80 dark:bg-zinc-900/40'
                       : '';
-
                   return (
                     <div key={idx} className="grid grid-cols-2 divide-x divide-zinc-200/80 dark:divide-zinc-800">
-                      {/* Left Cell */}
                       <div className={`flex items-stretch ${leftBg}`}>
                         <span className="w-10 shrink-0 select-none text-right pr-2.5 py-1.5 text-[11px] text-zinc-400 border-r border-zinc-200/60 dark:border-zinc-800/80">
                           {row.leftNum ?? ''}
                         </span>
                         <div className="flex-1 px-3 py-1.5 whitespace-pre-wrap break-words text-zinc-900 dark:text-zinc-100">
-                          {row.leftInline ? (
-                            row.leftInline.map((tok, tIdx) =>
-                              tok.type === 'remove' ? (
-                                <mark
-                                  key={tIdx}
-                                  className="rounded px-0.5 bg-rose-500/30 dark:bg-rose-500/40 text-rose-950 dark:text-rose-100"
-                                >
-                                  {tok.value}
-                                </mark>
-                              ) : (
-                                <span key={tIdx}>{tok.value}</span>
+                          {row.leftInline
+                            ? row.leftInline.map((tok, tIdx) =>
+                                tok.type === 'remove' ? (
+                                  <mark key={tIdx} className="rounded px-0.5 bg-rose-500/30 dark:bg-rose-500/40 text-rose-950 dark:text-rose-100">{tok.value}</mark>
+                                ) : (
+                                  <span key={tIdx}>{tok.value}</span>
+                                )
                               )
-                            )
-                          ) : (
-                            row.leftText ?? ''
-                          )}
+                            : row.leftText ?? ''}
                         </div>
                       </div>
 
-                      {/* Right Cell */}
                       <div className={`flex items-stretch ${rightBg}`}>
                         <span className="w-10 shrink-0 select-none text-right pr-2.5 py-1.5 text-[11px] text-zinc-400 border-r border-zinc-200/60 dark:border-zinc-800/80">
                           {row.rightNum ?? ''}
                         </span>
                         <div className="flex-1 px-3 py-1.5 whitespace-pre-wrap break-words text-zinc-900 dark:text-zinc-100">
-                          {row.rightInline ? (
-                            row.rightInline.map((tok, tIdx) =>
-                              tok.type === 'add' ? (
-                                <mark
-                                  key={tIdx}
-                                  className="rounded px-0.5 bg-emerald-500/30 dark:bg-emerald-500/40 text-emerald-950 dark:text-emerald-100"
-                                >
-                                  {tok.value}
-                                </mark>
-                              ) : (
-                                <span key={tIdx}>{tok.value}</span>
+                          {row.rightInline
+                            ? row.rightInline.map((tok, tIdx) =>
+                                tok.type === 'add' ? (
+                                  <mark key={tIdx} className="rounded px-0.5 bg-emerald-500/30 dark:bg-emerald-500/40 text-emerald-950 dark:text-emerald-100">{tok.value}</mark>
+                                ) : (
+                                  <span key={tIdx}>{tok.value}</span>
+                                )
                               )
-                            )
-                          ) : (
-                            row.rightText ?? ''
-                          )}
+                            : row.rightText ?? ''}
                         </div>
                       </div>
                     </div>
@@ -805,65 +673,29 @@ export default function TextCompareTool() {
               </div>
             </div>
           ) : mode === 'lines' && layout === 'unified' ? (
-            /* Unified Line View */
             <div className="divide-y divide-zinc-200/60 dark:divide-zinc-800/70 font-mono text-xs sm:text-[13px] overflow-x-auto">
               {visibleUnifiedLineOps.map((item, idx) => {
-                const bg =
-                  item.op.type === 'add'
-                    ? 'bg-emerald-500/12 dark:bg-emerald-500/15'
-                    : item.op.type === 'remove'
-                    ? 'bg-rose-500/12 dark:bg-rose-500/15'
-                    : '';
-                const sign =
-                  item.op.type === 'add' ? '+' : item.op.type === 'remove' ? '−' : ' ';
-                const signColor =
-                  item.op.type === 'add'
-                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                    : item.op.type === 'remove'
-                    ? 'text-rose-600 dark:text-rose-400 font-bold'
-                    : 'text-zinc-400';
-
+                const bg = item.op.type === 'add' ? 'bg-emerald-500/12 dark:bg-emerald-500/15' : item.op.type === 'remove' ? 'bg-rose-500/12 dark:bg-rose-500/15' : '';
+                const sign = item.op.type === 'add' ? '+' : item.op.type === 'remove' ? '−' : ' ';
+                const signColor = item.op.type === 'add' ? 'text-emerald-600 dark:text-emerald-400 font-bold' : item.op.type === 'remove' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-zinc-400';
                 return (
                   <div key={idx} className={`flex items-stretch ${bg}`}>
-                    <span className="w-9 shrink-0 select-none text-right pr-2 py-1.5 text-[11px] text-zinc-400">
-                      {item.leftNum ?? ''}
-                    </span>
-                    <span className="w-9 shrink-0 select-none text-right pr-2 py-1.5 text-[11px] text-zinc-400 border-r border-zinc-200/60 dark:border-zinc-800">
-                      {item.rightNum ?? ''}
-                    </span>
-                    <span className={`w-6 shrink-0 select-none text-center py-1.5 ${signColor}`}>
-                      {sign}
-                    </span>
-                    <div className="flex-1 pr-3 py-1.5 whitespace-pre-wrap break-words text-zinc-900 dark:text-zinc-100">
-                      {item.op.value || ' '}
-                    </div>
+                    <span className="w-9 shrink-0 select-none text-right pr-2 py-1.5 text-[11px] text-zinc-400">{item.leftNum ?? ''}</span>
+                    <span className="w-9 shrink-0 select-none text-right pr-2 py-1.5 text-[11px] text-zinc-400 border-r border-zinc-200/60 dark:border-zinc-800">{item.rightNum ?? ''}</span>
+                    <span className={`w-6 shrink-0 select-none text-center py-1.5 ${signColor}`}>{sign}</span>
+                    <div className="flex-1 pr-3 py-1.5 whitespace-pre-wrap break-words text-zinc-900 dark:text-zinc-100">{item.op.value || ' '}</div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            /* Inline Word / Character Diff View */
             <div className="p-5 whitespace-pre-wrap break-words text-xs sm:text-[14px] leading-relaxed text-zinc-900 dark:text-zinc-100 font-sans">
               {diffResult.ops.map((op, idx) => {
                 if (op.type === 'add') {
-                  return (
-                    <ins
-                      key={idx}
-                      className="no-underline rounded px-0.5 bg-emerald-500/25 dark:bg-emerald-500/35 text-emerald-950 dark:text-emerald-100"
-                    >
-                      {op.value}
-                    </ins>
-                  );
+                  return <ins key={idx} className="no-underline rounded px-0.5 bg-emerald-500/25 dark:bg-emerald-500/35 text-emerald-950 dark:text-emerald-100">{op.value}</ins>;
                 }
                 if (op.type === 'remove') {
-                  return (
-                    <del
-                      key={idx}
-                      className="rounded px-0.5 bg-rose-500/25 dark:bg-rose-500/35 text-rose-950 dark:text-rose-100 line-through decoration-rose-600/70"
-                    >
-                      {op.value}
-                    </del>
-                  );
+                  return <del key={idx} className="rounded px-0.5 bg-rose-500/25 dark:bg-rose-500/35 text-rose-950 dark:text-rose-100 line-through decoration-rose-600/70">{op.value}</del>;
                 }
                 return <span key={idx}>{op.value}</span>;
               })}
