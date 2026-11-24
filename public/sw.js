@@ -1,4 +1,4 @@
-const CACHE_NAME = 'imagelab-shell-v2';
+const CACHE_NAME = 'imagelabkit-shell-v3';
 const CORE_PRECACHE = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
