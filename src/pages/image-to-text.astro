@@ -4,32 +4,32 @@ import Layout from '../layouts/Layout.astro';
 import OcrTool from '../components/OcrTool';
 import { SEO_PAGES } from '../data/seoPages';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/image-to-text`;
 
-const title = 'Image to Text (OCR) — Bangla & English | ImageLab';
+const title = 'Image to Text (OCR) — Bangla & English | ImageLabKit';
 const description =
   'Extract accurate English, Bengali (বাংলা), and handwritten text from photos, angled signs, and screenshots in 1–2 seconds with zero model downloads.';
 
 const faqs = [
   {
     q: 'Can this read Bengali (বাংলা), angled signboards, and dark backgrounds?',
-    a: 'Yes. Powered by advanced vision AI, ImageLab accurately reads complex Bengali conjuncts (যুক্তবর্ণ), mixed Bangla-English documents, white text on dark backgrounds, and angled real-world photos in 1–2 seconds.',
+    a: 'Yes. Powered by advanced vision AI, ImageLabKit accurately reads complex Bengali conjuncts (যুক্তবর্ণ), mixed Bangla-English documents, white text on dark backgrounds, and angled real-world photos in 1–2 seconds.',
   },
   {
     q: 'Does it work on handwritten notes?',
     a: 'Yes. Switch the Mode selector at the top to Handwriting to transcribe clear handwritten notes in English or Bengali.',
   },
   {
-    q: 'Are my uploaded images saved on ImageLab?',
-    a: 'No. ImageLab never stores your photos or extracted text. Each image is resized compactly in your browser and sent transiently over HTTPS solely to extract the text.',
+    q: 'Are my uploaded images saved on ImageLabKit?',
+    a: 'No. ImageLabKit never stores your photos or extracted text. Each image is resized compactly in your browser and sent transiently over HTTPS solely to extract the text.',
   },
 ];
 
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab AI Image to Text OCR (English & Bengali)',
+  name: 'ImageLabKit AI Image to Text OCR (English & Bengali)',
   url: pageUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'All',
@@ -124,12 +124,12 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
-          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+          <a href="/pdf-to-text" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to Text</a>
+          <a href="/word-counter" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Word Counter</a>
           <a href="/pdf-to-jpg" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">PDF to JPG</a>
-          <a href="/blur-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Privacy Blur</a>
-          {SEO_PAGES.slice(0, 5).map((item) => (
+          {SEO_PAGES.slice(0, 4).map((item) => (
             <a
               href={`/${item.slug}`}
               class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:border-zinc-400 transition"
@@ -137,6 +137,7 @@ const faqSchema = {
               {item.shortName}
             </a>
           ))}
+          <a href="/guides/pdf-to-text-vs-ai-ocr-extraction-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">PDF to Text vs AI OCR Guide →</a>
         </div>
       </nav>
     </div>
