@@ -13,7 +13,7 @@ const homeSchema = {
   operatingSystem: 'All',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   description:
-    'Fast browser image converter, compressor, image merger (NID front-back A4), passport photo print sheet maker, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, word counter, text compare, QR & barcode generator, and full PDF suite on ImageLabKit.',
+    'Fast browser image converter, compressor, image merger (NID front-back A4), passport photo print sheet maker, visual cropper, privacy blur, EXIF remover, Bangla & English OCR, word counter, text compare, QR code generator & scanner, barcode generator, and full PDF suite on ImageLabKit.',
 };
 
 interface ToolCard {
@@ -208,7 +208,15 @@ const rawGraphicsTools: ToolCard[] = [
     desc: 'Static SVG/PNG with logo, Wi-Fi & WhatsApp — never expires.',
     tag: 'Vector SVG',
     icon: 'lucide:qr-code',
-    keywords: 'qr wifi whatsapp vcard link logo svg png',
+    keywords: 'qr wifi whatsapp vcard link logo svg png create make',
+  },
+  {
+    href: '/qr-code-reader',
+    title: 'QR Code Reader & Scanner',
+    desc: 'Decode QR codes from images, Ctrl+V screenshots or live camera.',
+    tag: 'New',
+    icon: 'lucide:scan-line',
+    keywords: 'qr scan read decode camera screenshot image wifi link scanner reader',
   },
   {
     href: '/color-picker',
@@ -295,7 +303,7 @@ const filterTabs = [
 
 <Layout
   title="ImageLabKit — Free Online Image, PDF & Graphics Studio"
-  description="Convert HEIC, AVIF, JPG, PNG, WEBP, SVG to PNG, compress to target KB, merge NID front-back A4, make 300 DPI passport photo sheets, extract Bangla & English text (OCR), compare text, create QR codes, and merge, compress, number or sign PDFs privately on ImageLabKit."
+  description="Convert HEIC, AVIF, JPG, PNG, WEBP, SVG to PNG, compress to target KB, merge NID front-back A4, make 300 DPI passport photo sheets, extract Bangla & English text (OCR), compare text, create & scan QR codes, and merge, compress, number or sign PDFs privately on ImageLabKit."
   schemas={[homeSchema]}
 >
   <!-- Hero & Primary Studio -->
