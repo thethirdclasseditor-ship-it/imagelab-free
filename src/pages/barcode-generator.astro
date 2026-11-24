@@ -3,12 +3,12 @@ import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import BarcodeGeneratorTool from '../components/BarcodeGeneratorTool';
 
-const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelab-free.pages.dev';
+const siteBase = Astro.site?.toString().replace(/\/$/, '') ?? 'https://imagelabkit.com';
 const pageUrl = `${siteBase}/barcode-generator`;
 
-const title = 'Free Barcode Generator (EAN-13, UPC, Code 128) | ImageLab';
+const title = 'Free Barcode Generator (EAN-13, UPC, Code 128) | ImageLabKit';
 const description =
-  'Generate print-ready Code 128, EAN-13, UPC-A, Code 39, and ITF-14 barcodes in HD PNG or Vector SVG. Supports bulk ZIP export of up to 100 SKUs locally in your browser.';
+  'Generate print-ready Code 128, EAN-13, UPC-A, Code 39, and ITF-14 barcodes in HD PNG or Vector SVG. Supports live bulk preview and ZIP export of up to 100 SKUs locally in your browser.';
 
 const faqs = [
   {
@@ -16,19 +16,19 @@ const faqs = [
     a: 'Use Code 128 for internal SKUs, warehouse labels, and shipping stickers—it supports letters, numbers, and dashes compactly. Use EAN-13 (international) or UPC-A (North America) for retail store packaging.',
   },
   {
-    q: 'Can I generate barcodes in bulk for an entire product catalog?',
-    a: 'Yes. Switch to Bulk Generator (ZIP), paste up to 100 SKUs or product numbers (one per line), and download all barcodes as crisp PNG or Vector SVG files inside a single ZIP archive.',
+    q: 'Can I preview and generate barcodes in bulk for an entire product catalog?',
+    a: 'Yes. Switch to Bulk Generator (ZIP), paste or drop a .TXT/.CSV list of up to 100 SKUs (one per line), inspect every live barcode preview card, and download all valid labels as crisp PNG or Vector SVG files inside one ZIP archive.',
   },
   {
     q: 'Do I need to calculate the final check digit for EAN-13 or UPC-A?',
-    a: 'No. If you type 12 digits for EAN-13 (or 11 digits for UPC-A), ImageLab automatically computes and appends the valid standard check digit.',
+    a: 'No. If you type 12 digits for EAN-13 (or 11 digits for UPC-A), ImageLabKit automatically computes and appends the valid standard check digit.',
   },
 ];
 
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'ImageLab Free Barcode Generator',
+  name: 'ImageLabKit Free Barcode Generator',
   url: pageUrl,
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'All',
@@ -88,9 +88,9 @@ const faqSchema = {
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
-          <h2 class="font-bold text-zinc-950 text-sm">Bulk 100-SKU ZIP Export</h2>
+          <h2 class="font-bold text-zinc-950 text-sm">Bulk 100-SKU Live Preview &amp; ZIP</h2>
           <p class="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Paste your entire SKU list to download print-ready SVG or HD PNG barcode labels in one click.
+            Paste or drop a .TXT/.CSV SKU list, inspect every live scannable preview, and export SVG or HD PNG labels in one click.
           </p>
         </div>
         <div class="studio-card rounded-2xl p-5">
@@ -123,12 +123,13 @@ const faqSchema = {
       </section>
 
       <nav aria-label="More Graphics Tools" class="pt-4">
-        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools</h2>
+        <h2 class="text-sm font-bold text-zinc-900 mb-3">Related tools &amp; guides</h2>
         <div class="flex flex-wrap gap-2">
           <a href="/qr-code-generator" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">QR Code Generator</a>
+          <a href="/svg-to-png" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">SVG to PNG</a>
           <a href="/image-to-pdf" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Image to PDF</a>
-          <a href="/watermark-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Batch Watermark</a>
-          <a href="/crop-image" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Crop &amp; Rotate</a>
+          <a href="/text-compare" class="px-3.5 py-2 rounded-xl bg-white border border-zinc-200/90 text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition">Text Compare</a>
+          <a href="/guides/ean-13-vs-upc-a-vs-code-128-barcode-guide" class="px-3.5 py-2 rounded-xl bg-blue-500/8 border border-blue-500/20 text-xs font-semibold text-blue-700 dark:text-blue-400 transition">EAN-13 vs UPC-A vs Code 128 Guide →</a>
         </div>
       </nav>
     </div>
