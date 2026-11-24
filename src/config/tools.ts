@@ -34,6 +34,7 @@ export const TOOL_STATUS: Record<string, ToolStatus> = {
 
   // Graphics & Generators
   '/qr-code-generator': 'live',
+  '/qr-code-reader': 'live',
   '/color-picker': 'live',
   '/barcode-generator': 'live',
   '/svg-to-png': 'live',
@@ -43,9 +44,9 @@ export const TOOL_STATUS: Record<string, ToolStatus> = {
 /** Optional slim site-wide announcement banner (set enabled: true to display) */
 export const SITE_BANNER = {
   enabled: false,
-  text: 'New: Merge Images (NID A4), Passport Print Sheet & PDF Page Numbers are now live.',
-  href: '/merge-images',
-  ctaLabel: 'Try Merge Images',
+  text: 'New: QR Code Reader & Verified Static QR Generator are now live.',
+  href: '/qr-code-reader',
+  ctaLabel: 'Try QR Reader',
 };
 
 export function getToolStatus(href: string): ToolStatus {
