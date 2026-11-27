@@ -46,8 +46,6 @@ interface ExifFileItem {
   error?: string;
 }
 
-const MAX_FILES = 20;
-
 const PRIORITY_KEYS = [
   'Make',
   'Model',
@@ -221,19 +219,9 @@ export default function ExifRemoverTool() {
       return;
     }
 
-    const remaining = MAX_FILES - items.length;
-    if (remaining <= 0) {
-      setErrorMsg(`Maximum ${MAX_FILES} images per batch.`);
-      return;
-    }
-
-    const accepted = valid.slice(0, remaining);
-    if (valid.length > remaining) {
-      errors.push(`Limit is ${MAX_FILES} images. Extra files were skipped.`);
-    }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
-    const newEntries: ExifFileItem[] = accepted.map((file) => ({
+    const newEntries: ExifFileItem[] = valid.map((file) => ({
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       file,
       previewUrl: trackUrl(URL.createObjectURL(file)),
@@ -445,11 +433,11 @@ export default function ExifRemoverTool() {
               </div>
 
               <span className="btn-studio-accent inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-[15px]">
-                Inspect & Clean Photos
+                Inspect &amp; Clean Photos
               </span>
 
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop up to {MAX_FILES} photos anywhere or press{' '}
+                Drop unlimited photos anywhere or press{' '}
                 <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
                   Ctrl+V
                 </kbd>
@@ -553,12 +541,11 @@ export default function ExifRemoverTool() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={items.length >= MAX_FILES}
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs font-semibold text-zinc-700 cursor-pointer tabular-nums"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs font-semibold text-zinc-700 cursor-pointer tabular-nums"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add ({items.length}/{MAX_FILES})</span>
+                    <span>Add ({items.length})</span>
                   </button>
                   <button
                     type="button"
@@ -584,12 +571,12 @@ export default function ExifRemoverTool() {
                   ) : items.length > 1 ? (
                     <>
                       <Archive className="w-4 h-4" />
-                      <span>Clean All & ZIP ({items.length})</span>
+                      <span>Clean All &amp; ZIP ({items.length})</span>
                     </>
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      <span>Strip Metadata & Save</span>
+                      <span>Strip Metadata &amp; Save</span>
                     </>
                   )}
                 </button>
@@ -660,7 +647,7 @@ export default function ExifRemoverTool() {
                     {selectedItem.scanning ? (
                       <div className="p-8 text-center text-xs text-zinc-500 flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        Reading embedded EXIF, GPS, IPTC & XMP headers...
+                        Reading embedded EXIF, GPS, IPTC &amp; XMP headers...
                       </div>
                     ) : selectedItem.cleanResult ? (
                       <div className="p-8 text-center space-y-2">
