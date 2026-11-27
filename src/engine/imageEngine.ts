@@ -58,11 +58,8 @@ export interface ProcessedImageResult {
   warning?: string;
 }
 
-const MAX_FILE_SIZE_MB = 25;
-// Safe under iOS Safari's ~16.7M pixel canvas cap
+// Safe under iOS Safari's ~16.7M pixel hardware canvas cap (auto-scales smoothly without rejecting files)
 export const MAX_SAFE_CANVAS_PIXELS = 16_000_000;
-// Blocks malicious decompression bombs (e.g. 30,000x30,000 PNG) while allowing 48-64MP phones
-const MAX_DECODE_PIXELS = 100_000_000;
 const IMAGE_EXT_REGEX = /\.(jpe?g|png|webp|avif|gif|bmp|heic|heif)$/i;
 
 // ================= LAZY WEB WORKER BRIDGE =================
@@ -187,13 +184,10 @@ export function validateImageFile(file: File): string | null {
   if (file.size === 0) {
     return `"${file.name}" is empty.`;
   }
-  if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    return `"${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB limit.`;
-  }
   return null;
 }
 
-/** Verifies actual magic-byte file headers and guards against PNG pixel-flood bombs */
+/** Verifies actual magic-byte file headers */
 export async function validateMagicBytes(file: File): Promise<string | null> {
   try {
     const headerBuf = await file.slice(0, 24).arrayBuffer();
@@ -241,13 +235,12 @@ export async function validateMagicBytes(file: File): Promise<string | null> {
       return `"${file.name}" does not match a valid image signature (renamed or unsupported file).`;
     }
 
-    // Pre-decode PNG IHDR dimension check (prevents decompression bombs)
     if (isPng && b.length >= 24) {
       const view = new DataView(headerBuf);
       const pngW = view.getUint32(16, false);
       const pngH = view.getUint32(20, false);
-      if (pngW === 0 || pngH === 0 || pngW * pngH > MAX_DECODE_PIXELS) {
-        return `"${file.name}" dimensions (${pngW}×${pngH}) exceed the safe browser decode limit.`;
+      if (pngW === 0 || pngH === 0) {
+        return `"${file.name}" has corrupted image dimensions.`;
       }
     }
 
@@ -291,14 +284,6 @@ function loadImage(blob: Blob, fileName = 'image'): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      if (img.naturalWidth * img.naturalHeight > MAX_DECODE_PIXELS) {
-        reject(
-          new Error(
-            `"${fileName}" (${img.naturalWidth}×${img.naturalHeight}) exceeds safe browser memory limits.`
-          )
-        );
-        return;
-      }
       resolve(img);
     };
     img.onerror = () => {
@@ -601,7 +586,7 @@ export async function processImage(
     targetW = Math.round((targetH * origW) / origH);
   }
 
-  // Optional longest-side cap (used by Image to PDF to prevent 12MP mobile OOM)
+  // Optional longest-side cap (used by Image to PDF to prevent mobile OOM)
   if (!lockDimensions && options.maxSide && options.maxSide > 0) {
     const longest = Math.max(targetW, targetH);
     if (longest > options.maxSide) {
