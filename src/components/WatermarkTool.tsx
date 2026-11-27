@@ -32,8 +32,6 @@ type WatermarkKind = 'text' | 'logo';
 type LayoutPattern = 'single' | 'tile';
 type GridPosition = 'tl' | 'tc' | 'tr' | 'ml' | 'mc' | 'mr' | 'bl' | 'bc' | 'br';
 
-const MAX_BATCH = 20;
-
 const POSITIONS: { id: GridPosition; label: string }[] = [
   { id: 'tl', label: '↖' },
   { id: 'tc', label: '↑' },
@@ -97,7 +95,7 @@ function drawWatermarkOnCanvas(
     ctx.rotate((opts.rotation * Math.PI) / 180);
 
     if (opts.kind === 'text') {
-      const text = opts.text.trim() || 'ImageLab';
+      const text = opts.text.trim() || 'ImageLabKit';
       const fontSize = Math.max(12, Math.round((baseDim * opts.sizePct) / 100));
       ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
@@ -130,7 +128,7 @@ function drawWatermarkOnCanvas(
     if (opts.kind === 'text') {
       const fontSize = Math.max(12, Math.round((baseDim * opts.sizePct) / 100));
       ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`;
-      halfW = ctx.measureText(opts.text.trim() || 'ImageLab').width / 2;
+      halfW = ctx.measureText(opts.text.trim() || 'ImageLabKit').width / 2;
       halfH = fontSize / 2;
     } else if (opts.logoImg) {
       const targetW = Math.max(24, (w * opts.sizePct) / 100);
@@ -275,7 +273,7 @@ export default function WatermarkTool() {
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (valid.length === 0) return;
 
-    setFiles((prev) => [...prev, ...valid].slice(0, MAX_BATCH));
+    setFiles((prev) => [...prev, ...valid]);
   };
 
   addFilesRef.current = handleAddFiles;
@@ -439,7 +437,7 @@ export default function WatermarkTool() {
           zip.file(`${idx + 1}_${item.fileName}`, item.blob);
         });
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        triggerBlobDownload(zipBlob, 'imagelab-watermarked.zip');
+        triggerBlobDownload(zipBlob, 'imagelabkit-watermarked.zip');
         setDoneMsg(`Downloaded ${outputs.length} watermarked images as ZIP`);
       }
     } catch (err) {
@@ -504,7 +502,7 @@ export default function WatermarkTool() {
                 Select Photos to Watermark
               </span>
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop up to {MAX_BATCH} photos anywhere or press{' '}
+                Drop unlimited photos anywhere or press{' '}
                 <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
                   Ctrl+V
                 </kbd>
@@ -522,7 +520,6 @@ export default function WatermarkTool() {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    disabled={files.length >= MAX_BATCH}
                     onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold cursor-pointer"
                   >
