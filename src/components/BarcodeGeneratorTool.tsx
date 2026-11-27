@@ -61,8 +61,6 @@ const BARCODE_FORMATS: FormatMeta[] = [
   },
 ];
 
-const MAX_BULK_CODES = 100;
-
 function triggerDownload(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -137,7 +135,7 @@ export default function BarcodeGeneratorTool() {
   const activeMeta = BARCODE_FORMATS.find((f) => f.id === format) ?? BARCODE_FORMATS[0];
 
   const bulkLines = useMemo(
-    () => bulkInput.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, MAX_BULK_CODES),
+    () => bulkInput.split(/\r?\n/).map((l) => l.trim()).filter(Boolean),
     [bulkInput]
   );
 
@@ -149,17 +147,12 @@ export default function BarcodeGeneratorTool() {
   const handleBulkFileLoad = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const f = files[0];
-    if (f.size > 2 * 1024 * 1024) {
-      setErrorMsg('File is too large. Please upload a .txt or .csv file under 2MB.');
-      return;
-    }
     try {
       const raw = await f.text();
       const parsed = raw
         .split(/\r?\n/)
         .map((line) => line.split(',')[0].replace(/^["']|["']$/g, '').trim())
         .filter(Boolean)
-        .slice(0, MAX_BULK_CODES)
         .join('\n');
       setBulkInput(parsed);
       setErrorMsg(null);
@@ -287,6 +280,7 @@ export default function BarcodeGeneratorTool() {
       const zip = new JSZip();
       let successCount = 0;
       let skippedCount = 0;
+      const padLen = Math.max(2, String(bulkLines.length).length);
 
       for (let i = 0; i < bulkLines.length; i++) {
         const code = bulkLines[i];
@@ -301,7 +295,7 @@ export default function BarcodeGeneratorTool() {
           });
         } catch { ok = false; }
         if (!ok) { skippedCount++; continue; }
-        const safeName = `${String(i + 1).padStart(2, '0')}_${sanitizeFileName(code)}`;
+        const safeName = `${String(i + 1).padStart(padLen, '0')}_${sanitizeFileName(code)}`;
         if (bulkFormat === 'svg') {
           zip.file(`${safeName}.svg`, new XMLSerializer().serializeToString(tempSvg));
         } else {
@@ -424,10 +418,10 @@ export default function BarcodeGeneratorTool() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label htmlFor="bc-bulk" className="text-xs font-semibold text-zinc-700">
-                    Enter One Code Per Line (up to {MAX_BULK_CODES})
+                    Enter One Code Per Line (Unlimited)
                   </label>
                   <div className="flex items-center gap-2.5">
-                    <span className="text-[11px] font-semibold text-zinc-500 tabular-nums">{bulkLines.length}/{MAX_BULK_CODES}</span>
+                    <span className="text-[11px] font-semibold text-zinc-500 tabular-nums">{bulkLines.length} {bulkLines.length === 1 ? 'code' : 'codes'}</span>
                     <button type="button" onClick={() => bulkFileInputRef.current?.click()} className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-600 hover:text-blue-600 cursor-pointer">
                       <Upload className="w-3 h-3" aria-hidden="true" /> Import .TXT/.CSV
                     </button>
