@@ -84,8 +84,6 @@ interface WorkspaceItem {
   error?: string;
 }
 
-const MAX_BATCH_FILES = 50;
-
 const MODE_TABS: { id: ToolMode; label: string; icon: React.ReactNode }[] = [
   { id: 'converter', label: 'Convert', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
   { id: 'compressor', label: 'Compress', icon: <Minimize2 className="w-3.5 h-3.5" aria-hidden="true" /> },
@@ -163,7 +161,6 @@ export default function ToolWorkspace({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
-  const warningBannerRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
 
   const itemsRef = useRef<WorkspaceItem[]>([]);
@@ -337,22 +334,6 @@ export default function ToolWorkspace({
       return;
     }
 
-    const remainingSlots = MAX_BATCH_FILES - itemsRef.current.length;
-    if (remainingSlots <= 0) {
-      setErrorMsg(
-        `Batch limit reached (${MAX_BATCH_FILES}/${MAX_BATCH_FILES} images). Delete a few images or click Clear All before uploading new ones.`
-      );
-      warningBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      return;
-    }
-
-    const accepted = validFiles.slice(0, remainingSlots);
-    const skippedCount = validFiles.length - accepted.length;
-    if (skippedCount > 0) {
-      errors.push(
-        `Added ${accepted.length} image${accepted.length === 1 ? '' : 's'} — ${skippedCount} extra file${skippedCount === 1 ? '' : 's'} skipped because the batch limit is ${MAX_BATCH_FILES}. Delete older images or click Clear All to upload the rest.`
-      );
-    }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
     if (activeRunnerRef.current === null) {
@@ -360,7 +341,7 @@ export default function ToolWorkspace({
       setSettingsDirty(false);
     }
 
-    const newEntries: WorkspaceItem[] = accepted.map((file) => ({
+    const newEntries: WorkspaceItem[] = validFiles.map((file) => ({
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       file,
       previewUrl: trackUrl(URL.createObjectURL(file)),
@@ -477,9 +458,6 @@ export default function ToolWorkspace({
     const next = itemsRef.current.filter((i) => i.id !== id);
     itemsRef.current = next;
     setItems(next);
-    if (next.length < MAX_BATCH_FILES && errorMsg?.toLowerCase().includes('batch limit')) {
-      setErrorMsg(null);
-    }
   };
 
   const clearAll = () => {
@@ -508,7 +486,6 @@ export default function ToolWorkspace({
     .map((it) => it.result);
 
   const isAnyProcessing = items.some((it) => it.status === 'processing' || it.status === 'queued');
-  const isBatchFull = items.length >= MAX_BATCH_FILES;
 
   const handleDownloadZip = async () => {
     if (completedResults.length === 0) return;
@@ -522,17 +499,6 @@ export default function ToolWorkspace({
     } finally {
       setIsZipping(false);
     }
-  };
-
-  const handleAddButtonClick = () => {
-    if (isBatchFull) {
-      setErrorMsg(
-        `Batch limit reached (${MAX_BATCH_FILES}/${MAX_BATCH_FILES} images). Delete a few images or click Clear All to upload more.`
-      );
-      warningBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      return;
-    }
-    fileInputRef.current?.click();
   };
 
   const formatLabel = format === 'image/jpeg' ? 'JPG' : format === 'image/webp' ? 'WEBP' : 'PNG';
@@ -552,33 +518,15 @@ export default function ToolWorkspace({
 
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-zinc-950/65 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none animate-scale-in">
-          <div
-            className={`max-w-md w-full rounded-3xl border bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl ${
-              isBatchFull ? 'border-amber-400/70' : 'border-blue-400/50'
-            }`}
-          >
-            <div
-              className={`w-16 h-16 rounded-2xl text-white flex items-center justify-center mx-auto mb-5 shadow-lg ${
-                isBatchFull
-                  ? 'bg-amber-500 shadow-amber-500/30'
-                  : 'bg-blue-600 shadow-blue-600/30'
-              }`}
-            >
-              {isBatchFull ? (
-                <AlertTriangle className="w-7 h-7" aria-hidden="true" />
-              ) : (
-                <Upload className="w-7 h-7" aria-hidden="true" />
-              )}
+          <div className="max-w-md w-full rounded-3xl border border-blue-400/50 bg-white/95 dark:bg-zinc-900/95 p-10 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-600/30">
+              <Upload className="w-7 h-7" aria-hidden="true" />
             </div>
             <p className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
-              {isBatchFull
-                ? `Batch limit full (${MAX_BATCH_FILES}/${MAX_BATCH_FILES})`
-                : 'Release to upload'}
+              Release to upload
             </p>
             <p className="text-sm text-zinc-500 mt-1.5">
-              {isBatchFull
-                ? 'Delete some images or click Clear All first to add new files'
-                : 'New images appear at the top and process automatically'}
+              New images appear at the top and process automatically
             </p>
           </div>
         </div>
@@ -665,18 +613,8 @@ export default function ToolWorkspace({
 
           <div className="flex items-center gap-2">
             {items.length > 0 && (
-              <span
-                className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold tabular-nums ${
-                  isBatchFull
-                    ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
-                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                }`}
-              >
-                {isBatchFull ? (
-                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-                ) : (
-                  <Check className="w-3.5 h-3.5" aria-hidden="true" />
-                )}
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold tabular-nums">
+                <Check className="w-3.5 h-3.5" aria-hidden="true" />
                 {completedResults.length}/{items.length}
               </span>
             )}
@@ -987,50 +925,25 @@ export default function ToolWorkspace({
           </div>
         )}
 
-        {/* Prominent Top Warning Banners (impossible to miss when full or files skipped) */}
-        <div ref={warningBannerRef}>
-          {isBatchFull && (
-            <div
-              role="status"
-              className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3 bg-amber-500/12 border-b border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden="true" />
-                <span className="font-semibold">
-                  Batch limit reached ({MAX_BATCH_FILES}/{MAX_BATCH_FILES} images). Remove some files or clear the batch to upload new ones.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={clearAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shrink-0 transition cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Clear All</span>
-              </button>
+        {errorMsg && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3 bg-red-500/10 border-b border-red-500/20 text-red-700 dark:text-red-300 text-xs font-medium"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>{errorMsg}</span>
             </div>
-          )}
-
-          {errorMsg && (
-            <div
-              role="alert"
-              className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3 bg-red-500/10 border-b border-red-500/20 text-red-700 dark:text-red-300 text-xs font-medium"
+            <button
+              type="button"
+              aria-label="Dismiss warning"
+              onClick={() => setErrorMsg(null)}
+              className="p-1 rounded-lg hover:bg-red-500/15 transition shrink-0 cursor-pointer"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>{errorMsg}</span>
-              </div>
-              <button
-                type="button"
-                aria-label="Dismiss warning"
-                onClick={() => setErrorMsg(null)}
-                className="p-1 rounded-lg hover:bg-red-500/15 transition shrink-0 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          )}
-        </div>
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="p-6 sm:p-10">
@@ -1063,7 +976,7 @@ export default function ToolWorkspace({
               </p>
 
               <p className="text-[11px] font-medium text-zinc-400 mt-3 tracking-wide uppercase">
-                JPG · PNG · WEBP · AVIF · HEIC · Up to {MAX_BATCH_FILES} files per batch
+                JPG · PNG · WEBP · AVIF · HEIC · Unlimited batch files
               </p>
             </div>
           </div>
@@ -1222,23 +1135,11 @@ export default function ToolWorkspace({
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
-                onClick={handleAddButtonClick}
-                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs sm:text-[13px] font-semibold transition active:scale-[0.98] cursor-pointer tabular-nums ${
-                  isBatchFull
-                    ? 'border-amber-400/70 bg-amber-500/12 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20'
-                    : 'border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700'
-                }`}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-[13px] font-semibold text-zinc-700 transition active:scale-[0.98] cursor-pointer tabular-nums"
               >
-                {isBatchFull ? (
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-                ) : (
-                  <Plus className="w-4 h-4" aria-hidden="true" />
-                )}
-                <span>
-                  {isBatchFull
-                    ? `Limit Full (${items.length}/${MAX_BATCH_FILES})`
-                    : `Add Files (${items.length}/${MAX_BATCH_FILES})`}
-                </span>
+                <Plus className="w-4 h-4" aria-hidden="true" />
+                <span>Add Files ({items.length})</span>
               </button>
 
               <div className="flex items-center gap-2">
