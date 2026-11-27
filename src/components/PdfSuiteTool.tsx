@@ -50,9 +50,6 @@ interface PdfQueueEntry {
   compressResult?: PdfCompressResult;
 }
 
-const MAX_MERGE_FILES = 25;
-const MAX_COMPRESS_FILES = 10;
-
 const PDF_IMG_FORMATS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
   { id: 'image/jpeg', label: 'JPG', icon: <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" /> },
   { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
@@ -102,7 +99,6 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
   const addFilesRef = useRef<(files: FileList | null) => void>(() => {});
 
   const isMultiFile = mode === 'merge' || mode === 'compress';
-  const maxFiles = mode === 'merge' ? MAX_MERGE_FILES : mode === 'compress' ? MAX_COMPRESS_FILES : 1;
 
   const releaseRenderedPages = (pages: PdfRenderedPage[]) => {
     pages.forEach((p) => {
@@ -146,15 +142,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
       setSplitRange('');
       setImgRange('');
     } else {
-      const remaining = maxFiles - entries.length;
-      if (remaining <= 0) {
-        setErrorMsg(`Maximum ${maxFiles} PDF files allowed per batch.`);
-        return;
-      }
-      accepted = valid.slice(0, remaining);
-      if (valid.length > remaining) {
-        errs.push(`Limit is ${maxFiles} PDFs per batch. Extra files were skipped.`);
-      }
+      accepted = valid;
     }
 
     if (errs.length > 0) setErrorMsg(errs[0]);
@@ -444,7 +432,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
     merge: {
       icon: <Layers className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDF Files to Merge',
-      hint: `Drop up to ${MAX_MERGE_FILES} PDFs anywhere · Reorder & merge cleanly`,
+      hint: 'Drop unlimited PDFs anywhere · Reorder & merge cleanly',
     },
     split: {
       icon: <Scissors className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
@@ -454,7 +442,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
     compress: {
       icon: <Minimize2 className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
       cta: 'Select PDFs to Compress',
-      hint: `Drop up to ${MAX_COMPRESS_FILES} PDFs anywhere · Shrink heavy files privately`,
+      hint: 'Drop unlimited PDFs anywhere · Shrink heavy files privately',
     },
     'pdf-to-jpg': {
       icon: <ImageIcon className="w-7 h-7 text-zinc-900 dark:text-white group-hover:text-blue-600 transition-colors" aria-hidden="true" />,
@@ -511,7 +499,7 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
               </span>
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">{emptyConfig.hint}</p>
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Max 50MB per PDF · Private Local Processing · Zero Uploads
+                Unlimited File Size · Private Local Processing · Zero Uploads
               </p>
             </div>
           </div>
@@ -966,14 +954,14 @@ export default function PdfSuiteTool({ mode }: PdfSuiteToolProps) {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={isBusy || (isMultiFile && entries.length >= maxFiles)}
+                    disabled={isBusy}
                     onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
                   >
                     <Plus className="w-4 h-4" aria-hidden="true" />
                     <span>
                       {isMultiFile
-                        ? `Add PDFs (${entries.length}/${maxFiles})`
+                        ? `Add PDFs (${entries.length})`
                         : 'Change PDF'}
                     </span>
                   </button>
