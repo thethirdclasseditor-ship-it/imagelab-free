@@ -313,10 +313,6 @@ export default function TextCompareTool() {
 
   const handleFileUpload = (file: File, side: 'left' | 'right') => {
     setFileError('');
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError('File exceeds 5MB limit. Please upload a smaller text or code file.');
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => {
       const content = typeof reader.result === 'string' ? reader.result : '';
