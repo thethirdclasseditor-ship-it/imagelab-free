@@ -13,7 +13,6 @@ interface ImageItem {
   rotation: 0 | 90 | 180 | 270;
 }
 
-const MAX_IMAGES = 10;
 const MAX_CANVAS_EDGE = 4096;
 
 function formatBytes(bytes: number): string {
@@ -132,16 +131,9 @@ export default function MergeImagesTool() {
       return;
     }
 
-    const remainingSlots = MAX_IMAGES - itemsRef.current.length;
-    if (remainingSlots <= 0) {
-      setError(`Maximum ${MAX_IMAGES} images allowed at once.`);
-      return;
-    }
-
-    const slice = incoming.slice(0, remainingSlots);
     const loaded: ImageItem[] = [];
 
-    for (const file of slice) {
+    for (const file of incoming) {
       try {
         const url = URL.createObjectURL(file);
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -597,10 +589,10 @@ export default function MergeImagesTool() {
               ? mode === 'nid-a4'
                 ? 'Upload NID / ID Front & Back Photos'
                 : 'Drop 2 or more images here (or click / Ctrl+V)'
-              : `Add more images (${items.length}/${MAX_IMAGES})`}
+              : `Add more images (${items.length} added)`}
           </p>
           <p className="text-xs text-zinc-500">
-            JPG, PNG, WEBP, AVIF · 100% private in your browser
+            Unlimited images · JPG, PNG, WEBP, AVIF · 100% private in your browser
           </p>
         </div>
       </div>
