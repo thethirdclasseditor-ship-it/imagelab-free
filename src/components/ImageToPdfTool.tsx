@@ -37,7 +37,6 @@ type PageSizeOption = 'a4' | 'letter' | 'fit';
 type OrientationOption = 'auto' | 'portrait' | 'landscape';
 type MarginOption = 'none' | 'small' | 'normal';
 
-const MAX_PAGES = 30;
 const PDF_MAX_IMAGE_SIDE = 2000;
 const FIT_MODE_MAX_MM = 297;
 
@@ -105,20 +104,10 @@ export default function ImageToPdfTool() {
       return;
     }
 
-    const remaining = MAX_PAGES - items.length;
-    if (remaining <= 0) {
-      setErrorMsg(`Maximum ${MAX_PAGES} images allowed in one PDF.`);
-      return;
-    }
-
-    const accepted = valid.slice(0, remaining);
-    if (valid.length > remaining) {
-      errors.push(`Limit is ${MAX_PAGES} images per PDF. Extra files were skipped.`);
-    }
     if (errors.length > 0) setErrorMsg(errors[0]);
 
     const nextItems: PdfImageItem[] = await Promise.all(
-      accepted.map(async (file) => {
+      valid.map(async (file) => {
         let previewBlob: Blob = file;
         try {
           if (/\.(heic|heif)$/i.test(file.name) || file.type.includes('heic')) {
@@ -499,7 +488,7 @@ export default function ImageToPdfTool() {
                 Select Images for PDF
               </span>
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop up to {MAX_PAGES} photos anywhere or press{' '}
+                Drop unlimited photos anywhere or press{' '}
                 <kbd className="px-1.5 py-0.5 text-[11px] font-semibold bg-white border border-zinc-200 rounded-md text-zinc-700">
                   Ctrl+V
                 </kbd>
@@ -589,12 +578,11 @@ export default function ImageToPdfTool() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={items.length >= MAX_PAGES}
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
                   >
                     <Plus className="w-4 h-4" aria-hidden="true" />
-                    <span>Add Pages ({items.length}/{MAX_PAGES})</span>
+                    <span>Add Pages ({items.length})</span>
                   </button>
                   <button
                     type="button"
