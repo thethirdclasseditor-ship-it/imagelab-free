@@ -173,10 +173,6 @@ export default function WordCounterTool() {
     setDropError('');
     const f = files[0];
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (f.size > 5 * 1024 * 1024) {
-      setDropError('File exceeds 5MB limit. Please upload a smaller text file.');
-      return;
-    }
     try {
       const content = await f.text();
       if (text) setHistory((prev) => [...prev.slice(-14), text]);
