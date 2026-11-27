@@ -5,8 +5,6 @@ import {
   type SupportedFormat,
 } from './imageEngine';
 
-const MAX_PDF_SIZE_MB = 50;
-
 export type PdfCompressLevel = 'balanced' | 'strong' | 'lossless';
 
 export interface PdfRenderedPage {
@@ -67,9 +65,6 @@ export function validatePdfFileSync(file: File): string | null {
   }
   if (file.size === 0) {
     return `"${file.name}" is empty.`;
-  }
-  if (file.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
-    return `"${file.name}" exceeds the ${MAX_PDF_SIZE_MB}MB limit.`;
   }
   return null;
 }
