@@ -46,8 +46,6 @@ interface SvgQueueItem {
   error?: string;
 }
 
-const MAX_FILES = 20;
-
 const FORMAT_OPTIONS: { id: SupportedFormat; label: string; icon: React.ReactNode }[] = [
   { id: 'image/png', label: 'PNG', icon: <Layers className="w-3.5 h-3.5" aria-hidden="true" /> },
   { id: 'image/webp', label: 'WEBP', icon: <Zap className="w-3.5 h-3.5" aria-hidden="true" /> },
@@ -339,8 +337,6 @@ export default function SvgToPngTool() {
         errs.push(`"${f.name}" is not an SVG file. Please upload .svg vectors.`);
       } else if (f.size === 0) {
         errs.push(`"${f.name}" is empty.`);
-      } else if (f.size > 10 * 1024 * 1024) {
-        errs.push(`"${f.name}" exceeds the 10MB SVG limit.`);
       } else {
         valid.push(f);
       }
@@ -352,19 +348,9 @@ export default function SvgToPngTool() {
       return;
     }
 
-    const remaining = MAX_FILES - itemsRef.current.length;
-    if (remaining <= 0) {
-      setErrorMsg(`Maximum ${MAX_FILES} SVG files allowed per batch.`);
-      return;
-    }
-
-    const accepted = valid.slice(0, remaining);
-    if (valid.length > remaining) {
-      errs.push(`Limit is ${MAX_FILES} SVGs per batch. Extra files were skipped.`);
-    }
     if (errs.length > 0) setErrorMsg(errs[0]);
 
-    const newEntries: SvgQueueItem[] = accepted.map((file) => ({
+    const newEntries: SvgQueueItem[] = valid.map((file) => ({
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       file,
       previewUrl: trackUrl(URL.createObjectURL(file)),
@@ -461,7 +447,7 @@ export default function SvgToPngTool() {
         zip.file(`${idx + 1}_${it.result.fileName}`, it.result.blob);
       });
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      triggerDownload(zipBlob, 'imagelab-svg-converted.zip');
+      triggerDownload(zipBlob, 'imagelabkit-svg-converted.zip');
     } finally {
       setIsZipping(false);
     }
@@ -670,10 +656,10 @@ export default function SvgToPngTool() {
                 Select SVG Files
               </span>
               <p className="text-xs sm:text-sm text-zinc-500 mt-4">
-                Drop up to {MAX_FILES} vector .svg icons or logos anywhere on screen
+                Drop unlimited vector .svg icons or logos anywhere on screen
               </p>
               <p className="text-[11px] font-medium text-zinc-400 mt-3 uppercase tracking-wide">
-                Crisp HD PNG · WEBP · JPG · Transparent Background · Batch ZIP
+                Crisp HD PNG · WEBP · JPG · Transparent Background · Unlimited Batch ZIP
               </p>
             </div>
           </div>
@@ -788,12 +774,11 @@ export default function SvgToPngTool() {
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-4 border-t border-zinc-200/80 bg-zinc-50/80">
               <button
                 type="button"
-                disabled={items.length >= MAX_FILES}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 text-xs sm:text-[13px] font-semibold text-zinc-700 cursor-pointer tabular-nums"
               >
                 <Plus className="w-4 h-4" aria-hidden="true" />
-                <span>Add SVGs ({items.length}/{MAX_FILES})</span>
+                <span>Add SVGs ({items.length})</span>
               </button>
 
               <div className="flex items-center gap-2">
